@@ -1,6 +1,7 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** 2026-10-11, backend (`work/backend-l1-1`).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-12, backend (`work/backend-l1-1`).
+> **10.12-нд хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** нэгдсэн алдааны гэрээ (§0.1), signup/login (§1.1), `GET /api/catalog/services` (§2).
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
 > Mobile тал эдгээрийг mock-оор хөгжүүлж болно. Бодит сервертэй холбохоос өмнө энэ гэрээг хоёр тал батлах ёстой.
 > Бүх жишээ өгөгдөл **зохиомол** (бодит хүн, өвчтөн, гүйлгээ биш).
@@ -55,7 +56,33 @@
 | 429 | Хэт олон хүсэлт | `RATE_LIMITED` |
 | 502 | QPay алдаа | `PAYMENT_PROVIDER_ERROR` |
 
-> ⚠️ **Одоогийн кодын зөрүү:** Одоо байгаа олон endpoint алдааг **HTTP 200**-аар буцаадаг. Жишээ нь [authController.ts:120-134](../server/src/controllers/authController.ts#L120-L134) болон [visitController.ts:56-61](../server/src/controllers/visitController.ts#L56-L61). Шинэ endpoint-ууд дээрх хүснэгтийн зөв status code-ыг ашиглана. Хуучныг өөрчлөх эсэх нь шийдвэр шаардана (§9).
+> ✅ **10.12: ХЭРЭГЖСЭН.** Бүх одоо байгаа endpoint (auth, parents, visits, review, users, analytics, catalog, auth/RBAC middleware) энэ хэлбэрт шилжсэн. Алдааг HTTP 200-аар буцаахаа больсон. Код: [server/src/utils/http.ts](../server/src/utils/http.ts), [server/src/middlwares/error.ts](../server/src/middlwares/error.ts).
+> 500 алдаанд дотоод мессеж (`error.message`) буцаахгүй, зөвхөн ерөнхий мессеж ба `INTERNAL_ERROR` буцна.
+
+**Одоо хэрэгжсэн `error.code` утгууд:** `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `ROLE_NOT_ALLOWED`, `NOT_FOUND`, `PARENT_NOT_FOUND`, `VISIT_NOT_FOUND`, `NURSE_NOT_FOUND`, `USER_NOT_FOUND`, `EMAIL_TAKEN`, `INVALID_STATUS`, `CONFLICT`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`.
+Хүснэгтийн бусад code (`ORDER_NOT_EDITABLE`, `QUOTE_EXPIRED` гэх мэт) нь шинэ endpoint-уудтай хамт нэмэгдэнэ.
+
+`VALIDATION_ERROR`-ийн `error.fields` нь `{ "талбарын.зам": "Монгол мессеж" }` хэлбэртэй, талбар бүрд эхний алдааг харуулна.
+
+#### 0.1.1 Одоогийн endpoint-уудын status code өөрчлөлт (10.12)
+
+| Endpoint | Өмнө | Одоо |
+|---|---|---|
+| `POST /api/auth/login` буруу нууц үг / имэйл | 200 `{message:"Нууц үг буруу"}` / `{message:"Хэрэглэгч олдсонгүй"}` | **401** `INVALID_CREDENTIALS`, хоёулаа ижил мессеж |
+| `POST /api/auth/login\|signup` буруу body | 200 | **400** `VALIDATION_ERROR` |
+| `POST /api/auth/signup` бүртгэлтэй имэйл | 200 | **409** `EMAIL_TAKEN` |
+| `POST /api/auth/signup` `role` ≠ CHILD | 201 (ADMIN үүсдэг байсан!) | **403** `ROLE_NOT_ALLOWED` |
+| Token байхгүй | 401 `{error:"…"}` | 401 `UNAUTHENTICATED` |
+| Token хүчингүй/хугацаа дууссан | **403** | **401** `UNAUTHENTICATED` |
+| `POST /api/visits` буруу body | 200 | **400** `VALIDATION_ERROR` (+ өнгөрсөн огноо одоо татгалзана) |
+| `POST /api/visits` өөрийн бус/байхгүй parent | 200 | **404** `PARENT_NOT_FOUND` |
+| `POST /api/visits/:id/assign\|start\|complete` олдохгүй | 200 | **404** `VISIT_NOT_FOUND` / `NURSE_NOT_FOUND` |
+| start/vitals/complete буруу төлөв | 200 эсвэл 400 | **409** `INVALID_STATUS` |
+| review approve/reject буруу төлөв | 400 | **409** `INVALID_STATUS` |
+| `/api/parents/*` буруу body / олдохгүй | 200 | **400** / **404** `PARENT_NOT_FOUND` |
+| `DELETE /api/parents/:id` үзлэгтэй parent | 400 (Prisma мессеж) | **409** `CONFLICT` |
+| Malformed JSON | 400 HTML/текст | **400** `INVALID_JSON` |
+| Байхгүй `/api/*` зам | 404 HTML | **404** `NOT_FOUND` |
 
 ### 0.2 Захиалгын төлөв (Order status) — санал
 
@@ -90,8 +117,9 @@ Mobile-д `WAITING_APPROVAL` зэрэг дотоод эмнэлгийн төлв
 
 | Method | Path | Auth/role | Файл:мөр | Тэмдэглэл |
 |---|---|---|---|---|
-| POST | `/api/auth/signup` | Нээлттэй | [auth.routes.ts:27](../server/src/routes/auth.routes.ts#L27) | ⚠️ `role`-д `ADMIN` зөвшөөрнө ([authController.ts:25](../server/src/controllers/authController.ts#L25)). Token буцаадаггүй |
-| POST | `/api/auth/login` | Нээлттэй | [auth.routes.ts:48](../server/src/routes/auth.routes.ts#L48) | `data.token`, `data.user` (= мөн JWT string, [authController.ts:164](../server/src/controllers/authController.ts#L164)) |
+| POST | `/api/auth/signup` | Нээлттэй | [auth.routes.ts:27](../server/src/routes/auth.routes.ts#L27) | ✅ 10.12: зөвхөн CHILD үүсгэнэ, `data.token` + `data.user` (объект) буцаана. §1.1 |
+| POST | `/api/auth/login` | Нээлттэй | [auth.routes.ts:48](../server/src/routes/auth.routes.ts#L48) | ✅ 10.12: `data.user` нь **объект** болсон (өмнө JWT string байсан). §1.1 |
+| GET | `/api/catalog/services` | Нэвтэрсэн | [catalog.routes.ts](../server/src/routes/catalog.routes.ts) | ✅ 10.12: шинэ. §2 |
 | GET | `/api/users` | ADMIN | [users.ts:12](../server/src/routes/users.ts#L12) | |
 | GET | `/api/users/:id` | Өөрөө эсвэл ADMIN | [users.ts:30](../server/src/routes/users.ts#L30) | |
 | POST/GET | `/api/parents` | Нэвтэрсэн | [parents.routes.ts:33,47](../server/src/routes/parents.routes.ts#L33) | Role шалгахгүй |
@@ -108,56 +136,112 @@ Mobile-д `WAITING_APPROVAL` зэрэг дотоод эмнэлгийн төлв
 
 **Шинэ endpoint бүр нэмэлт (additive).** Дээрх route-ууд хэвээр ажиллана. Mobile шинэ урсгалд шилжих хүртэл `POST /api/visits` хэвээр байна.
 
+### 1.1 Auth — ✅ ХЭРЭГЖСЭН (10.12)
+
+Код: [authController.ts](../server/src/controllers/authController.ts). Тест: [tests/auth.test.ts](../server/tests/auth.test.ts).
+
+**`POST /api/auth/signup`**
+
+Request (`role` заавал биш; илгээвэл зөвхөн `"CHILD"` зөвшөөрнө):
+```json
+{ "name": "Туршилт Хэрэглэгч", "email": "test.user@example.invalid", "password": "Test-Only-123", "role": "CHILD" }
+```
+
+Response **201**:
+```json
+{
+  "success": true,
+  "message": "Хэрэглэгч амжилттай бүртгэгдлээ",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIs…(зохиомол)",
+    "user": { "id": "usr_demo_001", "name": "Туршилт Хэрэглэгч", "email": "test.user@example.invalid", "role": "CHILD", "createdAt": "2026-10-12T02:00:00.000Z" }
+  }
+}
+```
+
+| Тохиолдол | HTTP | `error.code` |
+|---|---|---|
+| `role` нь `ADMIN`, `NURSE`, `MEDICAL_ADMIN` болон бусад | 403 | `ROLE_NOT_ALLOWED` (`error.fields.role`) |
+| Имэйл бүртгэлтэй (том/жижиг үсэг ялгахгүй) | 409 | `EMAIL_TAKEN` |
+| `name` < 2, имэйл буруу, нууц үг < 6 эсвэл > 128 | 400 | `VALIDATION_ERROR` |
+
+**`POST /api/auth/login`** → **200**: signup-тай ижил `data` (`token` string, `user` объект).
+Буруу имэйл болон буруу нууц үг **ижил** хариу өгнө: **401** `INVALID_CREDENTIALS`, "Имэйл эсвэл нууц үг буруу байна". Хариуны хугацааг ойролцоо байлгах үүднээс хэрэглэгч олдоогүй үед ч bcrypt ажилладаг.
+
+- `data.user`-д нууц үг хэзээ ч ордоггүй.
+- JWT payload: `{ userId, email, role }`. Хугацааг `JWT_EXPIRES_IN` env-ээс авна (default `24h`). Өмнө нь `24h` код дотор шууд бичигдсэн байсан.
+- Имэйлийг том/жижиг үсэг ялгахгүй хайна. Шинэ бүртгэлийн имэйлийг жижиг үсгээр хадгална.
+
+#### 1.2 Одоогийн хэрэглэгчдэд нөлөөлөх өөрчлөлт
+
+| Өөрчлөлт | Хэнд нөлөөлөх | Шаардлагатай арга хэмжээ |
+|---|---|---|
+| Login-ийн `data.user` JWT string-ээс **объект** болсон | **wclient**: `AuthContext` нь `data.user`-ийг `user_token` cookie-д хадгалж, `useRoleProtection`/`dashboard/layout` түүнийг JWT гэж decode хийдэг. Одоо **decode амжилтгүй болж, вэб самбар нэвтрэлтийг "Invalid session" гэж үзнэ** | wclient нь role-ийг `data.token`-оос decode хийх эсвэл `data.user.role`-ийг унших хэрэгтэй (1-2 мөр). Өнөөдөр wclient-ийг өөрчлөхгүй. **Энэ branch-ийг wclient засвартай хамт нэгтгэх ёстой** (D15) |
+| Mobile login/register | Mobile `data.token`-ийг хадгалдаг тул ажилласаар байна. `data.user` одоо зөв объект | Арга хэмжээ шаардлагагүй. Бүртгэлийн дараа шилжилт одоо ажиллана (token ирдэг болсон) |
+| Нийтийн signup-аар NURSE/ADMIN/MEDICAL_ADMIN үүсгэх боломжгүй | wclient бүртгэлийн хуудас role сонгуулдаг | Ажилтны эрхийг seed эсвэл admin-ий хамгаалагдсан урсгалаар үүсгэнэ (хэрэгжээгүй) |
+| Хүчингүй token 403-аас **401** болсон | wclient interceptor 401 үед login руу шилжүүлдэг. Энэ нь хүсэлтэй үйлдэл | — |
+| Өмнө нээлттэй signup-аар үүссэн privileged хэрэглэгчид | Хэрэв байгаа бол хэвээр үлдэнэ | Production/staging DB-д ADMIN/NURSE/MEDICAL_ADMIN жагсаалтыг гараар шалгах |
+
 ---
 
-## 2. Каталог авах — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 2. Каталог авах — ✅ ХЭРЭГЖСЭН (10.12, зохиомол өгөгдөлтэй)
 
 ### `GET /api/catalog/services`
 
-- **Auth:** Нэвтэрсэн хэрэглэгч (CHILD). *Шийдвэр:* нэвтрээгүй хэрэглэгчид үнэтэй каталог харуулах эсэх.
-- **Query:** `?category=HOME_VISIT` (заавал биш)
-- **Үнэ:** `priceMnt` нь **зөвхөн харуулах зориулалттай**. Эцсийн үнийг §6 quote тогтооно.
+Код: [catalogController.ts](../server/src/controllers/catalogController.ts). Model: `ServiceCatalogItem` ([schema.prisma](../server/prisma/schema.prisma)). Тест: [tests/catalog.test.ts](../server/tests/catalog.test.ts).
 
+- **Auth:** Нэвтэрсэн ямар ч хэрэглэгч. *Шийдвэр (D8):* нэвтрээгүй хэрэглэгчид харуулах эсэх.
+- **Query:** `?category=HOME_VISIT` (заавал биш, `^[A-Z_]{2,40}$`, буруу бол 400).
+- Зөвхөн `isActive = true` мөрийг `sortOrder`, дараа нь `code`-оор эрэмбэлж буцаана.
+- **Үнэ:** `priceMnt` нь **бүхэл төгрөг, зөвхөн харуулах зориулалттай**. Эцсийн үнийг §6 quote тогтооно.
+- `code` нь тогтвортой машин код (`HOME_BASIC_CHECK`). Mobile логикоо `id` биш `code` дээр тулгуурлана.
+- ⚠️ **Одоогийн өгөгдөл ЗОХИОМОЛ.** `isFixture: true`, `containsFixtures: true` гэж ирнэ. Бодит үйлчилгээ ба үнэ батлагдаагүй (D3). Fixture: [prisma/fixtures/catalog.ts](../server/prisma/fixtures/catalog.ts).
+- `catalogVersion` нь идэвхтэй мөрүүдийн хамгийн сүүлийн `updatedAt` (ISO). Каталог өөрчлөгдөхөд солигдох тул mobile кэшийн түлхүүр болгож болно. Хоосон каталогт `null`.
+
+Response **200** (бодит хариунаас авсан бүтэц, утга зохиомол):
 ```json
 {
   "success": true,
   "message": "Каталог",
   "data": {
-    "catalogVersion": "2026-10-11.1",
+    "catalogVersion": "2026-10-12T06:00:00.000Z",
     "currency": "MNT",
+    "containsFixtures": true,
     "services": [
       {
-        "id": "svc_demo_basic",
+        "id": "cmg_demo_basic",
         "code": "HOME_BASIC_CHECK",
-        "name": "Гэрийн ердийн үзлэг",
-        "description": "Даралт, сахар, судасны цохилт, хүчилтөрөгч хэмжих",
+        "name": "Гэрийн ердийн үзлэг (тест)",
+        "description": "Даралт, сахар, судасны цохилт, хүчилтөрөгч хэмжих. Туршилтын өгөгдөл, бодит үнэ биш.",
         "category": "HOME_VISIT",
         "priceMnt": 45000,
         "durationMin": 45,
         "requiresReferral": false,
         "redFlagQuestionnaire": "GENERAL_V1",
-        "isActive": true
+        "isActive": true,
+        "isFixture": true
       },
       {
-        "id": "svc_demo_iv",
+        "id": "cmg_demo_iv",
         "code": "HOME_IV_THERAPY",
-        "name": "Гэрт дусал тавих",
-        "description": "Эмчийн заалтын дагуу",
-        "category": "HOME_VISIT",
+        "name": "Гэрт дусал тавих (тест)",
+        "description": "Эмчийн заалтын дагуу. Туршилтын өгөгдөл, бодит үнэ биш.",
+        "category": "HOME_PROCEDURE",
         "priceMnt": 60000,
         "durationMin": 90,
         "requiresReferral": true,
         "redFlagQuestionnaire": "GENERAL_V1",
-        "isActive": true
+        "isActive": true,
+        "isFixture": true
       }
     ]
   }
 }
 ```
 
-- **Mobile-д хэрэгтэй талбар:** `id`, `name`, `description`, `priceMnt`, `durationMin`, `requiresReferral` (true бол заалтын зураг шаардана), `isActive`.
-- **Status code:** 200, 401.
-- **Шийдвэр шаардсан:** Каталогийн бодит агуулга, үнэ, ангилал. Одоогийн mobile-ийн 6 үйлчилгээ hard-code хийгдсэн, `रू` (Непал рупи) тэмдэгтэй ([bookappointment.tsx:52-58](../App/app/(tabs)/bookappointment.tsx#L52-L58)).
+- **Mobile-д хэрэгтэй талбар:** `code`, `name`, `description`, `priceMnt`, `durationMin`, `requiresReferral` (true бол заалтын зураг шаардана), `isFixture` (true бол "тест" гэж харуулах эсэх нь mobile-ийн шийдвэр).
+- **Status code:** 200, 400, 401, 503 (`SERVICE_UNAVAILABLE` — DB-д migration хийгдээгүй үед).
+- **Шийдвэр шаардсан (D3):** Каталогийн бодит агуулга, үнэ, ангилал. Одоогийн mobile-ийн 6 үйлчилгээ hard-code хийгдсэн, `रू` (Непал рупи) тэмдэгтэй ([bookappointment.tsx:52-58](../App/app/(tabs)/bookappointment.tsx#L52-L58)).
 
 ---
 
@@ -305,7 +389,9 @@ Response 200 (аюул илэрсэн). Захиалга `BLOCKED_RED_FLAG` тө
 
 - **Auth:** Захиалгын эзэн. Зөвхөн `DRAFT` төлөвт.
 - **Content-Type:** `multipart/form-data`. Талбарууд: `file` (заавал), `kind=REFERRAL`.
-- **Хязгаар (санал):** `image/jpeg`, `image/png`, `image/heic`, `application/pdf`. Нэг файл ≤ 10 MB, нэг захиалгад ≤ 5 файл.
+- **Хязгаар (санал):** Нэг файл ≤ 10 MB, нэг захиалгад ≤ 5 файл.
+- **L1-1 хүрээ: зөвхөн ЗУРАГ** — `image/jpeg`, `image/png`. iPhone-ийн HEIC зургийг mobile тал upload хийхээс өмнө JPEG болгоно (санал). Сервер файлын MIME-г header-ээс биш агуулгаас (magic bytes) шалгана.
+- **PDF: ШИЙДВЭР ГАРААГҮЙ (D12).** L1-1-д `application/pdf` хүлээж авахгүй, **415 `UNSUPPORTED_MEDIA_TYPE`** буцаана. PDF-ийг дэмжвэл хортой контентын шалгалт, preview, хэмжээ зэргийг нэмж шийдэх шаардлагатай.
 - **Хадгалалт:** **Private storage.** Нийтэд нээлттэй `/uploads/...` static зам ([index.ts:42-43](../server/src/index.ts#L42-L43)) **ашиглахгүй**.
 
 Response 201:
@@ -456,6 +542,80 @@ Response 201:
 
 ---
 
+## 11. Сул цагийн цонх — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+
+**Одоогийн байдал:** Mobile 5 цонхыг hard-code хийсэн ([bookappointment.tsx:61](../App/app/(tabs)/bookappointment.tsx#L61)) бөгөөд сонгосон цонхны **эхлэх цагийг** `scheduledFor` болгодог ([bookappointment.tsx:174-190](../App/app/(tabs)/bookappointment.tsx#L174-L190)). Сервер 10.12-оос зөвхөн "ирээдүйн огноо" эсэхийг шалгадаг. Цонх, багтаамж, ажлын цагийн шалгалт байхгүй.
+⚠️ Mobile `new Date("YYYY-MM-DD")` + `setHours` нь утасны цагийн бүсээс хамаардаг. Улаанбаатарын (UTC+8) бус бүсэд өдөр шилжиж болзошгүй. Санал: mobile `+08:00` offset-тэй ISO илгээх.
+
+### `GET /api/availability/slots?date=2026-10-20&serviceCodes=HOME_BASIC_CHECK`
+
+```json
+{ "success": true, "message": "Сул цаг",
+  "data": { "date": "2026-10-20", "timezone": "Asia/Ulaanbaatar",
+    "slots": [
+      { "id": "2026-10-20T09:00+08:00", "label": "09:00-11:00", "start": "2026-10-20T09:00:00+08:00", "end": "2026-10-20T11:00:00+08:00", "available": true },
+      { "id": "2026-10-20T11:00+08:00", "label": "11:00-13:00", "start": "2026-10-20T11:00:00+08:00", "end": "2026-10-20T13:00:00+08:00", "available": false }
+    ] } }
+```
+
+- **Серверийн validation (санал):** Draft/order дээр `scheduledFor` нь буцаасан `slot.start`-тай яг таарах, `available: true`, өнөөдрөөс хамгийн багадаа N цагийн дараа, 90 хоногоос ихгүй байх. Таарахгүй бол **422 `SLOT_UNAVAILABLE`**. Төлбөр хийх үед дахин шалгана.
+- `date` нь `YYYY-MM-DD`, буруу бол 400.
+- **Шийдвэр (D13):** ажлын цаг, цонхны урт, нэг цонхонд хэдэн үзлэг (багтаамж), амралтын өдөр, бүс/хаягаас хамаарах эсэх.
+
+---
+
+## 12. Үйлчилгээний нөхцөл / зөвшөөрөл (consent) — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+
+**Одоогийн байдал:** Mobile бүртгэл "Үйлчилгээний нөхцөл болон Нууцлалын бодлогыг зөвшөөрч байна" гэсэн текстийг зөвхөн харуулдаг ([register.tsx:176-180](../App/app/auth/register.tsx#L176-L180)). Checkbox, илгээх талбар, серверт хадгалах model байхгүй. Эрүүл мэндийн мэдээлэл боловсруулах тул зөвшөөрлийг **хувилбар, цагтай нь** бүртгэх шаардлагатай.
+
+**Санал:** `POST /api/auth/signup`-д нэмэлт талбар (одоогийн хүсэлтүүдийг эвдэхгүйн тулд эхэндээ заавал биш, батлагдсаны дараа заавал болно):
+```json
+{ "consents": [
+  { "type": "TERMS", "version": "2026-10-v1" },
+  { "type": "PRIVACY", "version": "2026-10-v1" },
+  { "type": "HEALTH_DATA", "version": "2026-10-v1" }
+] }
+```
+- Сервер `UserConsent { userId, type, version, acceptedAt, ip?, userAgent? }` хадгална. Хувилбар шинэчлэгдвэл `GET /api/consents/required` болон `POST /api/consents`-оор дахин зөвшөөрөл авна.
+- Захиалга үүсгэхэд `HEALTH_DATA` зөвшөөрөлгүй бол **403 `CONSENT_REQUIRED`** (санал).
+- **Шийдвэр (D10):** нөхцөл/нууцлалын бичвэр ба хувилбар, заавал авах зөвшөөрлийн төрөл, хуучин хэрэглэгчдээс дахин авах эсэх.
+
+---
+
+## 13. Өвчтөний (Parent) талбарууд — зөрүү ба санал
+
+| Талбар | Mobile цуглуулдаг уу | Серверт илгээдэг үү ([add-parent.tsx:69-79](../App/app/(tabs)/add-parent.tsx#L69-L79)) | Schema-д байгаа юу | Санал |
+|---|---|---|---|---|
+| Нэр, нас, хүйс, хаяг | Тийм | Тийм | Тийм | Хэвээр |
+| Өвчний түүх → `diseases` | Тийм | Тийм (хоосон бол `"None"`) | Тийм | Хэвээр |
+| Эм → `medications` | Тийм | Тийм (хоосон бол `"None"`) | Тийм | Хэвээр |
+| Утас (өвчтөний) | Тийм, **заавал** | **Үгүй**. Яаралтай дугааргүй үед л `emergencyContact` болж явдаг | **Үгүй** | `phone String?` нэмэх. Шийдвэр: заавал эсэх |
+| Яаралтай үед холбогдох хүний нэр | Тийм | **Үгүй** | **Үгүй** | `emergencyContactName String?` |
+| Яаралтай үеийн утас | Тийм | Тийм (`emergencyContact`) | Тийм | 10.12: доод урт 10-аас **8** болсон (Монгол дугаар 8 оронтой). Өмнө 8 оронтой дугаар татгалзагддаг байсан |
+| Таны хэн болох (Ээж/Аав/Өөрөө) | Тийм | **Үгүй** | **Үгүй** | `relation String?` |
+| Цусны бүлэг | Тийм (default `A+`) | **Үгүй** | **Үгүй** | `bloodGroup String?`: `A+…O-` эсвэл `UNKNOWN`. **Default `A+` нь буруу өгөгдөл үүсгэх эрсдэлтэй**, mobile-ийн default-ыг "Мэдэхгүй" болгох нь зүйтэй |
+| Харшил | Тийм | **Үгүй** | **Үгүй** | `allergies String?`. Сувилагчид чухал (эм, тариа) |
+
+- **Одоо mobile-ийн бөглөсөн утас, цусны бүлэг, харшил хадгалагддаггүй.** Хэрэглэгч оруулсан гэж бодох боловч алга болдог.
+- Бүх шинэ талбар nullable байх тул migration нэмэлт, буцааж болохуйц.
+- Эдгээр нь эрүүл мэндийн эмзэг мэдээлэл тул log хийхгүй, зөвхөн тухайн хүүхэд, томилогдсон сувилагч, эмнэлгийн админд харагдана.
+- **Шийдвэр (D11):** аль талбар заавал, цусны бүлгийн утгын жагсаалт, `"None"` placeholder-ийг `null` болгох эсэх.
+
+---
+
+## 14. Staging хуваарь (10.16-аас өмнө)
+
+| Огноо | Зорилт | Нөхцөл / блок |
+|---|---|---|
+| **10.13** | Mobile ашиглах **эхний HTTPS API** (auth, parents, visits, catalog), зөвхөн зохиомол өгөгдөл | **Блок:** hosting, managed PostgreSQL, домэйн/TLS эрх одоогоор байхгүй. Эрх 10.13-ны өглөө ирвэл тухайн өдөртөө боломжтой (Dockerfile бэлэн, migration бэлэн) |
+| 10.14 | Staging-д migration-ийн урсгал (`migrate deploy`), seed (fixture), log/health шалгалт | 10.13 амжилттай болсон бол |
+| 10.15 | QPay **sandbox** callback URL (HTTPS) тохиргоо, private storage bucket | QPay sandbox эрх, storage эрх |
+| 10.16 | Staging-д бүрэн L1-1 урсгалын smoke test (mobile-тай) | Дээрх бүгд |
+
+Эрх ирэхээс өмнө mobile **локал API** (`http://<PC-LAN-IP>:8000/api`) болон энэ баримтын mock-уудыг ашиглана. Staging URL гарсан үед энэ хэсэгт нэмнэ. **Одоогоор staging deploy хийгдээгүй.**
+
+---
+
 ## 9. Шийдвэр шаардсан асуудлууд
 
 | # | Асуудал | Нөлөө |
@@ -466,9 +626,15 @@ Response 201:
 | D4 | Red flag асуултын агуулга ба эмнэлгийн баталгаажуулалт, яаралтай дугаар | §4 |
 | D5 | QPay merchant эрх, sandbox credential, `invoice_code`, буцаан олголт, и-баримт | §7 |
 | D6 | Private storage сонголт (S3-compatible гэх мэт) ба хадгалах хугацаа | §5 |
-| D7 | Хуучин endpoint-уудын алдааг HTTP 200-аас зөв code руу шилжүүлэх эсэх (mobile-д нөлөөлнө) | §0.1 |
+| D7 | ~~Хуучин endpoint-уудын алдааг HTTP 200-аас зөв code руу шилжүүлэх эсэх~~. 10.12-ны даалгаврын дагуу **хэрэгжсэн** (§0.1.1). Main-д нэгтгэхээс өмнө mobile/wclient-тэй тохиролцох | §0.1 |
 | D8 | Нэвтрээгүй хэрэглэгчид каталог харуулах эсэх | §2 |
 | D9 | `PAID`-аас хойш цуцлах ба буцаан олголт | §3.3 |
+| D10 | Нөхцөл/зөвшөөрлийн бичвэр, хувилбар, заавал авах төрлүүд | §12 |
+| D11 | Өвчтөний утас, цусны бүлэг, харшил, холбогдох хүн: заавал эсэх, утгын жагсаалт | §13 |
+| D12 | Заалтын **PDF** дэмжих эсэх (одоогоор зөвхөн JPEG/PNG) | §5 |
+| D13 | Цагийн цонх, багтаамж, ажлын цаг | §11 |
+| D14 | Staging hosting/DB/домэйн/storage сонголт ба эрх | §14 |
+| D15 | Login `data.user` объект болсон тул wclient-ийн засварыг хэзээ хийх (branch-ийг main-д нэгтгэхээс өмнө заавал) | §1.2 |
 
 ---
 
@@ -478,5 +644,8 @@ Response 201:
 2. Төлөвийн урсгалыг §0.2-оор хэрэгжүүл. `status` нь тэнд байхгүй утга ирвэл "Тодорхойгүй" гэж харуул.
 3. Үнийг mobile дээр **тооцоолж харуулахгүй**. Зөвхөн `quote.totalMnt`-ийг харуулна.
 4. Төлбөрийн дараа `GET /api/orders/:id/payments/:paymentId`-ээр polling хий. Deeplink-ээс буцаж ирэхэд дахин шалга.
-5. Алдааг `response.data.message`-ээр харуулж, логикоо `response.data.error.code` дээр тулгуурла.
+5. Алдааг `response.data.message`-ээр харуулж, логикоо `response.data.error.code` дээр тулгуурла. **10.12-оос** одоо байгаа endpoint-ууд ч энэ хэлбэрээр 4xx буцаана (§0.1.1). Axios 4xx-ийг `catch`-д шиддэг тул `error.response.data.message` ажилласаар байна.
+   - Login: `data.user` нь объект `{id,name,email,role,createdAt}` болсон. Буруу нэвтрэлт **401 `INVALID_CREDENTIALS`**.
+   - Signup: `role` илгээхгүй эсвэл `"CHILD"` илгээнэ. Хариунд `data.token` ирдэг болсон.
+   - Каталог (§2) **бодит endpoint-оор** ажиллана, гэхдээ өгөгдөл нь зохиомол (`isFixture: true`).
 6. Token, хувийн/эрүүл мэндийн мэдээллийг `console.log`-д бүү хэвлэ. Одоо [login.tsx:39](../App/app/auth/login.tsx#L39) нь login response-ийг (token-той) log хийдэг.
