@@ -1,43 +1,23 @@
-import { env } from '../utils/env';
-
-// API Configuration
-const API_BASE_URL = `${env.baseUrl}api`;
-
-export const API_ENDPOINTS = {
-  // Authentication
-  AUTH: {
-    SIGNUP: `${API_BASE_URL}/auth/signup`,
-    LOGIN: `${API_BASE_URL}/auth/login`,
+// API paths relative to the server root (utils/apiConfig.ts resolves the root).
+// Only endpoints the family (CHILD) app calls are listed here.
+export const API_PATHS = {
+  auth: {
+    login: '/api/auth/login',
+    signup: '/api/auth/signup',
   },
-  // Parents
-  PARENTS: {
-    BASE: `${API_BASE_URL}/parents`,
-    BY_ID: (id: string) => `${API_BASE_URL}/parents/${id}`,
+  users: {
+    byId: (id: string) => `/api/users/${encodeURIComponent(id)}`,
   },
-  // Visits
-  VISITS: {
-    BASE: `${API_BASE_URL}/visits`,
-    CHILD: `${API_BASE_URL}/visits/child`,
-    NURSE: `${API_BASE_URL}/visits/nurse`,
-    BY_ID: (id: string) => `${API_BASE_URL}/visits/${id}`,
-    ASSIGN: (id: string) => `${API_BASE_URL}/visits/${id}/assign`,
-    START: (id: string) => `${API_BASE_URL}/visits/${id}/start`,
-    VITALS: (id: string) => `${API_BASE_URL}/visits/${id}/vitals`,
-    COMPLETE: (id: string) => `${API_BASE_URL}/visits/${id}/complete`,
+  parents: {
+    list: '/api/parents',
+    byId: (id: string) => `/api/parents/${encodeURIComponent(id)}`,
   },
-  // Users
-  USERS: {
-    BASE: `${API_BASE_URL}/users`,
-    BY_ID: (id: string) => `${API_BASE_URL}/users/${id}`,
+  visits: {
+    create: '/api/visits',
+    child: '/api/visits/child',
   },
-  // Nurses
-  NURSES: {
-    BASE: `${API_BASE_URL}/nurses`,
+  // docs/l1-1-api.md §2. Proposal; not implemented on the server yet.
+  catalog: {
+    services: '/api/catalog/services',
   },
-  // Analytics
-  ANALYTICS: {
-    PARENT_TRENDS: (id: string) => `${API_BASE_URL}/analytics/parent/${id}/trends`,
-  },
-};
-
-export default API_BASE_URL;
+} as const

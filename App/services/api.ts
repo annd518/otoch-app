@@ -1,208 +1,74 @@
-import { API_ENDPOINTS } from '../config/api';
-import { storage } from '../utils/storage';
+// The app's single API entry point. Screens call apiService only; they never
+// use fetch/axios directly. Logic lives in pure modules (httpClient, authFlow,
+// catalog) that are unit tested in tests/.
+import { router } from 'expo-router'
 
-interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-}
+import { API_PATHS } from '../config/api'
+import { apiConfig, catalogMockScenario } from '../utils/env'
+import { storage } from '../utils/storage'
+import type { ApiResult } from './apiResult'
+import type { NewParentInput, NewVisitInput, Parent, SignupInput, Visit } from './apiTypes'
+import { loginFlow, logoutFlow, signupFlow, type LoginOutcome, type SignupOutcome } from './authFlow'
+import { fetchCatalog, type CatalogResult } from './catalog'
+import { createHttpClient, type FetchLike } from './httpClient'
+import { parseCreatedParent, parseCreatedVisit, parseParentList } from './validators'
 
-class ApiService {
-  private async getHeaders(): Promise<HeadersInit> {
-    const token = await storage.getAuthToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+const REQUEST_TIMEOUT_MS = 15000
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return headers;
-  }
-
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.message || data.error || 'An error occurred',
-      };
-    }
-
-    return {
-      success: true,
-      data: data.data || data,
-      message: data.message,
-    };
-  }
-
-  async get<T>(url: string): Promise<ApiResponse<T>> {
-    try {
-      const headers = await this.getHeaders();
-      const response = await fetch(url, {
-        method: 'GET',
-        headers,
-      });
-
-      return await this.handleResponse<T>(response);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-
-  async post<T>(url: string, body: any): Promise<ApiResponse<T>> {
-    try {
-      const headers = await this.getHeaders();
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      return await this.handleResponse<T>(response);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-
-  async put<T>(url: string, body: any): Promise<ApiResponse<T>> {
-    try {
-      const headers = await this.getHeaders();
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      return await this.handleResponse<T>(response);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-
-  async delete<T>(url: string): Promise<ApiResponse<T>> {
-    try {
-      const headers = await this.getHeaders();
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers,
-      });
-
-      return await this.handleResponse<T>(response);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error',
-      };
-    }
-  }
-
-  // Specific API methods
-
-  // Parents API
-  async getParents() {
-    return this.get(API_ENDPOINTS.PARENTS.BASE);
-  }
-
-  async getParentById(id: string) {
-    return this.get(API_ENDPOINTS.PARENTS.BY_ID(id));
-  }
-
-  async createParent(parentData: any) {
-    return this.post(API_ENDPOINTS.PARENTS.BASE, parentData);
-  }
-
-  async updateParent(id: string, parentData: any) {
-    return this.put(API_ENDPOINTS.PARENTS.BY_ID(id), parentData);
-  }
-
-  async deleteParent(id: string) {
-    return this.delete(API_ENDPOINTS.PARENTS.BY_ID(id));
-  }
-
-  // Visits API
-  async createVisit(visitData: any) {
-    return this.post(API_ENDPOINTS.VISITS.BASE, visitData);
-  }
-
-  async getChildVisits() {
-    return this.get(API_ENDPOINTS.VISITS.CHILD);
-  }
-
-  async getNurseVisits() {
-    return this.get(API_ENDPOINTS.VISITS.NURSE);
-  }
-
-  async assignNurse(visitId: string, nurseId: string) {
-    return this.post(API_ENDPOINTS.VISITS.ASSIGN(visitId), { nurseId });
-  }
-
-  async startVisit(visitId: string) {
-    return this.post(API_ENDPOINTS.VISITS.START(visitId), {});
-  }
-
-  async submitVitals(visitId: string, vitalsData: any) {
-    return this.post(API_ENDPOINTS.VISITS.VITALS(visitId), vitalsData);
-  }
-
-  async completeVisit(visitId: string) {
-    return this.post(API_ENDPOINTS.VISITS.COMPLETE(visitId), {});
-  }
-
-  // Auth API
-  async login(email: string, password: string) {
-    const response = await this.post(API_ENDPOINTS.AUTH.LOGIN, { email, password });
-    if (response.success && response.data?.token) {
-      await storage.setAuthToken(response.data.token);
-      if (response.data.user) {
-        await storage.setUserData(response.data.user);
-        if (response.data.user.role) {
-          await storage.setUserRole(response.data.user.role);
-        }
-      }
-    }
-    return response;
-  }
-
-  async signup(userData: any) {
-    const response = await this.post(API_ENDPOINTS.AUTH.SIGNUP, userData);
-    if (response.success && response.data?.token) {
-      await storage.setAuthToken(response.data.token);
-      if (response.data.user) {
-        await storage.setUserData(response.data.user);
-        if (response.data.user.role) {
-          await storage.setUserRole(response.data.user.role);
-        }
-      }
-    }
-    return response;
-  }
-
-  async logout() {
-    await storage.clearAll();
-  }
-
-  // Nurses API
-  async getNurses() {
-    return this.get(API_ENDPOINTS.NURSES.BASE);
-  }
-
-  // Analytics API
-  async getParentTrends(parentId: string) {
-    return this.get(API_ENDPOINTS.ANALYTICS.PARENT_TRENDS(parentId));
+const fetchWithTimeout: FetchLike = async (url, init) => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
   }
 }
 
-export const apiService = new ApiService();
+// Any 401 on an authenticated request ends the session.
+async function handleUnauthorized(): Promise<void> {
+  await storage.clearSession()
+  router.replace('/auth/login')
+}
+
+const client = createHttpClient({
+  config: apiConfig,
+  fetch: fetchWithTimeout,
+  getToken: () => storage.getAuthToken(),
+  onUnauthorized: handleUnauthorized,
+})
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+export const apiService = {
+  config: apiConfig,
+
+  login(email: string, password: string): Promise<LoginOutcome> {
+    return loginFlow(client, storage, email, password)
+  },
+
+  signup(input: SignupInput): Promise<SignupOutcome> {
+    return signupFlow(client, storage, input)
+  },
+
+  logout(): Promise<void> {
+    return logoutFlow(storage)
+  },
+
+  getParents(): Promise<ApiResult<Parent[]>> {
+    return client.request({ method: 'GET', path: API_PATHS.parents.list, parse: parseParentList })
+  },
+
+  createParent(input: NewParentInput): Promise<ApiResult<Parent>> {
+    return client.request({ method: 'POST', path: API_PATHS.parents.list, body: input, parse: parseCreatedParent })
+  },
+
+  // Legacy endpoint. It accepts only parentId, scheduledFor and visitType.
+  createVisit(input: NewVisitInput): Promise<ApiResult<Visit>> {
+    return client.request({ method: 'POST', path: API_PATHS.visits.create, body: input, parse: parseCreatedVisit })
+  },
+
+  getCatalog(): Promise<CatalogResult> {
+    return fetchCatalog({ mode: apiConfig.mode, client, mockScenario: catalogMockScenario, delay })
+  },
+}

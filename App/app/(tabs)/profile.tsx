@@ -1,29 +1,49 @@
-import React from "react"
+import React, { useCallback, useState } from "react"
 import {
+  Alert,
   StyleSheet,
   View,
   Text,
   ScrollView,
-  Image,
   TouchableOpacity,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
+
+import { apiService } from "@/services/api"
+import type { AppUser } from "@/services/apiTypes"
+import { storage } from "@/utils/storage"
 
 export default function ProfileScreen() {
   const router = useRouter()
+  const [user, setUser] = useState<AppUser | null>(null)
 
-  const user = {
-    name: "Ramesh Kumar",
-    email: "ramesh@example.com",
-    avatar: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg",
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      storage.getUser().then((stored) => {
+        if (active) setUser(stored)
+      })
+      return () => {
+        active = false
+      }
+    }, []),
+  )
+
+  const performLogout = async () => {
+    await apiService.logout()
+    router.replace("/auth/login")
   }
 
   const handleLogout = () => {
-    // TODO: Implement logout functionality
-    router.replace("/auth/login")
+    Alert.alert("Гарах", "Та системээс гарах уу?", [
+      { text: "Болих", style: "cancel" },
+      { text: "Гарах", style: "destructive", onPress: () => void performLogout() },
+    ])
   }
+
+  const initial = user?.name.trim().charAt(0).toUpperCase() || "?"
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -31,15 +51,12 @@ export default function ProfileScreen() {
         {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: user.avatar }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.editButton}>
-              <Ionicons name="pencil" size={16} color="#fff" />
-            </TouchableOpacity>
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            </View>
           </View>
-          <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userName}>{user?.name || "Хэрэглэгч"}</Text>
+          {user?.email ? <Text style={styles.userEmail}>{user.email}</Text> : null}
         </View>
 
         {/* Quick Actions */}
@@ -170,19 +187,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: "#2f80ed",
   },
-  editButton: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#2f80ed",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#fff",
-  },
   userName: {
     fontSize: 26,
     fontWeight: "800",
@@ -265,5 +269,20 @@ const styles = StyleSheet.create({
     color: "#ff3b30",
     fontSize: 16,
     fontWeight: "700",
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#e3f2fd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitial: {
+    fontSize: 44,
+    fontWeight: "800",
+    color: "#2f80ed",
+  },
+  userEmail: {
+    fontSize: 15,
+    color: "#666",
+    marginTop: 4,
   },
 })
