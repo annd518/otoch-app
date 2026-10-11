@@ -38,9 +38,16 @@ async function seedRedFlagFixtures() {
     }
 }
 
+// Staging/production (NODE_ENV=production) get fixtures only: demo accounts have a published password
+const isProduction = process.env.NODE_ENV === 'production'
+
 async function main() {
     await seedCatalogFixtures()
     await seedRedFlagFixtures()
+    if (isProduction) {
+        console.log('NODE_ENV=production: catalog/red flag fixtures only, no demo users or demo data.')
+        return
+    }
 
     const password = await bcrypt.hash(DEMO_PASSWORD, 10)
 
@@ -150,6 +157,7 @@ async function main() {
 
 main()
     .then(() => {
+        if (isProduction) return
         console.log(`Demo logins (password: ${DEMO_PASSWORD}): ${demoUsers.map((u) => u.email).join(', ')}`)
     })
     .catch((e) => {

@@ -40,11 +40,30 @@ export interface QPayAdapter {
 
 export class QPayConfigError extends Error {}
 
+/**
+ * Provider failure.
+ * definite = the provider certainly did not create anything (request never sent, or a 4xx rejection).
+ * Otherwise (timeout, network error, 5xx, unreadable answer) the invoice MAY exist at the provider.
+ */
+export class QPayProviderError extends Error {
+    constructor(message: string, public definite: boolean) {
+        super(message)
+        this.name = 'QPayProviderError'
+    }
+}
+
 // ---------------- mock ----------------
 interface MockInvoice { amountMnt: number; paid: boolean; paymentId: string | null; paidAmountMnt: number | null }
 const mockInvoices = new Map<string, MockInvoice>()
+let mockNextCreateFailure: 'rejected' | 'timeout' | null = null
 
 export const qpayMock = {
+    /**
+     * Test helper: make the next createInvoice fail.
+     * 'timeout' still creates the invoice at the "provider" (the answer is lost), like a real timeout can.
+     */
+    failNextCreate(kind: 'rejected' | 'timeout') { mockNextCreateFailure = kind },
+    lastInvoiceId: () => [...mockInvoices.keys()].pop() ?? null,
     /** Test/dev helper: simulate the customer paying (optionally a wrong amount). */
     markPaid(invoiceId: string, amountMnt?: number) {
         const inv = mockInvoices.get(invoiceId)
@@ -60,8 +79,12 @@ export const qpayMock = {
 const mockAdapter: QPayAdapter = {
     mode: 'mock',
     async createInvoice(input) {
+        const failure = mockNextCreateFailure
+        mockNextCreateFailure = null
+        if (failure === 'rejected') throw new QPayProviderError('mock invoice rejected', true)
         const invoiceId = `MOCK-INV-${randomUUID()}`
         mockInvoices.set(invoiceId, { amountMnt: input.amountMnt, paid: false, paymentId: null, paidAmountMnt: null })
+        if (failure === 'timeout') throw new QPayProviderError('mock invoice timeout', false)
         return {
             invoiceId,
             qrText: `MOCK_QR_NOT_PAYABLE:${invoiceId}`,
@@ -89,14 +112,27 @@ function sandboxAdapter(): QPayAdapter {
 
     let token: { value: string; expiresAt: number } | null = null
     const call = async (pathname: string, body: unknown, auth: string) => {
-        const res = await fetch(`${base}${pathname}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: auth },
-            body: JSON.stringify(body ?? {}),
-            signal: AbortSignal.timeout(10_000),
-        })
-        if (!res.ok) throw new Error(`qpay ${pathname} http ${res.status}`)
-        return res.json() as Promise<any>
+        let res: globalThis.Response
+        try {
+            res = await fetch(`${base}${pathname}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: auth },
+                body: JSON.stringify(body ?? {}),
+                signal: AbortSignal.timeout(10_000),
+            })
+        } catch {
+            // timeout / network: the request may have reached the provider
+            throw new QPayProviderError(`qpay ${pathname} no response`, false)
+        }
+        if (!res.ok) {
+            const rejected = res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429
+            throw new QPayProviderError(`qpay ${pathname} http ${res.status}`, rejected)
+        }
+        try {
+            return (await res.json()) as any
+        } catch {
+            throw new QPayProviderError(`qpay ${pathname} unreadable response`, false)
+        }
     }
     const bearer = async () => {
         if (token && token.expiresAt > Date.now() + 30_000) return `Bearer ${token.value}`
@@ -108,6 +144,13 @@ function sandboxAdapter(): QPayAdapter {
     return {
         mode: 'sandbox',
         async createInvoice(input) {
+            let auth: string
+            try {
+                auth = await bearer()
+            } catch {
+                // no invoice request was sent
+                throw new QPayProviderError('qpay auth failed', true)
+            }
             const data = await call('/v2/invoice', {
                 invoice_code: invoiceCode,
                 sender_invoice_no: input.senderInvoiceNo,
@@ -115,7 +158,10 @@ function sandboxAdapter(): QPayAdapter {
                 invoice_description: input.description,
                 amount: input.amountMnt,
                 callback_url: input.callbackUrl,
-            }, await bearer())
+            }, auth)
+            if (data?.invoice_id === undefined || data?.invoice_id === null) {
+                throw new QPayProviderError('qpay invoice without invoice_id', false)
+            }
             return {
                 invoiceId: String(data.invoice_id),
                 qrText: String(data.qr_text ?? ''),

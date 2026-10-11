@@ -474,6 +474,9 @@ describe('QPay payment (MOCK mode — not QPay sandbox)', () => {
         assert.equal(b.json.data.payment.id, a.json.data.payment.id)
         const other = await createPayment(f, order.id, qt.id, 'pay-key-0004')
         assert.equal(other.status, 409)
+        assert.equal(other.json.error.code, 'PAYMENT_IN_PROGRESS')
+        assert.equal(other.json.error.fields.paymentId, a.json.data.payment.id)
+        assert.equal(other.json.error.fields.recovery, 'RESUME')
         const noKey = await createPayment(f, order.id, qt.id)
         assert.equal(noKey.status, 400)
         assert.equal(noKey.json.error.code, 'IDEMPOTENCY_KEY_REQUIRED')
@@ -519,6 +522,160 @@ describe('QPay payment (MOCK mode — not QPay sandbox)', () => {
         assert.equal(read.status, 404)
         const create = await createPayment(other, order.id, qt.id, 'pay-key-0009')
         assert.equal(create.status, 404)
+        assert.equal(create.json.error.code, 'ORDER_NOT_FOUND')
+        assert.equal(create.json.error.fields, undefined) // no paymentId leaks
+    })
+})
+
+describe('payment recovery (MOCK mode — not QPay sandbox)', () => {
+    const invoicesFor = async (orderId: string) => prisma.payment.count({ where: { orderId } })
+
+    it('lost app state: a new key on a pending order -> 409 PAYMENT_IN_PROGRESS with paymentId; GET resumes it', async () => {
+        const f = await family('rec-a')
+        const { order, quote: qt } = await quotedOrder(f)
+        const first = (await createPayment(f, order.id, qt.id, 'rec-key-0001')).json.data.payment
+        // e.g. reinstalled app: stale quote id, new key
+        const again = await createPayment(f, order.id, 'stale-quote-id', 'rec-key-0002')
+        assert.equal(again.status, 409)
+        assert.deepEqual(again.json.error.fields, { paymentId: first.id, paymentStatus: 'PENDING', recovery: 'RESUME', expiresAt: first.expiresAt })
+        const resumed = await api(srv.baseUrl, 'GET', `/api/orders/${order.id}/payments/${again.json.error.fields.paymentId}`, { token: f.token })
+        assert.equal(resumed.status, 200)
+        assert.equal(resumed.json.data.payment.qrText, first.qrText)
+        assert.equal(await invoicesFor(order.id), 1)
+        assert.equal(qpayMock.has(first.qrText.replace('MOCK_QR_NOT_PAYABLE:', '')), true)
+    })
+
+    it('concurrent creates with different keys -> exactly one invoice, the others point to it', async () => {
+        const f = await family('rec-b')
+        const { order, quote: qt } = await quotedOrder(f)
+        const results = await Promise.all([1, 2, 3, 4].map((i) => createPayment(f, order.id, qt.id, `rec-key-b00${i}`)))
+        const created = results.filter((r) => r.status === 201)
+        assert.equal(created.length, 1, JSON.stringify(results.map((r) => r.json.error?.code)))
+        for (const r of results.filter((x) => x.status !== 201)) {
+            assert.equal(r.status, 409)
+            assert.equal(r.json.error.code, 'PAYMENT_IN_PROGRESS')
+            assert.equal(r.json.error.fields.paymentId, created[0].json.data.payment.id)
+        }
+        assert.equal(await invoicesFor(order.id), 1)
+    })
+
+    it('paid order: new key -> 409 PAYMENT_ALREADY_PAID; same key -> replay with PAID', async () => {
+        const f = await family('rec-c')
+        const { order, quote: qt } = await quotedOrder(f)
+        const p = (await createPayment(f, order.id, qt.id, 'rec-key-0003')).json.data.payment
+        qpayMock.markPaid((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).providerInvoiceId!)
+        await callback(p.id)
+        const other = await createPayment(f, order.id, qt.id, 'rec-key-0004')
+        assert.equal(other.status, 409)
+        assert.equal(other.json.error.code, 'PAYMENT_ALREADY_PAID')
+        assert.equal(other.json.error.fields.paymentId, p.id)
+        assert.equal(other.json.error.fields.recovery, 'DONE')
+        const same = await createPayment(f, order.id, qt.id, 'rec-key-0003')
+        assert.equal(same.status, 201)
+        assert.equal(same.json.data.payment.status, 'PAID')
+        assert.equal(same.json.data.orderStatus, 'PAID')
+        assert.equal(await invoicesFor(order.id), 1)
+    })
+
+    it('expired pending payment: a new key gets past it (new quote needed), no stale invoice reused', async () => {
+        const f = await family('rec-d')
+        const { order, quote: qt } = await quotedOrder(f)
+        const p = (await createPayment(f, order.id, qt.id, 'rec-key-0005')).json.data.payment
+        await prisma.payment.update({ where: { id: p.id }, data: { expiresAt: new Date(Date.now() - 1000) } })
+        const stale = await createPayment(f, order.id, qt.id, 'rec-key-0006')
+        assert.equal(stale.status, 409)
+        assert.equal(stale.json.error.code, 'QUOTE_MISMATCH')
+        assert.equal((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).status, 'EXPIRED')
+        const fresh = await quote(f, order.id)
+        const next = await createPayment(f, order.id, fresh.json.data.quote.id, 'rec-key-0007')
+        assert.equal(next.status, 201, JSON.stringify(next.json))
+        assert.notEqual(next.json.data.payment.id, p.id)
+    })
+
+    it('provider rejects (definite) -> 502 NEW_QUOTE, FAILED, order DRAFT; same key repeats the error without a new call', async () => {
+        const f = await family('rec-e')
+        const { order, quote: qt } = await quotedOrder(f)
+        qpayMock.failNextCreate('rejected')
+        const r = await createPayment(f, order.id, qt.id, 'rec-key-0008')
+        assert.equal(r.status, 502)
+        assert.equal(r.json.error.code, 'PAYMENT_PROVIDER_ERROR')
+        assert.equal(r.json.error.fields.paymentStatus, 'FAILED')
+        assert.equal(r.json.error.fields.recovery, 'NEW_QUOTE')
+        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, 'DRAFT')
+        const before = qpayMock.lastInvoiceId()
+        const replay = await createPayment(f, order.id, qt.id, 'rec-key-0008')
+        assert.equal(replay.status, 502)
+        assert.equal(replay.json.error.fields.paymentId, r.json.error.fields.paymentId)
+        assert.equal(qpayMock.lastInvoiceId(), before)
+        const fresh = await quote(f, order.id)
+        const next = await createPayment(f, order.id, fresh.json.data.quote.id, 'rec-key-0009')
+        assert.equal(next.status, 201)
+    })
+
+    it('provider timeout (unknown outcome) -> 502 PAYMENT_UNCONFIRMED; order stays locked, no second invoice until expiry', async () => {
+        const f = await family('rec-f')
+        const { order, quote: qt } = await quotedOrder(f)
+        qpayMock.failNextCreate('timeout')
+        const r = await createPayment(f, order.id, qt.id, 'rec-key-0010')
+        assert.equal(r.status, 502)
+        assert.equal(r.json.error.code, 'PAYMENT_UNCONFIRMED')
+        assert.equal(r.json.error.fields.recovery, 'WAIT')
+        const lost = qpayMock.lastInvoiceId() // exists at the "provider", unknown to us
+        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, 'AWAITING_PAYMENT')
+
+        const sameKey = await createPayment(f, order.id, qt.id, 'rec-key-0010')
+        assert.equal(sameKey.status, 502)
+        assert.equal(sameKey.json.error.code, 'PAYMENT_UNCONFIRMED')
+        const otherKey = await createPayment(f, order.id, qt.id, 'rec-key-0011')
+        assert.equal(otherKey.status, 409)
+        assert.equal(otherKey.json.error.code, 'PAYMENT_IN_PROGRESS')
+        assert.equal(otherKey.json.error.fields.recovery, 'WAIT')
+        assert.equal(qpayMock.lastInvoiceId(), lost) // no new provider invoice
+        assert.equal(await invoicesFor(order.id), 1)
+
+        // after expiry the order is released; a new quote and key may create a new invoice
+        await prisma.payment.update({ where: { id: r.json.error.fields.paymentId }, data: { expiresAt: new Date(Date.now() - 1000) } })
+        const expired = await api(srv.baseUrl, 'GET', `/api/orders/${order.id}/payments/${r.json.error.fields.paymentId}`, { token: f.token })
+        assert.equal(expired.json.data.payment.status, 'EXPIRED')
+        const fresh = await quote(f, order.id)
+        assert.equal((await createPayment(f, order.id, fresh.json.data.quote.id, 'rec-key-0012')).status, 201)
+    })
+
+    it('callback for an unconfirmed payment -> NEEDS_RECONCILIATION; order stays locked after expiry', async () => {
+        const f = await family('rec-g')
+        const { order, quote: qt } = await quotedOrder(f)
+        qpayMock.failNextCreate('timeout')
+        const paymentId = (await createPayment(f, order.id, qt.id, 'rec-key-0013')).json.error.fields.paymentId
+        assert.equal(await callback(paymentId), 200)
+        assert.equal(await callback(paymentId), 200)
+        const row = await prisma.payment.findUniqueOrThrow({ where: { id: paymentId } })
+        assert.equal(row.failureCode, 'NEEDS_RECONCILIATION')
+        assert.equal(await prisma.orderEvent.count({ where: { orderId: order.id, type: 'PAYMENT_NEEDS_RECONCILIATION' } }), 1)
+        await prisma.payment.update({ where: { id: paymentId }, data: { expiresAt: new Date(Date.now() - 1000) } })
+        const r = await createPayment(f, order.id, qt.id, 'rec-key-0014')
+        assert.equal(r.status, 409)
+        assert.equal(r.json.error.code, 'PAYMENT_RECONCILIATION_REQUIRED')
+        assert.equal(r.json.error.fields.recovery, 'CONTACT_SUPPORT')
+        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, 'AWAITING_PAYMENT')
+    })
+
+    it('payment made after expiry is flagged PAID_AFTER_EXPIRY, never turned into PAID', async () => {
+        const f = await family('rec-h')
+        const { order, quote: qt } = await quotedOrder(f)
+        const p = (await createPayment(f, order.id, qt.id, 'rec-key-0015')).json.data.payment
+        await prisma.payment.update({ where: { id: p.id }, data: { expiresAt: new Date(Date.now() - 1000) } })
+        await api(srv.baseUrl, 'GET', `/api/orders/${order.id}/payments/${p.id}`, { token: f.token })
+        qpayMock.markPaid((await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })).providerInvoiceId!)
+        await callback(p.id)
+        const row = await prisma.payment.findUniqueOrThrow({ where: { id: p.id } })
+        assert.equal(row.status, 'EXPIRED')
+        assert.equal(row.failureCode, 'PAID_AFTER_EXPIRY')
+        assert.equal((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status, 'DRAFT')
+        const fresh = await quote(f, order.id)
+        const r = await createPayment(f, order.id, fresh.json.data.quote.id, 'rec-key-0016')
+        assert.equal(r.status, 409)
+        assert.equal(r.json.error.code, 'PAYMENT_RECONCILIATION_REQUIRED')
+        assert.equal(r.json.error.fields.paymentId, p.id)
     })
 })
 
