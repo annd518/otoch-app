@@ -64,6 +64,29 @@
 | Integration (`tmp/integration-1014` = backend + mobile `6f46d17`, локал түр branch, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **106/106**, server **85/85**. Mobile service функцуудыг бодит backend-тэй тулгасан **5/5** (идемпотент draft, эрт "Тийм", CLEAR+PATCH, upload/delete, PDF 415) | §14 |
 | Staging | ❌ Эрх байхгүй | §10 |
 
+### 0.3 Явцын тэмдэглэл — 2026-10-15
+
+| Ажил | Төлөв |
+|---|---|
+| Mobile `cec500c`-тэй тулгалт (`tmp/integration-1015`, локал түр branch) | ✅ Git conflict байхгүй. Mobile unit **128/128**. Mobile функцууд → backend **5/5**: auth, draft retry (ижил order, өөр payload 409), хэсэгчилсэн "Тийм" → `recorded` (давтахад ч мөн), `{}` quote + upload retry (1 attachment, 1 blob), mock invoice → provider check → `PAID` + `paidAt` |
+| Илэрсэн 2 зөрүү, засагдсан | (1) Mobile quote-д `{}` илгээдэг байхад сервер `orderVersion` шаарддаг байсан (400). Одоо заавал биш. (2) Mobile `parseQuote` `travelFeeMnt`/`discountMnt` integer шаарддаг. Одоо `0` ("тооцоогүй", `excludes`-тэй) |
+| GAP-13/GAP-15 | Дахин хэрэгжүүлээгүй. Шинэ mobile-тэй ажиллаж байгааг баталгаажуулсан |
+| Upload retry | Зэрэг 5 оролдлого ижил key-тэй → 1 attachment, orphan blob 0 (тест) |
+| Config template | `server/.env.sample` (storage/QPay env нэрс, утгагүй), шинэ `wclient/.env.example`. `wclient/.gitignore`-д `!.env.example` нэмсэн (`.env*` дүрэм template-ийг ч нууж байсан) |
+| Staging / bucket / QPay sandbox | ❌ Эрх байхгүй хэвээр |
+
+### 0.4 Deploy-ийн дараалал (эрх ирсний дараа)
+
+1. Managed PostgreSQL (**UTF8**) үүсгэж backup тохируулна.
+2. Secret store-д `.env.sample`-ийн нэрсээр утга оруулна (`NODE_ENV=production`, `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGINS`, `PUBLIC_BASE_URL`, `QPAY_MODE=sandbox` эсвэл `mock`, `STORAGE_DRIVER`).
+3. `docker build --target migrate` → нэг удаа `prisma migrate deploy` (шинэ DB тул baseline шаардлагагүй). **`db push`, `migrate reset` хориотой.**
+4. `docker build` (runtime) → deploy → `GET /api/health`.
+5. Smoke: signup/login, `GET /api/catalog/services`, draft, red flag, quote, (bucket байвал) upload, (sandbox байвал) invoice.
+6. Fixture seed (каталог, red flag) — зөвхөн зохиомол өгөгдөл. Demo хэрэглэгчийг staging-д үүсгэхгүй.
+7. Rollback: өмнөх image + DB backup. Migration-ууд зөвхөн нэмэлт тул хуучин код шинэ хүснэгтийг үл тооно.
+
+Одоо байгаа WIN1252 локал DB-ийн үйлдэл: §12 (зөвшөөрөл хүлээж буй).
+
 ---
 
 ## 14. Integration шалгалт — 2026-10-14

@@ -1,6 +1,6 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-14, backend (`work/backend-l1-1`).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-15, backend (`work/backend-l1-1`).
 > **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй).
 > **Таамаг:** захиалгыг тусдаа `Order` model-оор хийсэн (D2 батлагдаагүй). Red flag асуулт, каталог нь **fixture**.
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
@@ -488,7 +488,7 @@ Response **201**: `{ attachment: { id, kind, mimeType, sizeBytes, createdAt }, s
 
 ### `POST /api/orders/:id/quote`
 
-Request: `{ "orderVersion": 4 }` (**заавал**). Захиалгын одоогийн `version`-тэй таарахгүй бол **409 `VERSION_CONFLICT`**.
+Request: `{ "orderVersion": 4 }` (**зөвлөмж**) эсвэл `{}`. Илгээвэл одоогийн `version`-тэй таарах ёстой, үгүй бол **409 `VERSION_CONFLICT`**. Илгээгээгүй бол (mobile `cec500c` `{}` илгээдэг) одоогийн хувилбарыг үнэлнэ. Аль ч тохиолдолд quote нь `quote.orderVersion`-д заасан **нэг л хувилбарт** хамаарна (10.15).
 
 Шалгалтын дараалал: эзэмшил → `orderVersion` → `assertOrderReadyForPricing` (red flag, төлөв, огноо/хаяг, идэвхгүй үйлчилгээ, заалт) → захиалгын `catalogVersion` одоогийн каталогтой таарах (үгүй бол **409 `CATALOG_OUTDATED`**: үйлчилгээгээ PATCH-аар дахин сонгоно).
 
@@ -499,11 +499,12 @@ Response **201**:
     "id": "quo_demo_001", "orderVersion": 4, "catalogVersion": "2026-10-14T03:00:00.000Z",
     "pricingVersion": "LIST_PRICE_ONLY_V1", "currency": "MNT",
     "lines": [{ "type": "SERVICE", "serviceCode": "HOME_BASIC_CHECK", "name": "Гэрийн ердийн үзлэг (тест)", "quantity": 2, "unitPriceMnt": 45000, "amountMnt": 90000, "isFixture": true }],
-    "subtotalMnt": 90000, "totalMnt": 90000,
+    "subtotalMnt": 90000, "travelFeeMnt": 0, "discountMnt": 0, "totalMnt": 90000,
     "excludes": ["TRAVEL_FEE", "DISCOUNT", "VAT"],
     "isFixture": true, "expiresAt": "2026-10-14T03:15:00.000Z", "isPayment": false } } }
 ```
 
+- `travelFeeMnt`, `discountMnt` = **0** гэдэг нь "энэ quote-д тооцоогүй" гэсэн утгатай (дүрэм батлагдаагүй, `excludes`-ийг үзнэ). Mobile `0 ₮` мөр харуулахын оронд `excludes`-ийн тайлбарыг харуулна (10.15, mobile `parseQuote` эдгээр талбарыг шаарддаг).
 - Үнэ = каталогийн `priceMnt` × тоо, **бүхэл MNT**. Унааны зардал, хөнгөлөлт, НӨАТ батлагдаагүй тул **тооцохгүй**, `excludes`-д жагсаана (D3). `promoCode` хүлээж авахгүй.
 - `isFixture: true` бол үнэ зохиомол. Mobile "Туршилтын үнэ" гэж харуулна.
 - **Quote нь төлбөр биш, захиалгыг баталгаажуулахгүй**: `isPayment: false`, захиалга `DRAFT` хэвээр үлдэнэ.
