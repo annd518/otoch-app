@@ -57,7 +57,8 @@ const createSchema = z.object({
     timeSlot: timeSlotSchema.optional(),
     address: addressSchema.optional(),
     notes: z.string().trim().max(500, 'Тэмдэглэл 500 тэмдэгтээс хэтрэхгүй').optional(),
-    catalogVersion: z.string().optional(),
+    // null = not sent (mobile sends null when its catalog had no version)
+    catalogVersion: z.string().nullable().optional().transform((v) => v ?? undefined),
 })
 
 const updateSchema = z.object({
@@ -67,7 +68,8 @@ const updateSchema = z.object({
     timeSlot: timeSlotSchema.nullable().optional(),
     address: addressSchema.nullable().optional(),
     notes: z.string().trim().max(500).nullable().optional(),
-    catalogVersion: z.string().optional(),
+    // null = not sent (mobile sends null when its catalog had no version)
+    catalogVersion: z.string().nullable().optional().transform((v) => v ?? undefined),
 })
 
 const answersSchema = z.object({

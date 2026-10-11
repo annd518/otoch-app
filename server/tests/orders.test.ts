@@ -145,6 +145,8 @@ describe('POST /api/orders (draft)', () => {
         const ok = await createDraft(tokenA, draftBody({ catalogVersion: cat.json.data.catalogVersion }))
         assert.equal(ok.status, 201)
         assert.equal(ok.json.data.order.catalogVersion, cat.json.data.catalogVersion)
+        const nullVersion = await createDraft(tokenA, draftBody({ catalogVersion: null }))
+        assert.equal(nullVersion.status, 201, 'null catalogVersion = not sent (mobile DraftOrderInput)')
         const stale = await createDraft(tokenA, draftBody({ catalogVersion: '2000-01-01T00:00:00.000Z' }))
         assert.equal(stale.status, 409)
         assert.equal(errorCode(stale), 'CATALOG_OUTDATED')
