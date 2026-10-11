@@ -26,6 +26,7 @@ import {
   validateDetails,
   type DetailsField,
 } from "@/services/bookingDraft"
+import { syncPendingBlocks } from "@/services/blockSync"
 import { EMERGENCY_PHONE } from "@/services/redFlag"
 import { ulaanbaatarDate } from "@/utils/datetime"
 import { createIdempotencyKey } from "@/utils/id"
@@ -75,12 +76,18 @@ export default function BookAppointment() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const dates = useMemo(() => upcomingDates(new Date()), [])
 
-  // Reload when the tab gains focus, e.g. after adding a parent.
+  const [openBlocks, setOpenBlocks] = useState(0)
+
+  // Reload when the tab gains focus, e.g. after adding a parent. Also retry
+  // red flag blocks the server has not confirmed yet.
   useFocusEffect(
     useCallback(() => {
       let active = true
       apiService.getParents().then((result) => {
         if (active) setParentsState(toParentsState(result))
+      })
+      syncPendingBlocks().then((open) => {
+        if (active) setOpenBlocks(open.length)
       })
       return () => {
         active = false
@@ -123,7 +130,8 @@ export default function BookAppointment() {
         router.push(nextStepAfterDetails(state))
         return
       }
-      if (plan.kind === "create") dispatch({ type: "createStarted", key: plan.key })
+      // Stored before the request: a retry after a timeout reuses this key.
+      if (plan.kind === "create") dispatch({ type: "createStarted", key: plan.key, fingerprint: plan.fingerprint })
       const result =
         plan.kind === "create"
           ? await apiService.createDraftOrder(plan.input, plan.key)
@@ -188,6 +196,14 @@ export default function BookAppointment() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {openBlocks > 0 ? (
+          <View style={styles.pendingBanner}>
+            <Text style={styles.pendingBannerText}>
+              Өмнөх захиалга аюулын шинжээр зогссон боловч серверт бүртгэгдээгүй байна. Апп дахин оролдсоор байна.
+              Яаралтай тусламж хэрэгтэй бол {EMERGENCY_PHONE} руу залгана уу.
+            </Text>
+          </View>
+        ) : null}
         {/* 1. Patient */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Өвчтөн</Text>
@@ -328,26 +344,19 @@ export default function BookAppointment() {
           {errors.notes ? <Text style={styles.fieldError}>{errors.notes}</Text> : null}
         </View>
 
-        {/* 6. Nurse preference */}
+        {/* 6. Nurse preference: disabled until the backend stores it (GAP-16) */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. Сувилагчийн сонголт (заавал биш)</Text>
-          {server?.ignoredFields.includes("nurseGenderPreference") ? (
-            <Text style={styles.noteText}>Сервер энэ сонголтыг одоогоор хадгалдаггүй.</Text>
-          ) : null}
-          <View style={styles.wrapRow}>
-            {NURSE_PREFS.map((pref) => {
-              const selected = details.nurseGenderPreference === pref.value
-              return (
-                <TouchableOpacity
-                  key={pref.value}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => dispatch({ type: "updateDetails", patch: { nurseGenderPreference: pref.value } })}
-                >
-                  <Text style={selected ? styles.chipTextActive : styles.chipText}>{pref.label}</Text>
-                </TouchableOpacity>
-              )
-            })}
+          <Text style={styles.sectionTitle}>6. Сувилагчийн хүйс</Text>
+          <View style={[styles.wrapRow, styles.disabledRow]}>
+            {NURSE_PREFS.map((pref) => (
+              <View key={pref.value} style={styles.chip} accessibilityState={{ disabled: true }}>
+                <Text style={styles.chipText}>{pref.label}</Text>
+              </View>
+            ))}
           </View>
+          <Text style={styles.noteText}>
+            Одоогоор сонгох боломжгүй: сервер энэ сонголтыг захиалгад хадгалдаггүй.
+          </Text>
         </View>
 
         {/* 7. Price */}
@@ -432,6 +441,9 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: "#555", fontWeight: "600" },
   chipTextActive: { fontSize: 14, color: "#fff", fontWeight: "700" },
   noteText: { fontSize: 12, color: "#888", marginTop: 8 },
+  disabledRow: { opacity: 0.4 },
+  pendingBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 12, marginBottom: 16, gap: 6 },
+  pendingBannerText: { color: "#b71c1c", fontSize: 13, lineHeight: 18 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,

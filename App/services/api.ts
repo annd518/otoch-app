@@ -14,6 +14,7 @@ import type {
   DraftOrderPatch,
   NewParentInput,
   Order,
+  Quote,
   Parent,
   RedFlagOutcome,
   RedFlagQuestionnaire,
@@ -26,11 +27,16 @@ import { createHttpClient, type FetchLike, type HttpResponseLike, type UploadFil
 import {
   createDraftOrder,
   deleteAttachment,
+  getOrder,
   getRedFlagQuestions,
+  reportRedFlagBlock,
+  requestQuote,
   submitRedFlagAnswers,
   updateDraftOrder,
   uploadReferral,
+  type BlockReport,
 } from './orders'
+import { createInvoice, getPaymentState, type Invoice, type PaymentState } from './payment'
 import { parseCreatedParent, parseParentList } from './validators'
 
 const REQUEST_TIMEOUT_MS = 15000
@@ -145,8 +151,37 @@ export const apiService = {
     return submitRedFlagAnswers(client, orderId, answers, questionnaires)
   },
 
-  uploadReferral(orderId: string, file: UploadFile, onProgress?: (fraction: number) => void): Promise<ApiResult<Attachment>> {
-    return uploadReferral(client, orderId, file, onProgress)
+  uploadReferral(
+    orderId: string,
+    file: UploadFile,
+    onProgress?: (fraction: number) => void,
+    idempotencyKey?: string,
+  ): Promise<ApiResult<Attachment>> {
+    return uploadReferral(client, orderId, file, onProgress, idempotencyKey)
+  },
+
+  getOrder(orderId: string): Promise<ApiResult<Order>> {
+    return getOrder(client, orderId)
+  },
+
+  reportRedFlagBlock(
+    orderId: string,
+    answers: { questionId: string; value: boolean }[],
+    questionnaires: string[],
+  ): Promise<BlockReport> {
+    return reportRedFlagBlock(client, orderId, answers, questionnaires)
+  },
+
+  requestQuote(orderId: string): Promise<ApiResult<Quote>> {
+    return requestQuote(client, orderId)
+  },
+
+  createInvoice(orderId: string, quoteId: string, idempotencyKey: string): Promise<ApiResult<Invoice>> {
+    return createInvoice(client, orderId, quoteId, idempotencyKey)
+  },
+
+  getPaymentState(orderId: string, paymentId: string): Promise<ApiResult<PaymentState>> {
+    return getPaymentState(client, orderId, paymentId)
   },
 
   deleteAttachment(orderId: string, attachmentId: string): Promise<ApiResult<true>> {

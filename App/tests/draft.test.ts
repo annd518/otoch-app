@@ -96,7 +96,6 @@ describe('draft payload', () => {
       scheduledFor: '2026-10-20T09:00:00+08:00',
       timeSlot: '09:00-11:00',
       address: { text: 'Улаанбаатар, 1-р хороо, 10-р байр' },
-      nurseGenderPreference: 'ANY',
     })
   })
 
@@ -128,7 +127,11 @@ describe('draft state across screens', () => {
     const newKey = () => `key-${++n}`
     const first = planDraftSave(filled(), newKey)
     assert.equal(first.kind, 'create')
-    const started = bookingDraftReducer(filled(), { type: 'createStarted', key: first.kind === 'create' ? first.key : '' })
+    const started = bookingDraftReducer(filled(), {
+      type: 'createStarted',
+      key: first.kind === 'create' ? first.key : '',
+      fingerprint: first.kind === 'create' ? first.fingerprint : '',
+    })
     const retry = planDraftSave(started, newKey)
     assert.equal(retry.kind === 'create' && retry.key, 'key-1')
   })
@@ -318,11 +321,11 @@ describe('staying in sync with the server draft', () => {
     assert.equal(patched.ok && patched.data.redFlagStatus, 'CLEAR')
   })
 
-  it('reports fields the server did not store', async () => {
+  it('does not send nurseGenderPreference (not stored by the server); nothing is ignored', async () => {
     const { client } = makeMockClient()
     const input = buildDraftInput(filled())
-    assert.ok(input)
+    assert.ok(input && !('nurseGenderPreference' in input))
     const created = await createDraftOrder(client, input, 'k-ign')
-    assert.ok(created.ok && created.data.ignoredFields.includes('nurseGenderPreference'))
+    assert.ok(created.ok && created.data.ignoredFields.length === 0)
   })
 })

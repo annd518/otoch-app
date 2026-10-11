@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { useFocusEffect, useRouter } from "expo-router"
 
+import { useBookingDraft } from "@/context/BookingDraftContext"
 import { apiService } from "@/services/api"
 import type { AppUser } from "@/services/apiTypes"
 import { storage } from "@/utils/storage"
@@ -18,6 +19,7 @@ import { storage } from "@/utils/storage"
 export default function ProfileScreen() {
   const router = useRouter()
   const [user, setUser] = useState<AppUser | null>(null)
+  const { dispatch } = useBookingDraft()
 
   useFocusEffect(
     useCallback(() => {
@@ -33,6 +35,9 @@ export default function ProfileScreen() {
 
   const performLogout = async () => {
     await apiService.logout()
+    // The in-memory booking draft belongs to this user; unconfirmed red flag
+    // blocks stay in storage per user and are retried after the next login.
+    dispatch({ type: "reset" })
     router.replace("/auth/login")
   }
 

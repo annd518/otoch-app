@@ -1,8 +1,10 @@
 // Draft order, red flag and attachment calls (docs/l1-1-api.md §3-§5).
 // Pure: takes an HttpClient, no React Native imports.
 import { isRecord, markNotImplemented, type ApiResult } from './apiResult'
+import { parseQuote } from './validators'
 import type {
   Attachment,
+  Quote,
   DraftOrderInput,
   DraftOrderPatch,
   Order,
@@ -170,11 +172,15 @@ export async function uploadReferral(
   orderId: string,
   file: UploadFile,
   onProgress?: (fraction: number) => void,
+  // Stable per selected image so a retry after an unknown outcome can be
+  // de-duplicated by the server (proposal GAP-17; ignored by servers without it).
+  idempotencyKey?: string,
 ): Promise<ApiResult<Attachment>> {
   const result = await client.upload({
     path: orderPaths.attachments(orderId),
     file,
     fields: { kind: 'REFERRAL' },
+    headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     parse: parseAttachment,
     onProgress,
   })
@@ -188,4 +194,58 @@ export async function deleteAttachment(client: HttpClient, orderId: string, atta
     parse: () => true as const,
   })
   return markNotImplemented(result, ATTACHMENTS_NOT_IMPLEMENTED_MESSAGE)
+}
+
+// ---- Early red flag block (mobile plan GAP-13, proposal) --------------------
+// There is no dedicated endpoint. The app sends the answers given so far
+// (including the "yes") to PUT red-flag-answers. The implemented server
+// (16ce810) rejects partial answers with 400 RED_FLAG_INCOMPLETE; the block
+// then stays "not recorded on the server" and is retried. It is never CLEAR.
+export type BlockReport =
+  | { kind: 'recorded'; version: number | null }
+  | { kind: 'not_supported'; message: string }
+  | { kind: 'retry'; message: string }
+
+export async function reportRedFlagBlock(
+  client: HttpClient,
+  orderId: string,
+  answers: { questionId: string; value: boolean }[],
+  questionnaires: string[],
+): Promise<BlockReport> {
+  const result = await submitRedFlagAnswers(client, orderId, answers, questionnaires)
+  if (result.ok) {
+    if (result.data.status === 'FLAGGED') return { kind: 'recorded', version: result.data.version }
+    // A server answering CLEAR to a "yes" would be a contract violation: keep retrying.
+    return { kind: 'retry', message: 'Сервер блокийг бүртгээгүй байна.' }
+  }
+  if (result.code === 'RED_FLAG_BLOCKED') return { kind: 'recorded', version: null }
+  if (result.code === 'RED_FLAG_INCOMPLETE') {
+    return { kind: 'not_supported', message: 'Сервер дутуу хариулттай блокийг хараахан хүлээж авдаггүй (GAP-13).' }
+  }
+  return { kind: 'retry', message: result.message }
+}
+
+export async function getOrder(client: HttpClient, orderId: string): Promise<ApiResult<Order>> {
+  const result = await client.request({ method: 'GET', path: orderPaths.byId(orderId), parse: parseOrder })
+  return markNotImplemented(result, ORDERS_NOT_IMPLEMENTED_MESSAGE)
+}
+
+// ---- Quote (docs/l1-1-api.md §6) ---------------------------------------------
+export const QUOTE_NOT_IMPLEMENTED_MESSAGE = 'Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна.'
+
+export async function requestQuote(client: HttpClient, orderId: string): Promise<ApiResult<Quote>> {
+  const result = await client.request({
+    method: 'POST',
+    path: `${orderPaths.byId(orderId)}/quote`,
+    body: {},
+    parse: parseQuote,
+  })
+  // 501 NOT_IMPLEMENTED (current server) is never a success.
+  if (!result.ok && result.status === 501) return { ok: false, kind: 'not_implemented', status: 501, message: QUOTE_NOT_IMPLEMENTED_MESSAGE }
+  return markNotImplemented(result, QUOTE_NOT_IMPLEMENTED_MESSAGE)
+}
+
+export function isQuoteExpired(quote: Quote, nowMs: number): boolean {
+  const expires = Date.parse(quote.expiresAt)
+  return Number.isNaN(expires) || expires <= nowMs
 }

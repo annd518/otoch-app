@@ -10,6 +10,7 @@ import { apiService } from "@/services/api"
 import type { ApiResult } from "@/services/apiResult"
 import type { RedFlagQuestionnaire } from "@/services/apiTypes"
 import { isBlocked, nextStepAfterDetails } from "@/services/bookingDraft"
+import { reportBlockInBackground } from "@/services/blockSync"
 import {
   answersPayload,
   canSubmitClear,
@@ -80,10 +81,19 @@ export default function RedFlagsScreen() {
 
   const answer = (questionId: string, value: boolean) => {
     if (value) {
-      // One "yes" stops the booking immediately; the user is not asked to finish
-      // the questionnaire first. The draft is locked on this device.
-      dispatch({ type: "redFlagBlocked", advice: null })
+      // One "yes" stops the booking immediately on this device. The answers given
+      // so far (including this "yes") are then reported to the server; until the
+      // server confirms, the block is "pending" and is retried, never CLEAR.
+      if (load.status !== "ready" || !orderId) return
+      const report = {
+        questionnaires: load.questionnaire.questionnaires,
+        answers: answersPayload(load.questionnaire, { ...answers, [questionId]: true }),
+      }
+      dispatch({ type: "redFlagBlocked", advice: null, server: "pending", report })
       router.replace("/booking/emergency")
+      void reportBlockInBackground(orderId, report, source, (server, version) =>
+        dispatch({ type: "blockReported", server, version }),
+      )
       return
     }
     setAnswers((current) => ({ ...current, [questionId]: false }))

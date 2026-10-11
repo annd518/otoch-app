@@ -49,10 +49,26 @@ export interface ServerDraft {
   source: ApiMode
 }
 
+// How far the server knows about a block:
+// recorded      the server stored FLAGGED / BLOCKED_RED_FLAG
+// pending       not confirmed yet (network error etc.), retried
+// not_supported the server rejects partial answers (GAP-13), retried later
+export type BlockServerState = 'recorded' | 'pending' | 'not_supported'
+
+export interface PendingBlockAnswers {
+  questionnaires: string[]
+  answers: { questionId: string; value: boolean }[]
+}
+
 export type RedFlagState =
   | { status: 'not_answered' }
   | { status: 'clear' }
-  | { status: 'blocked'; advice: RedFlagAdvice | null }
+  | {
+      status: 'blocked'
+      advice: RedFlagAdvice | null
+      server: BlockServerState
+      report: PendingBlockAnswers | null
+    }
 
 export type AttachmentStatus = 'selected' | 'uploading' | 'uploaded' | 'failed'
 
@@ -74,8 +90,12 @@ export interface BookingDraftState {
   server: ServerDraft | null
   // true when local details differ from what the server has saved
   dirty: boolean
-  // kept across retries of the same create so the server can de-duplicate
-  pendingCreateKey: string | null
+  // One logical create attempt: the key is reused for every retry of the same
+  // payload (also after a timeout with unknown outcome). A different payload
+  // or a reset starts a new logical create with a new key.
+  pendingCreate: { key: string; fingerprint: string } | null
+  // Idempotency key of the current invoice attempt (one per quote)
+  paymentKey: { quoteId: string; key: string } | null
   redFlag: RedFlagState
   attachments: LocalAttachment[]
   quote: Quote | null
@@ -96,7 +116,8 @@ export const INITIAL_DRAFT: BookingDraftState = {
   details: EMPTY_DETAILS,
   server: null,
   dirty: false,
-  pendingCreateKey: null,
+  pendingCreate: null,
+  paymentKey: null,
   redFlag: { status: 'not_answered' },
   attachments: [],
   quote: null,
@@ -105,10 +126,18 @@ export const INITIAL_DRAFT: BookingDraftState = {
 export type BookingDraftAction =
   | { type: 'selectService'; service: CatalogService; catalogVersion: string | null; source: ApiMode }
   | { type: 'updateDetails'; patch: Partial<DraftDetails> }
-  | { type: 'createStarted'; key: string }
+  | { type: 'createStarted'; key: string; fingerprint: string }
   | { type: 'draftSaved'; order: Order; source: ApiMode }
   | { type: 'redFlagCleared'; version?: number | null }
-  | { type: 'redFlagBlocked'; advice: RedFlagAdvice | null; version?: number | null }
+  | {
+      type: 'redFlagBlocked'
+      advice: RedFlagAdvice | null
+      version?: number | null
+      server?: BlockServerState
+      report?: PendingBlockAnswers | null
+    }
+  | { type: 'blockReported'; server: BlockServerState; version?: number | null }
+  | { type: 'paymentKey'; quoteId: string; key: string }
   | { type: 'attachmentAdded'; attachment: LocalAttachment }
   | { type: 'attachmentUpdated'; localId: string; patch: Partial<LocalAttachment> }
   | { type: 'attachmentRemoved'; localId: string }
@@ -129,7 +158,7 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
   if (action.type === 'reset') return INITIAL_DRAFT
   // A draft stopped by a red flag cannot be edited or continued. Only an
   // explicit reset (a brand new booking) leaves this state.
-  if (isBlocked(state) && action.type !== 'redFlagBlocked') return state
+  if (isBlocked(state) && action.type !== 'redFlagBlocked' && action.type !== 'blockReported') return state
 
   switch (action.type) {
     case 'selectService': {
@@ -150,6 +179,7 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
         },
         dirty: true,
         quote: null,
+        paymentKey: null,
         // a different service can have a different questionnaire and referral rule
         redFlag: { status: 'not_answered' },
         attachments: [],
@@ -160,17 +190,17 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
       const changed = (Object.keys(action.patch) as (keyof DraftDetails)[]).some(
         (key) => state.details[key] !== details[key],
       )
-      return changed ? { ...state, details, dirty: true, quote: null } : state
+      return changed ? { ...state, details, dirty: true, quote: null, paymentKey: null } : state
     }
     case 'createStarted':
-      return { ...state, pendingCreateKey: action.key }
+      return { ...state, pendingCreate: { key: action.key, fingerprint: action.fingerprint } }
     case 'draftSaved': {
       const { order } = action
       // The server is the source of truth for the red flag state: changing the
       // service resets it to NOT_ANSWERED there, a flagged order stays blocked.
       const redFlag: RedFlagState =
         order.status === 'BLOCKED_RED_FLAG' || order.redFlagStatus === 'FLAGGED'
-          ? { status: 'blocked', advice: null }
+          ? { status: 'blocked', advice: null, server: 'recorded', report: null }
           : order.redFlagStatus === 'CLEAR'
             ? { status: 'clear' }
             : { status: 'not_answered' }
@@ -188,17 +218,35 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
         },
         redFlag,
         dirty: false,
-        pendingCreateKey: null,
+        pendingCreate: null,
       }
     }
     case 'redFlagCleared':
-      return { ...state, server: withVersion(state.server, action.version), redFlag: { status: 'clear' } }
-    case 'redFlagBlocked':
+      return { ...state, server: withVersion(state.server, action.version), redFlag: { status: 'clear' }, quote: null }
+    case 'redFlagBlocked': {
+      const previous = state.redFlag.status === 'blocked' ? state.redFlag : null
       return {
         ...state,
         server: withVersion(state.server, action.version),
-        redFlag: { status: 'blocked', advice: action.advice },
+        quote: null,
+        paymentKey: null,
+        redFlag: {
+          status: 'blocked',
+          advice: action.advice ?? previous?.advice ?? null,
+          server: action.server ?? previous?.server ?? 'pending',
+          report: action.report ?? previous?.report ?? null,
+        },
       }
+    }
+    case 'blockReported':
+      if (state.redFlag.status !== 'blocked') return state
+      return {
+        ...state,
+        server: withVersion(state.server, action.version),
+        redFlag: { ...state.redFlag, server: action.server, report: action.server === 'recorded' ? null : state.redFlag.report },
+      }
+    case 'paymentKey':
+      return { ...state, paymentKey: { quoteId: action.quoteId, key: action.key } }
     case 'attachmentAdded':
       return { ...state, attachments: [...state.attachments, action.attachment] }
     case 'attachmentUpdated':
@@ -209,7 +257,8 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
     case 'attachmentRemoved':
       return { ...state, attachments: state.attachments.filter((a) => a.localId !== action.localId) }
     case 'setQuote':
-      return { ...state, quote: action.quote }
+      // a new quote needs a new invoice attempt
+      return { ...state, quote: action.quote, paymentKey: action.quote?.id === state.paymentKey?.quoteId ? state.paymentKey : null }
   }
 }
 
@@ -249,12 +298,12 @@ export function buildDraftInput(state: BookingDraftState): DraftOrderInput | nul
     timeSlot: details.timeSlot,
     address: { text: details.addressText.trim() },
     ...(notes ? { notes } : {}),
-    nurseGenderPreference: details.nurseGenderPreference,
+    // nurseGenderPreference is not sent: the server does not store it (GAP-16)
   }
 }
 
 export type DraftSavePlan =
-  | { kind: 'create'; input: DraftOrderInput; key: string }
+  | { kind: 'create'; input: DraftOrderInput; key: string; fingerprint: string }
   | { kind: 'update'; orderId: string; patch: DraftOrderPatch }
   | { kind: 'none' }
   | { kind: 'invalid' }
@@ -265,7 +314,9 @@ export function planDraftSave(state: BookingDraftState, newKey: () => string): D
   // No saved draft yet, or the patient changed (a draft belongs to one patient):
   // create a new draft. A retry after a failure reuses the same key.
   if (!state.server || state.server.parentId !== input.parentId) {
-    return { kind: 'create', input, key: state.pendingCreateKey ?? newKey() }
+    const fingerprint = JSON.stringify(input)
+    const reuse = state.pendingCreate && state.pendingCreate.fingerprint === fingerprint
+    return { kind: 'create', input, fingerprint, key: reuse && state.pendingCreate ? state.pendingCreate.key : newKey() }
   }
   if (!state.dirty) return { kind: 'none' }
   // Items are sent only when the service changed: the server treats any
@@ -277,7 +328,6 @@ export function planDraftSave(state: BookingDraftState, newKey: () => string): D
     scheduledFor: input.scheduledFor,
     timeSlot: input.timeSlot,
     address: input.address,
-    nurseGenderPreference: input.nurseGenderPreference,
     notes: input.notes ?? null,
   }
   return { kind: 'update', orderId: state.server.orderId, patch }

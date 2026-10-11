@@ -63,6 +63,7 @@ export interface UploadOptions<T> {
   fields: Record<string, string>
   parse: DataParser<T>
   onProgress?: (fraction: number) => void
+  headers?: Record<string, string>
 }
 
 export interface HttpClientDeps {
@@ -172,7 +173,7 @@ export function createHttpClient(deps: HttpClientDeps): HttpClient {
       if ('expired' in resolved) return endSession(resolved.expired)
       const { token } = resolved
 
-      const headers: Record<string, string> = { Accept: 'application/json' }
+      const headers: Record<string, string> = { Accept: 'application/json', ...options.headers }
       if (token) headers.Authorization = `Bearer ${token}`
 
       let response: HttpResponseLike

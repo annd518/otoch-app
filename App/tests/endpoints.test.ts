@@ -19,7 +19,7 @@ describe('per-endpoint mock selection', () => {
   })
 
   it('mock mode without a list mocks all mockable endpoints; real mode mocks none', () => {
-    assert.equal(resolveMockedEndpoints({ isDev: true, mode: 'mock' }).size, 4)
+    assert.equal(resolveMockedEndpoints({ isDev: true, mode: 'mock' }).size, 6)
     assert.equal(resolveMockedEndpoints({ isDev: true, mode: 'real' }).size, 0)
   })
 
@@ -30,6 +30,9 @@ describe('per-endpoint mock selection', () => {
     assert.equal(endpointForPath('/api/orders/o1/cancel'), 'orders')
     assert.equal(endpointForPath('/api/orders/o1/red-flag-questions'), 'redFlags')
     assert.equal(endpointForPath('/api/orders/o1/attachments/a1'), 'attachments')
+    assert.equal(endpointForPath('/api/orders/o1/quote'), 'quote')
+    assert.equal(endpointForPath('/api/orders/o1/payments/qpay'), 'payments')
+    assert.equal(endpointForPath('/api/orders/o1/payments/pay_1'), 'payments')
     assert.equal(endpointForPath('/api/auth/login'), null)
     assert.equal(endpointForPath('/api/parents'), null)
     assert.equal(endpointForPath('/api/visits'), null)

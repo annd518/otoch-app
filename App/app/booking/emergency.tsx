@@ -1,10 +1,12 @@
-import React, { useEffect } from "react"
+import React, { useEffect, useState } from "react"
 import { Alert, BackHandler, Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 
 import { useBookingDraft } from "@/context/BookingDraftContext"
+import { apiService } from "@/services/api"
+import { reportBlockInBackground } from "@/services/blockSync"
 import { EMERGENCY_PHONE } from "@/services/redFlag"
 
 const DEFAULT_ADVICE = "Яаралтай тусламжийн 103 дугаарт одоо залгана уу."
@@ -12,8 +14,21 @@ const DEFAULT_ADVICE = "Яаралтай тусламжийн 103 дугаарт
 // Terminal screen: there is intentionally no way to continue the booking.
 export default function EmergencyScreen() {
   const router = useRouter()
-  const { state } = useBookingDraft()
-  const advice = state.redFlag.status === "blocked" ? state.redFlag.advice : null
+  const { state, dispatch } = useBookingDraft()
+  const blocked = state.redFlag.status === "blocked" ? state.redFlag : null
+  const advice = blocked?.advice ?? null
+  const [retrying, setRetrying] = useState(false)
+
+  // Re-send an unconfirmed block. This never re-opens the booking.
+  const retryReport = async () => {
+    const orderId = state.server?.orderId
+    if (!blocked?.report || !orderId) return
+    setRetrying(true)
+    await reportBlockInBackground(orderId, blocked.report, apiService.sourceOf("redFlags"), (server, version) =>
+      dispatch({ type: "blockReported", server, version }),
+    )
+    setRetrying(false)
+  }
 
   const goHome = () => router.replace("/(tabs)")
 
@@ -47,6 +62,22 @@ export default function EmergencyScreen() {
           </Text>
         ) : null}
         <Text style={styles.note}>Энэ тохиолдолд гэрийн үйлчилгээний захиалга хийх боломжгүй.</Text>
+        {blocked?.server === "recorded" ? (
+          <Text style={styles.serverNote}>Захиалгын блок серверт бүртгэгдсэн.</Text>
+        ) : blocked ? (
+          <View style={styles.pendingBox}>
+            <Text style={styles.serverNote}>
+              {blocked.server === "not_supported"
+                ? "Сервер энэ блокийг одоогоор бүртгэж чадахгүй байна. Захиалга энэ утсан дээр зогссон хэвээр."
+                : "Блок серверт бүртгэгдээгүй байна. Захиалга энэ утсан дээр зогссон хэвээр."}
+            </Text>
+            {blocked.report ? (
+              <TouchableOpacity onPress={() => void retryReport()} disabled={retrying}>
+                <Text style={styles.retryText}>{retrying ? "Илгээж байна..." : "Серверт дахин илгээх"}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
 
         <TouchableOpacity style={styles.callButton} onPress={() => void call()} accessibilityRole="button">
           <Ionicons name="call" size={26} color="#fff" />
@@ -79,5 +110,8 @@ const styles = StyleSheet.create({
   },
   callButtonText: { color: "#fff", fontSize: 22, fontWeight: "800" },
   homeButton: { paddingVertical: 14, paddingHorizontal: 24 },
+  serverNote: { fontSize: 13, color: "#555", textAlign: "center" },
+  pendingBox: { alignItems: "center", gap: 6 },
+  retryText: { fontSize: 14, color: "#2f80ed", fontWeight: "700" },
   homeButtonText: { color: "#555", fontSize: 16, fontWeight: "600" },
 })

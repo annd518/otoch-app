@@ -98,6 +98,8 @@ export interface Quote {
   totalMnt: number
   pricingVersion: string
   expiresAt: string
+  // true when prices come from fixture catalog rows
+  isFixture: boolean
 }
 
 // ---- Orders, red flags, attachments: docs/l1-1-api.md §3-§5 (proposal, not
@@ -123,7 +125,8 @@ export interface DraftOrderInput {
   timeSlot: string
   address: { text: string }
   notes?: string
-  nurseGenderPreference: NurseGenderPreference
+  // In the proposal; the implemented server ignores it (GAP-16), so the app does not send it.
+  nurseGenderPreference?: NurseGenderPreference
 }
 
 // `notes: null` clears the note on the server.

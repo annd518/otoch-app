@@ -24,6 +24,15 @@ const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
 }
 
+const UPLOAD_ERRORS: Record<string, string> = {
+  UNSUPPORTED_MEDIA_TYPE: "Зөвхөн JPEG эсвэл PNG зураг хүлээн авна.",
+  FILE_TOO_LARGE: "Зургийн хэмжээ 10 MB-аас их байна.",
+  ATTACHMENT_LIMIT: "Нэг захиалгад 5 хүртэл зураг оруулна.",
+  ORDER_NOT_FOUND: "Захиалга олдсонгүй эсвэл таных биш байна.",
+  RED_FLAG_BLOCKED: "Захиалга зогссон тул зураг илгээх боломжгүй.",
+  STORAGE_UNAVAILABLE: "Сервер зураг хадгалах боломжгүй байна. Дараа дахин оролдоно уу.",
+}
+
 export default function ReferralScreen() {
   const router = useRouter()
   const { state, dispatch } = useBookingDraft()
@@ -45,13 +54,15 @@ export default function ReferralScreen() {
       orderId,
       { uri: attachment.uri, name: attachment.name, type: attachment.mimeType },
       (progress) => dispatch({ type: "attachmentUpdated", localId: attachment.localId, patch: { progress } }),
+      // the local id doubles as the upload idempotency key: a retry is the same upload
+      attachment.localId,
     )
     dispatch({
       type: "attachmentUpdated",
       localId: attachment.localId,
       patch: result.ok
         ? { status: "uploaded", progress: 1, serverId: result.data.id, error: null }
-        : { status: "failed", error: result.message },
+        : { status: "failed", error: (result.code && UPLOAD_ERRORS[result.code]) || result.message },
     })
   }
 

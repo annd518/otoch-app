@@ -207,5 +207,6 @@ export function parseQuote(data: unknown): Quote | null {
     totalMnt: q.totalMnt,
     pricingVersion: q.pricingVersion,
     expiresAt: q.expiresAt,
+    isFixture: q.isFixture === true,
   }
 }

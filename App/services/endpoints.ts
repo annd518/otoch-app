@@ -2,10 +2,10 @@
 // the backend has not implemented (or has implemented only on a branch).
 //
 // Selection (development builds only, release builds never mock):
-// - EXPO_PUBLIC_MOCK_ENDPOINTS="orders,redFlags,attachments" mocks exactly those.
+// - EXPO_PUBLIC_MOCK_ENDPOINTS="attachments,quote,payments" mocks exactly those.
 // - EXPO_PUBLIC_API_MODE=mock without the list mocks all of them.
 
-export const MOCKABLE_ENDPOINTS = ['catalog', 'orders', 'redFlags', 'attachments'] as const
+export const MOCKABLE_ENDPOINTS = ['catalog', 'orders', 'redFlags', 'attachments', 'quote', 'payments'] as const
 export type MockableEndpoint = (typeof MOCKABLE_ENDPOINTS)[number]
 
 function isMockable(value: string): value is MockableEndpoint {
@@ -36,6 +36,8 @@ export function endpointForPath(path: string): MockableEndpoint | null {
   if (path === '/api/catalog/services') return 'catalog'
   if (/^\/api\/orders\/[^/]+\/red-flag-(questions|answers)$/.test(path)) return 'redFlags'
   if (/^\/api\/orders\/[^/]+\/attachments(\/.*)?$/.test(path)) return 'attachments'
+  if (/^\/api\/orders\/[^/]+\/quote$/.test(path)) return 'quote'
+  if (/^\/api\/orders\/[^/]+\/payments(\/.*)?$/.test(path)) return 'payments'
   if (/^\/api\/orders(\/[^/]+(\/cancel)?)?$/.test(path)) return 'orders'
   return null
 }

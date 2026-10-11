@@ -13,6 +13,7 @@ import {
 import { Link, useLocalSearchParams, useRouter } from "expo-router"
 import { SafeAreaView } from "react-native-safe-area-context"
 
+import { useBookingDraft } from "@/context/BookingDraftContext"
 import { apiService } from "@/services/api"
 
 export default function LoginScreen() {
@@ -21,6 +22,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const { dispatch } = useBookingDraft()
   const justRegistered = params.registered === "1"
   const sessionExpired = params.expired === "1"
 
@@ -35,6 +37,7 @@ export default function LoginScreen() {
     try {
       const result = await apiService.login(trimmedEmail, password)
       if (result.ok) {
+        dispatch({ type: "reset" })
         router.replace("/(tabs)")
       } else {
         Alert.alert("Нэвтэрч чадсангүй", result.message)

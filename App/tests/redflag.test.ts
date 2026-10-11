@@ -23,7 +23,7 @@ import {
 } from '../services/redFlag'
 import { makeClient, makeMockClient } from './helpers'
 
-const QUESTIONNAIRE = parseRedFlagQuestionnaire({ questionnaire: 'DEV_FIXTURE_V0', questions: DEV_FIXTURE_QUESTIONS })
+const QUESTIONNAIRE = parseRedFlagQuestionnaire({ questionnaires: ['GENERAL_V1'], containsFixtures: true, questions: DEV_FIXTURE_QUESTIONS })
 
 async function draftOn(client: ReturnType<typeof makeMockClient>['client']) {
   const state = bookingDraftReducer(
@@ -58,11 +58,11 @@ async function draftOn(client: ReturnType<typeof makeMockClient>['client']) {
 }
 
 describe('questionnaire rules', () => {
-  it('has 5 dev fixture questions, all unanswered at first and marked as fixtures', () => {
+  it('mock questions mirror the backend fixture rows, all unanswered and marked as fixtures', () => {
     assert.ok(QUESTIONNAIRE)
     if (!QUESTIONNAIRE) return
-    assert.equal(QUESTIONNAIRE.questions.length, 5)
-    assert.ok(QUESTIONNAIRE.questions.every((q) => q.text.startsWith('[DEV FIXTURE]')))
+    assert.deepEqual(QUESTIONNAIRE.questions.map((q) => q.code), ['TEST_Q1', 'TEST_Q2', 'TEST_Q3'])
+    assert.ok(QUESTIONNAIRE.questions.every((q) => q.isFixture && q.text.includes('батлагдаагүй')))
     const answers = initialAnswers(QUESTIONNAIRE)
     assert.ok(Object.values(answers).every((a) => a === null))
     assert.equal(canSubmitClear(QUESTIONNAIRE, answers), false)
@@ -71,12 +71,13 @@ describe('questionnaire rules', () => {
   it('continue stays disabled until all are answered, and with any "yes"', () => {
     if (!QUESTIONNAIRE) return assert.fail('questionnaire')
     const ids = QUESTIONNAIRE.questions.map((q) => q.id)
-    const fourNo = Object.fromEntries(ids.slice(0, 4).map((id) => [id, false]))
-    assert.equal(allRequiredAnswered(QUESTIONNAIRE, { ...fourNo, [ids[4]]: null }), false)
-    assert.equal(canSubmitClear(QUESTIONNAIRE, { ...fourNo, [ids[4]]: null }), false)
+    const fourNo = Object.fromEntries(ids.slice(0, -1).map((id) => [id, false]))
+    const last = ids[ids.length - 1]
+    assert.equal(allRequiredAnswered(QUESTIONNAIRE, { ...fourNo, [last]: null }), false)
+    assert.equal(canSubmitClear(QUESTIONNAIRE, { ...fourNo, [last]: null }), false)
     const allNo = Object.fromEntries(ids.map((id) => [id, false]))
     assert.equal(canSubmitClear(QUESTIONNAIRE, allNo), true)
-    const oneYes = { ...allNo, [ids[2]]: true }
+    const oneYes = { ...allNo, [ids[1]]: true }
     assert.equal(hasPositiveAnswer(oneYes), true)
     assert.equal(canSubmitClear(QUESTIONNAIRE, oneYes), false)
     assert.deepEqual(answersPayload(QUESTIONNAIRE, allNo)[0], { questionId: ids[0], value: false })
@@ -119,7 +120,7 @@ describe('red flag flow with the development mock', () => {
     const { client } = makeMockClient()
     const id = await draftOn(client)
     const answers = DEV_FIXTURE_QUESTIONS.map((x, i) => ({ questionId: x.id, value: i === 1 }))
-    const r = await submitRedFlagAnswers(client, id, answers, ['DEV_FIXTURE_V0'])
+    const r = await submitRedFlagAnswers(client, id, answers, ['GENERAL_V1'])
     assert.ok(r.ok && r.data.status === 'FLAGGED')
     if (r.ok && r.data.status === 'FLAGGED') {
       assert.equal(r.data.orderStatus, 'BLOCKED_RED_FLAG')
