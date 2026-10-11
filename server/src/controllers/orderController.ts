@@ -387,7 +387,9 @@ async function writeAnswers(orderId: string, fromStatus: string, userId: string,
 }
 
 const quoteSchema = z.object({
-    orderVersion: z.number({ message: 'orderVersion шаардлагатай' }).int().min(1),
+    // Recommended: the version the client showed the user. Omitted = price the current
+    // version (mobile cec500c sends {}). Either way the quote is bound to one exact version.
+    orderVersion: z.number().int().min(1).optional(),
 })
 
 /**
@@ -399,7 +401,7 @@ export const requestQuote = async (req: AuthenticatedRequest, res: Response) => 
     if (!parsed.success) throw validationError(parsed.error)
 
     const order = await loadOwnedOrder(req.params.id, req.user!.userId)
-    if (order.version !== parsed.data.orderVersion) {
+    if (parsed.data.orderVersion !== undefined && order.version !== parsed.data.orderVersion) {
         throw new ApiError(409, 'VERSION_CONFLICT', 'Захиалга өөрчлөгдсөн байна. Дахин ачаална уу')
     }
     assertOrderReadyForPricing(order)

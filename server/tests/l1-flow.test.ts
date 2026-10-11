@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { api, createUser, errorCode, loginAs, prisma, startServer, TestServer } from './helpers'
 import { CATALOG_FIXTURES } from '../prisma/fixtures/catalog'
 import { RED_FLAG_FIXTURES } from '../prisma/fixtures/redFlags'
-import { getStorage } from '../src/services/storage'
+import { getStorage, memoryStorageKeys } from '../src/services/storage'
 import { qpayMock } from '../src/services/qpay'
 
 let srv: TestServer
@@ -268,6 +268,8 @@ describe('POST /api/orders/:id/quote', () => {
         assert.ok(Number.isInteger(qt.totalMnt))
         assert.equal(qt.isFixture, true)
         assert.deepEqual(qt.excludes, ['TRAVEL_FEE', 'DISCOUNT', 'VAT'])
+        assert.equal(qt.travelFeeMnt, 0)
+        assert.equal(qt.discountMnt, 0)
         assert.equal(qt.isPayment, false)
         const current = await getOrder(f, order.id)
         assert.equal(current.status, 'DRAFT', 'a quote must not change the order status')
@@ -289,11 +291,16 @@ describe('POST /api/orders/:id/quote', () => {
         assert.equal(pay.json.error.code, 'QUOTE_MISMATCH')
     })
 
-    it('missing orderVersion -> 400', async () => {
+    it('omitted orderVersion (mobile sends {}) prices the current version; bad type -> 400', async () => {
         const f = await family('q-c')
         const order = await newOrder(f)
+        await clearRedFlag(f, order.id)
+        const current = await getOrder(f, order.id)
         const r = await api(srv.baseUrl, 'POST', `/api/orders/${order.id}/quote`, { token: f.token, body: {} })
-        assert.equal(r.status, 400)
+        assert.equal(r.status, 201, JSON.stringify(r.json))
+        assert.equal(r.json.data.quote.orderVersion, current.version)
+        const bad = await api(srv.baseUrl, 'POST', `/api/orders/${order.id}/quote`, { token: f.token, body: { orderVersion: 'x' } })
+        assert.equal(bad.status, 400)
     })
 })
 
@@ -379,6 +386,17 @@ describe('private referral upload', () => {
         const after = await fetch(`${srv.baseUrl}/api/orders/${order.id}/attachments/${row.id}/content`, { headers: { Authorization: `Bearer ${f.token}` } })
         assert.equal(after.status, 404)
         assert.equal((await prisma.attachment.findUniqueOrThrow({ where: { id: row.id } })).status, 'DELETED')
+    })
+
+    it('concurrent upload retries with one key leave one attachment and no orphan blob', async () => {
+        const f = await family('up-h')
+        const order = await newOrder(f)
+        const results = await Promise.all(Array.from({ length: 5 }, () => upload(f, order.id, JPEG, { key: 'upload-race-0001' })))
+        for (const r of results) assert.equal(r.status, 201, JSON.stringify(r.json))
+        assert.equal(new Set(results.map((r) => r.json.data.attachment.id)).size, 1)
+        assert.equal(await prisma.attachment.count({ where: { orderId: order.id } }), 1)
+        const blobs = memoryStorageKeys().filter((k) => k.startsWith(`orders/${order.id}/`))
+        assert.equal(blobs.length, 1, `orphan blobs: ${blobs.length}`)
     })
 
     it('a referral service can be quoted once an image is attached', async () => {

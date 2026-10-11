@@ -19,6 +19,9 @@ export interface BlobStorage {
 
 const memoryBlobs = new Map<string, Buffer>()
 
+/** Test helper: keys currently held by the memory adapter (used to detect orphan blobs) */
+export const memoryStorageKeys = () => [...memoryBlobs.keys()]
+
 const memoryStorage: BlobStorage = {
     driver: 'memory',
     async put(key, data) { memoryBlobs.set(key, Buffer.from(data)) },

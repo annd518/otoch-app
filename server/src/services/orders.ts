@@ -60,6 +60,9 @@ export function serializeQuote(q: QuoteRow) {
         currency: q.currency,
         lines: q.lines,
         subtotalMnt: q.subtotalMnt,
+        // 0 = not included in this quote (no approved fee/discount rule yet, see `excludes`)
+        travelFeeMnt: 0,
+        discountMnt: 0,
         totalMnt: q.totalMnt,
         excludes: PRICE_EXCLUDES,
         isFixture: q.isFixture,
