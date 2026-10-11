@@ -1,122 +1,51 @@
-import { StyleSheet, Text, View, TouchableOpacity, Image } from "react-native"
-import React from "react"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
-
-const Index = () => {
-  const router = useRouter()
-
-  const handleGetStarted = () => {
-    router.push("/auth/login")
-  }
-
+import React, { useEffect, useState } from "react";
+import { router } from "expo-router";
+import { storage } from "@/utils/storage";
+import { Banner, Button, Card, Copy, Screen } from "@/components/ui";
+export default function Onboarding() {
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    let active = true;
+    void storage.getValidSession().then((s) => {
+      if (active && s) router.replace("/(tabs)");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const slides = [
+    {
+      title: "Сувилахуйн тусламжийг гэртээ",
+      text: "Өөрт тохирох үйлчилгээг сонгож, хаяг болон цагаа захиалаарай.",
+    },
+    {
+      title: "Аюулгүй байдлаа эхэлж шалгана",
+      text: "Эмчийн заалт, зөвшөөрөл, аюулын шинжийн асуулга нь үйлчилгээний өмнөх шалгалт юм.",
+    },
+    {
+      title: "Захиалгын явцаа хянаарай",
+      text: "Захиалга, төлбөр, баталгаажсан тэмдэглэлээ нэг дороос харна.",
+    },
+  ];
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require("../assets/images/logoop.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-
-          <View style={styles.textContainer}>
-            <Text style={styles.title}>PariwarCare</Text>
-            <Text style={styles.slogan}>
-              Таны эцэг эхийн эрүүл мэнд таны гарт
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.bottomSection}>
-          <TouchableOpacity
-            style={styles.getStartedButton}
-            onPress={handleGetStarted}
-          >
-            <Text style={styles.getStartedText}>Эхлэх</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.footerText}>
-            Биднийг асарсан хүмүүсээ асарцгаая
-          </Text>
-        </View>
-      </View>
-    </SafeAreaView>
-  )
+    <Screen title="OTOCH" back={false}>
+      <Card>
+        <Copy variant="heading">{slides[page].title}</Copy>
+        <Copy>{slides[page].text}</Copy>
+        <Copy>{page + 1} / 3</Copy>
+      </Card>
+      <Banner>Яаралтай тусламж шаардлагатай үед 103 руу залгана уу.</Banner>
+      <Button
+        title={page < 2 ? "Үргэлжлүүлэх" : "Эхлэх"}
+        onPress={() =>
+          page < 2 ? setPage((p) => p + 1) : router.push("/auth/phone")
+        }
+      />
+      <Button
+        secondary
+        title="Алгасах"
+        onPress={() => router.push("/auth/phone")}
+      />
+    </Screen>
+  );
 }
-
-export default Index
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  container: {
-    flex: 1,
-    justifyContent: "space-between",
-    padding: 24,
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  logoContainer: {
-    marginBottom: 40,
-    alignItems: "center",
-  },
-  logo: {
-    width: 180,
-    height: 180,
-  },
-  textContainer: {
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#111",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  slogan: {
-    fontSize: 20,
-    color: "#666",
-    textAlign: "center",
-    lineHeight: 28,
-    fontWeight: "500",
-  },
-  bottomSection: {
-    alignItems: "center",
-    paddingBottom: 20,
-  },
-  getStartedButton: {
-    backgroundColor: "#2f80ed",
-    paddingVertical: 18,
-    paddingHorizontal: 60,
-    borderRadius: 14,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: "#2f80ed",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    marginBottom: 16,
-  },
-  getStartedText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  footerText: {
-    fontSize: 14,
-    color: "#999",
-    textAlign: "center",
-    fontStyle: "italic",
-  },
-})

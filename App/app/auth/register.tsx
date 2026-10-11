@@ -1,70 +1,78 @@
-import React, { useState } from 'react'
+import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
+import { theme } from "@/design/theme";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
-} from 'react-native'
-import { Link, useRouter } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+} from "react-native";
+import { Link, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { apiService } from '@/services/api'
+import { apiService } from "@/services/api";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterScreen() {
-  const router = useRouter()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    const trimmedName = name.trim()
-    const trimmedEmail = email.trim()
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
 
     if (!trimmedName || !trimmedEmail || !password || !confirmPassword) {
-      Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү")
-      return
+      Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү");
+      return;
     }
 
     if (!EMAIL_PATTERN.test(trimmedEmail)) {
-      Alert.alert("Алдаа", "Имэйл хаяг буруу байна")
-      return
+      Alert.alert("Алдаа", "Имэйл хаяг буруу байна");
+      return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Алдаа", "Нууц үг таарахгүй байна")
-      return
+      Alert.alert("Алдаа", "Нууц үг таарахгүй байна");
+      return;
     }
 
     if (password.length < 6) {
-      Alert.alert("Алдаа", "Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой")
-      return
+      Alert.alert("Алдаа", "Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await apiService.signup({ name: trimmedName, email: trimmedEmail, password })
-      if (result.kind === 'signed_in') {
-        router.replace("/(tabs)")
-      } else if (result.kind === 'login_required') {
+      const result = await apiService.signup({
+        name: trimmedName,
+        email: trimmedEmail,
+        password,
+      });
+      if (result.kind === "signed_in") {
+        router.replace("/(tabs)");
+      } else if (result.kind === "login_required") {
         // The server created the account but returned no token (current contract).
-        router.replace({ pathname: "/auth/login", params: { email: result.email, registered: "1" } })
+        router.replace({
+          pathname: "/auth/login",
+          params: { email: result.email, registered: "1" },
+        });
       } else {
-        Alert.alert("Бүртгүүлж чадсангүй", result.message)
+        Alert.alert("Бүртгүүлж чадсангүй", result.message);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -78,7 +86,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.header}>
             <Text style={styles.title}>Бүртгэл үүсгэх</Text>
-            <Text style={styles.subtitle}>Эхлэхийн тулд PariwarCare-д нэгдээрэй</Text>
+            <Text style={styles.subtitle}>Эхлэхийн тулд OTOCH-д нэгдээрэй</Text>
           </View>
 
           <View style={styles.form}>
@@ -87,7 +95,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Овог нэрээ оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -99,7 +107,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Имэйлээ оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -113,7 +121,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Утасны дугаараа оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
@@ -125,7 +133,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Нууц үг үүсгэнэ үү"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -138,7 +146,7 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Нууц үгээ дахин оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
@@ -163,7 +171,8 @@ export default function RegisterScreen() {
               <Text style={styles.termsText}>
                 Бүртгүүлснээр та манай{" "}
                 <Text style={styles.termsLink}>Үйлчилгээний нөхцөл</Text> болон{" "}
-                <Text style={styles.termsLink}>Нууцлалын бодлого</Text>-ыг зөвшөөрч байна
+                <Text style={styles.termsLink}>Нууцлалын бодлого</Text>-ыг
+                зөвшөөрч байна
               </Text>
             </View>
 
@@ -185,13 +194,13 @@ export default function RegisterScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   container: {
     flex: 1,
@@ -203,104 +212,114 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
+    fontFamily: "Montserrat_600SemiBold",
     fontSize: 32,
-    fontWeight: '800',
-    color: '#111',
+    fontWeight: "800",
+    color: "#111",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: "#666",
+    textAlign: "center",
   },
   form: {
-    width: '100%',
+    width: "100%",
   },
   inputGroup: {
     marginBottom: 16,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#f7f8fb',
+    backgroundColor: "#f7f8fb",
     borderWidth: 1,
-    borderColor: '#e1e4e8',
+    borderColor: "#e1e4e8",
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
-    color: '#111',
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: "#111",
   },
   primaryButton: {
-    backgroundColor: '#2f80ed',
+    minHeight: 56,
+    backgroundColor: "#2f80ed",
     paddingVertical: 16,
     borderRadius: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
-    shadowColor: '#2f80ed',
+    shadowColor: "#2f80ed",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#a0c4f0',
+    backgroundColor: "#a0c4f0",
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: "#fff",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    fontWeight: "700",
   },
   termsSection: {
     marginTop: 16,
     paddingHorizontal: 8,
   },
   termsText: {
-    fontSize: 13,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 28,
   },
   termsLink: {
-    color: '#2f80ed',
-    fontWeight: '600',
+    color: "#2f80ed",
+    fontWeight: "600",
   },
   divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e1e4e8',
+    backgroundColor: "#e1e4e8",
   },
   dividerText: {
     marginHorizontal: 16,
-    color: '#999',
-    fontSize: 14,
-    fontWeight: '600',
+    color: "#999",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    fontWeight: "600",
   },
   loginSection: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 20,
   },
   loginText: {
-    fontSize: 15,
-    color: '#666',
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: "#666",
   },
   loginLink: {
-    fontSize: 15,
-    color: '#2f80ed',
-    fontWeight: '700',
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: "#2f80ed",
+    fontWeight: "700",
   },
-})
+});

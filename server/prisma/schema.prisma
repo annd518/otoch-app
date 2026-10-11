@@ -20,6 +20,10 @@ model User {
   email          String   @unique
   password       String
   role           Role
+  phone          String? @unique
+  deletedAt      DateTime?
+  refreshSessions RefreshSession[]
+  assignedOrders Order[] @relation("AssignedOrderNurse")
   parents        Parent[] @relation("ChildParents")
   nurseVisits    Visit[]  @relation("NurseVisits")
   approvedVisits Visit[]  @relation("ApprovedBy")
@@ -30,6 +34,8 @@ model User {
 model Parent {
   id               String  @id @default(cuid())
   name             String
+  birthYear        Int?
+  needsRepresentative Boolean @default(false)
   age              Int
   gender           String
   address          String
@@ -141,6 +147,10 @@ model Order {
   catalogVersion    String // catalog version the server validated the items against
   scheduledFor      DateTime?
   timeSlot          String?
+  bookingForm       Json?
+  zoneId            String?
+  assignedNurseId   String?
+  eta               DateTime?
   addressText       String?
   lat               Float?
   lng               Float?
@@ -150,6 +160,7 @@ model Order {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
+  assignedNurse User? @relation("AssignedOrderNurse", fields: [assignedNurseId], references: [id])
   child          User            @relation("ChildOrders", fields: [childId], references: [id])
   parent         Parent          @relation(fields: [parentId], references: [id])
   items          OrderItem[]
@@ -321,4 +332,52 @@ model Payment {
 
   @@unique([orderId, idempotencyKey])
   @@index([orderId, status])
+}
+
+// v2 additions: old patients/orders remain unknown until explicitly supplied.
+model RefreshSession {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  user User @relation(fields: [userId], references: [id])
+}
+model OtpChallenge {
+  id String @id @default(cuid())
+  phone String
+  ipHash String
+  codeHash String
+  expiresAt DateTime
+  attempts Int @default(0)
+  lockedUntil DateTime?
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([phone, createdAt])
+  @@index([ipHash, createdAt])
+}
+model ServiceZone {
+  id String @id
+  name String
+  isActive Boolean @default(true)
+  minLat Float
+  maxLat Float
+  minLng Float
+  maxLng Float
+  slots AvailabilitySlot[]
+}
+model AvailabilitySlot {
+  id String @id @default(cuid())
+  zoneId String
+  startsAt DateTime
+  endsAt DateTime
+  capacity Int
+  zone ServiceZone @relation(fields: [zoneId], references: [id])
+  @@unique([zoneId, startsAt])
+}
+model AccountDeletionRequest {
+  id String @id @default(cuid())
+  userId String @unique
+  requestedAt DateTime @default(now())
+  status String @default("REQUESTED")
 }

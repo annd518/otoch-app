@@ -1,511 +1,494 @@
-import React, { useCallback, useMemo, useState } from "react"
-import {
-  ActivityIndicator,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { Ionicons } from "@expo/vector-icons"
-import { useFocusEffect, useRouter } from "expo-router"
-
-import { PriceSummary } from "@/components/PriceSummary"
-import { useSingleFlight } from "@/components/useSingleFlight"
-import { useBookingDraft } from "@/context/BookingDraftContext"
-import { apiService } from "@/services/api"
-import type { ApiResult } from "@/services/apiResult"
-import type { NurseGenderPreference, Parent } from "@/services/apiTypes"
+import React, { useCallback, useEffect, useState } from "react";
+import { router, Redirect, useFocusEffect } from "expo-router";
+import { syncPendingBlocks } from "@/services/blockSync";
+import { apiService } from "@/services/api";
+import { useBookingDraft } from "@/context/BookingDraftContext";
 import {
   isBlocked,
-  nextStepAfterDetails,
   planDraftSave,
+  nextStepAfterDetails,
   validateDetails,
-  type DetailsField,
-} from "@/services/bookingDraft"
-import { syncPendingBlocks } from "@/services/blockSync"
-import { EMERGENCY_PHONE } from "@/services/redFlag"
-import { ulaanbaatarDate } from "@/utils/datetime"
-import { createIdempotencyKey } from "@/utils/id"
-import { formatMnt } from "@/utils/money"
-
-// Display labels only; stored values stay in English
-const GENDER_LABELS: Record<string, string> = { Female: "Эмэгтэй", Male: "Эрэгтэй", Other: "Бусад" }
-
-// Placeholder windows until the backend availability endpoint exists
-// (docs/l1-1-api.md §11, decision D13). They are not checked for capacity.
-const TIME_SLOTS = ["09:00-11:00", "11:00-13:00", "13:00-15:00", "15:00-17:00", "17:00-19:00"]
-const WEEKDAYS = ["Ням", "Дав", "Мяг", "Лха", "Пүр", "Баа", "Бям"]
-const NURSE_PREFS: { value: NurseGenderPreference; label: string }[] = [
-  { value: "ANY", label: "Хамаагүй" },
-  { value: "FEMALE", label: "Эмэгтэй" },
-  { value: "MALE", label: "Эрэгтэй" },
-]
-const DAY_MS = 24 * 60 * 60 * 1000
-
-type ParentsState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "ready"; parents: Parent[] }
-
-function toParentsState(result: ApiResult<Parent[]>): ParentsState {
-  return result.ok ? { status: "ready", parents: result.data } : { status: "error", message: result.message }
-}
-
-// Next 14 calendar days in Ulaanbaatar time.
-function upcomingDates(now: Date): { value: string; label: string }[] {
-  return Array.from({ length: 14 }, (_, i) => {
-    const value = ulaanbaatarDate(new Date(now.getTime() + i * DAY_MS))
-    const [y, m, d] = value.split("-").map(Number)
-    const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
-    return { value, label: `${m}/${d} ${weekday}` }
-  })
-}
-
-export default function BookAppointment() {
-  const router = useRouter()
-  const { state, dispatch } = useBookingDraft()
-  const { details, service, server } = state
-  const blocked = isBlocked(state)
-
-  const [parentsState, setParentsState] = useState<ParentsState>({ status: "loading" })
-  const [errors, setErrors] = useState<Partial<Record<DetailsField, string>>>({})
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const dates = useMemo(() => upcomingDates(new Date()), [])
-
-  const [openBlocks, setOpenBlocks] = useState(0)
-  const [awaiting, setAwaiting] = useState<string[]>([])
-  const [serverBlocked, setServerBlocked] = useState(0)
-
-  // Reload when the tab gains focus, e.g. after adding a parent. Also retry
-  // red flag blocks the server has not confirmed yet.
-  useFocusEffect(
-    useCallback(() => {
-      let active = true
-      apiService.getParents().then((result) => {
-        if (active) setParentsState(toParentsState(result))
-      })
-      syncPendingBlocks().then((open) => {
-        if (active) setOpenBlocks(open.length)
-      })
-      // Restored from the server after a restart or a re-login.
-      apiService.listOrders("AWAITING_PAYMENT").then((r) => {
-        if (active) setAwaiting(r.ok ? r.data.map((o) => o.id) : [])
-      })
-      apiService.listOrders("BLOCKED_RED_FLAG").then((r) => {
-        if (active) setServerBlocked(r.ok ? r.data.length : 0)
-      })
-      return () => {
-        active = false
-      }
-    }, []),
-  )
-
-  const retryParents = () => {
-    setParentsState({ status: "loading" })
-    apiService.getParents().then((result) => setParentsState(toParentsState(result)))
-  }
-
-  const parents = parentsState.status === "ready" ? parentsState.parents : []
-
-  const selectParent = (parent: Parent) => {
+} from "@/services/bookingDraft";
+import type { BookingForm, Parent } from "@/services/apiTypes";
+import type { Slot, Zone } from "@/services/clientV2";
+import { createIdempotencyKey } from "@/utils/id";
+import { ulaanbaatarDate } from "@/utils/datetime";
+import { useSingleFlight } from "@/components/useSingleFlight";
+import {
+  Banner,
+  Button,
+  Card,
+  Chip,
+  Copy,
+  Input,
+  Screen,
+  Stepper,
+  StateView,
+} from "@/components/ui";
+const initialForm = (acceptedAt: string): BookingForm => ({
+  consent: {
+    service: false,
+    sensitiveData: false,
+    signer: "RECIPIENT",
+    version: "V2_2026_10",
+    acceptedAt,
+  },
+  familyPresent: false,
+  postoperative: false,
+  medication: null,
+});
+const time = (iso: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Ulaanbaatar",
+  }).format(new Date(iso));
+export default function Booking() {
+  const { state, dispatch } = useBookingDraft();
+  const { details, service } = state;
+  const [step, setStep] = useState(1),
+    [parents, setParents] = useState<Parent[]>([]),
+    [zones, setZones] = useState<Zone[]>([]),
+    [slots, setSlots] = useState<Slot[]>([]),
+    [error, setError] = useState(""),
+    [slotsLoading, setSlotsLoading] = useState(false);
+  const [acceptedAt] = useState(() => new Date().toISOString());
+  const form = details.bookingForm ?? initialForm(acceptedAt);
+  const setForm = (patch: Partial<BookingForm>) =>
     dispatch({
       type: "updateDetails",
-      // Prefill the visit address from the patient profile; the user can edit it.
-      patch: {
-        parentId: parent.id,
-        parentName: parent.name,
-        addressText: details.parentId === parent.id ? details.addressText : parent.address,
-      },
-    })
-  }
-
+      patch: { bookingForm: { ...form, ...patch } },
+    });
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void syncPendingBlocks();
+      void apiService.getParents().then((r) => {
+        if (active) {
+          if (r.ok) setParents(r.data);
+          else setError(r.message);
+        }
+      });
+      void apiService.zones().then((r) => {
+        if (active) {
+          if (r.ok) setZones(r.data);
+          else setError(r.message);
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+  useEffect(() => {
+    let active = true;
+    if (!details.zoneId || !details.date || !service) return;
+    void apiService
+      .availability(details.zoneId, details.date, service.code)
+      .then((r) => {
+        if (!active) return;
+        setSlotsLoading(false);
+        if (r.ok) setSlots(r.data);
+        else setError(r.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [details.zoneId, details.date, service]);
   const save = useSingleFlight(
     useCallback(async () => {
-      setSaveError(null)
-      const found = validateDetails(state, new Date())
-      setErrors(found)
-      if (Object.keys(found).length > 0) return
-
-      const plan = planDraftSave(state, () => createIdempotencyKey())
+      setError("");
+      const errors = validateDetails(state, new Date());
+      if (Object.keys(errors).length) {
+        setError(Object.values(errors).join("\n"));
+        return;
+      }
+      const plan = planDraftSave(state, createIdempotencyKey);
       if (plan.kind === "invalid") {
-        setSaveError("Захиалгын мэдээлэл дутуу байна.")
-        return
+        setError("Мэдээллээ бүрэн бөглөнө үү");
+        return;
       }
       if (plan.kind === "none") {
-        router.push(nextStepAfterDetails(state))
-        return
+        router.push(nextStepAfterDetails(state));
+        return;
       }
-      // Stored before the request: a retry after a timeout reuses this key.
-      if (plan.kind === "create") dispatch({ type: "createStarted", key: plan.key, fingerprint: plan.fingerprint })
-      const result =
+      if (plan.kind === "create")
+        dispatch({
+          type: "createStarted",
+          key: plan.key,
+          fingerprint: plan.fingerprint,
+        });
+      const r =
         plan.kind === "create"
           ? await apiService.createDraftOrder(plan.input, plan.key)
-          : await apiService.updateDraftOrder(plan.orderId, plan.patch)
-      if (!result.ok) {
-        if (result.code === "RED_FLAG_BLOCKED") {
-          // The server already blocked this draft (e.g. answered on another device).
-          dispatch({ type: "redFlagBlocked", advice: null })
-          router.replace("/booking/emergency")
-          return
-        }
-        setSaveError(
-          result.code === "CATALOG_OUTDATED"
-            ? `${result.message} Үйлчилгээгээ каталогоос дахин сонгоно уу.`
-            : result.message,
-        )
-        return
+          : await apiService.updateDraftOrder(plan.orderId, plan.patch);
+      if (!r.ok) {
+        if (r.code === "RED_FLAG_BLOCKED") {
+          dispatch({ type: "redFlagBlocked", advice: null });
+          router.replace("/booking/emergency");
+        } else setError(r.message);
+        return;
       }
-      dispatch({ type: "draftSaved", order: result.data, source: apiService.sourceOf("orders") })
-      if (result.data.status === "BLOCKED_RED_FLAG") {
-        dispatch({ type: "redFlagBlocked", advice: null })
-        router.replace("/booking/emergency")
-        return
-      }
-      router.push(nextStepAfterDetails(state, result.data.requiresReferral))
-    }, [state, dispatch, router]),
-  )
-
-  const draftLabel = !server
-    ? "Ноорог серверт хадгалагдаагүй байна."
-    : server.source === "mock"
-      ? "MOCK ноорог: зөвхөн хөгжүүлэлтийн горимд, серверт хадгалагдаагүй."
-      : state.dirty
-        ? "Өөрчлөлт серверт хадгалагдаагүй байна."
-        : "Ноорог серверт хадгалагдсан. Төлбөр хийгдээгүй."
-
-  if (blocked) {
+      dispatch({
+        type: "draftSaved",
+        order: r.data,
+        source: apiService.sourceOf("orders"),
+      });
+      router.push(nextStepAfterDetails(state, r.data.requiresReferral));
+    }, [state, dispatch]),
+  );
+  const [dates] = useState(() =>
+    Array.from({ length: 14 }, (_, i) =>
+      ulaanbaatarDate(new Date(Date.now() + i * 86400000)),
+    ),
+  );
+  if (isBlocked(state)) return <Redirect href="/booking/emergency" />;
+  if (!service)
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.blockedCard}>
-          <Ionicons name="warning" size={40} color="#c62828" />
-          <Text style={styles.blockedTitle}>Энэ захиалга зогссон</Text>
-          <Text style={styles.blockedText}>
-            Асуулгад яаралтай тусламж шаардлагатай шинж тэмдэглэгдсэн тул захиалгыг үргэлжлүүлэх боломжгүй.
-          </Text>
-          <TouchableOpacity style={styles.emergencyButton} onPress={() => void Linking.openURL(`tel:${EMERGENCY_PHONE}`).catch(() => undefined)}>
-            <Text style={styles.emergencyButtonText}>{EMERGENCY_PHONE} руу залгах</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={() => dispatch({ type: "reset" })}>
-            <Text style={styles.secondaryButtonText}>Шинэ захиалга эхлэх</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    )
-  }
-
+      <Screen title="Шинэ захиалга">
+        <StateView
+          title="Үйлчилгээгээ сонгоно уу"
+          action="Каталог үзэх"
+          onAction={() => router.push("/booking/catalog")}
+        />
+      </Screen>
+    );
+  const patient = parents.find((p) => p.id === details.parentId);
+  const familyRequired =
+    !!patient &&
+    ((patient.birthYear !== undefined &&
+      patient.birthYear !== null &&
+      new Date().getFullYear() - patient.birthYear < 18) ||
+      patient.needsRepresentative);
+  const medicationRequired =
+    service.formConfig?.medicationRequired ??
+    ["S02", "S03"].includes(service.code);
+  const firstDoseCheck =
+    service.formConfig?.firstDoseCheck ?? ["S02", "S03"].includes(service.code);
+  const scheduledAt = Date.parse(
+    `${details.date}T${details.timeSlot.slice(0, 5)}:00+08:00`,
+  );
+  const medication = form.medication ?? {
+    name: "",
+    dose: "",
+    route: "",
+    expiresAt: "",
+    doseNumber: 1,
+  };
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Цаг захиалах</Text>
-        <Text style={styles.headerSubtitle}>Алхам 1: өвчтөн, үйлчилгээ, цаг, хаяг</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {awaiting.map((id) => (
-          <TouchableOpacity
-            key={id}
-            style={styles.awaitingBanner}
-            onPress={() => router.push({ pathname: "/booking/payment", params: { orderId: id } })}
-          >
-            <Text style={styles.awaitingText}>Төлбөр хүлээгдэж буй захиалга байна. Нэхэмжлэхийг нээх</Text>
-          </TouchableOpacity>
-        ))}
-        {serverBlocked > 0 && openBlocks === 0 ? (
-          <View style={styles.pendingBanner}>
-            <Text style={styles.pendingBannerText}>
-              Өмнө нь аюулын шинжээр зогссон захиалга серверт бүртгэлтэй байна. Түүнийг үргэлжлүүлэх боломжгүй.
-              Яаралтай тусламж хэрэгтэй бол {EMERGENCY_PHONE} руу залгана уу.
-            </Text>
-          </View>
-        ) : null}
-        {openBlocks > 0 ? (
-          <View style={styles.pendingBanner}>
-            <Text style={styles.pendingBannerText}>
-              Өмнөх захиалга аюулын шинжээр зогссон боловч серверт бүртгэгдээгүй байна. Апп дахин оролдсоор байна.
-              Яаралтай тусламж хэрэгтэй бол {EMERGENCY_PHONE} руу залгана уу.
-            </Text>
-          </View>
-        ) : null}
-        {/* 1. Patient */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Өвчтөн</Text>
-          {parentsState.status === "loading" ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color="#2f80ed" />
-              <Text style={styles.mutedText}>Эцэг эхийн мэдээллийг ачаалж байна...</Text>
-            </View>
-          ) : parentsState.status === "error" ? (
-            <View style={styles.centered}>
-              <Text style={styles.errorText}>{parentsState.message}</Text>
-              <TouchableOpacity style={styles.secondaryButton} onPress={retryParents}>
-                <Text style={styles.secondaryButtonText}>Дахин оролдох</Text>
-              </TouchableOpacity>
-            </View>
-          ) : parents.length === 0 ? (
-            <View style={styles.centered}>
-              <Ionicons name="people-outline" size={40} color="#999" />
-              <Text style={styles.mutedText}>Одоогоор эцэг/эх нэмээгүй байна</Text>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push("/(tabs)/add-parent")}>
-                <Text style={styles.secondaryButtonText}>Эцэг/эх нэмэх</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            parents.map((patient) => {
-              const selected = details.parentId === patient.id
-              return (
-                <TouchableOpacity
-                  key={patient.id}
-                  style={[styles.optionCard, selected && styles.optionCardActive]}
-                  onPress={() => selectParent(patient)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                >
-                  <View style={styles.optionInfo}>
-                    <Text style={styles.optionTitle}>{patient.name}</Text>
-                    <Text style={styles.optionMeta}>
-                      {patient.age} нас • {GENDER_LABELS[patient.gender] ?? patient.gender}
-                    </Text>
-                  </View>
-                  {selected && <Ionicons name="checkmark-circle" size={24} color="#2f80ed" />}
-                </TouchableOpacity>
-              )
-            })
-          )}
-          {errors.parent ? <Text style={styles.fieldError}>{errors.parent}</Text> : null}
-        </View>
-
-        {/* 2. Service */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Үйлчилгээ</Text>
-          {service ? (
-            <View style={[styles.optionCard, styles.optionCardActive]}>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>{service.name}</Text>
-                <Text style={styles.optionMeta}>
-                  {service.durationMin} мин • {formatMnt(service.priceMnt)} (урьдчилсан)
-                </Text>
-                {service.requiresReferral && <Text style={styles.warnText}>Эмчийн заалтын зураг шаардлагатай</Text>}
-                {service.source === "mock" && <Text style={styles.tagText}>MOCK өгөгдөл</Text>}
-                {service.isFixture && <Text style={styles.tagText}>Серверийн туршилтын өгөгдөл</Text>}
-              </View>
-              <TouchableOpacity onPress={() => router.push("/booking/catalog")}>
-                <Text style={styles.linkText}>Солих</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.dashedButton} onPress={() => router.push("/booking/catalog")}>
-              <Ionicons name="list-outline" size={22} color="#2f80ed" />
-              <Text style={styles.linkText}>Каталогоос үйлчилгээ сонгох</Text>
-            </TouchableOpacity>
-          )}
-          {errors.service ? <Text style={styles.fieldError}>{errors.service}</Text> : null}
-        </View>
-
-        {/* 3. Date and time */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Огноо ба цаг (Улаанбаатарын цагаар)</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {dates.map((date) => {
-              const selected = details.date === date.value
-              return (
-                <TouchableOpacity
-                  key={date.value}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => dispatch({ type: "updateDetails", patch: { date: date.value } })}
-                >
-                  <Text style={selected ? styles.chipTextActive : styles.chipText}>{date.label}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </ScrollView>
-          {errors.date ? <Text style={styles.fieldError}>{errors.date}</Text> : null}
-          <View style={styles.wrapRow}>
-            {TIME_SLOTS.map((slot) => {
-              const selected = details.timeSlot === slot
-              return (
-                <TouchableOpacity
-                  key={slot}
-                  style={[styles.chip, selected && styles.chipActive]}
-                  onPress={() => dispatch({ type: "updateDetails", patch: { timeSlot: slot } })}
-                >
-                  <Text style={selected ? styles.chipTextActive : styles.chipText}>{slot}</Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-          <Text style={styles.noteText}>Цагийн цонх түр жагсаалт. Сул эсэхийг сервер хараахан шалгадаггүй.</Text>
-          {errors.timeSlot ? <Text style={styles.fieldError}>{errors.timeSlot}</Text> : null}
-        </View>
-
-        {/* 4. Address */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Үзлэгийн хаяг</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
+    <Screen title="Сувилагч дуудах">
+      <Stepper step={step} />
+      <Copy variant="heading">{service.name}</Copy>
+      {!!error && <Banner error>{error}</Banner>}
+      {step === 1 && (
+        <>
+          <Input
+            label="Дэлгэрэнгүй хаяг"
             value={details.addressText}
-            onChangeText={(addressText) => dispatch({ type: "updateDetails", patch: { addressText } })}
-            placeholder="Дүүрэг, хороо, байр, тоот"
-            placeholderTextColor="#999"
-            multiline
+            onChangeText={(addressText) =>
+              dispatch({ type: "updateDetails", patch: { addressText } })
+            }
           />
-          {errors.address ? <Text style={styles.fieldError}>{errors.address}</Text> : null}
-        </View>
-
-        {/* 5. Notes */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Нэмэлт заавар</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={details.notes}
-            onChangeText={(notes) => dispatch({ type: "updateDetails", patch: { notes } })}
-            placeholder="Жишээ нь: ирэхээс 10 минутын өмнө залгана уу"
-            placeholderTextColor="#999"
-            multiline
-            maxLength={500}
+          <Copy variant="heading">Үйлчлэх бүс</Copy>
+          {zones.map((z) => (
+            <Chip
+              key={z.id}
+              label={z.name}
+              selected={details.zoneId === z.id}
+              onPress={() => {
+                setSlots([]);
+                setSlotsLoading(Boolean(details.zoneId && details.date));
+                dispatch({
+                  type: "updateDetails",
+                  patch: { zoneId: z.id, timeSlot: "" },
+                });
+              }}
+            />
+          ))}
+          {!zones.length && (
+            <StateView
+              title="Үйлчлэх бүс тохируулагдаагүй"
+              message="Серверт батлагдсан бүс нэмэгдэх хүртэл цаг захиалах боломжгүй."
+            />
+          )}
+          <Input
+            label="Өргөрөг"
+            keyboardType="decimal-pad"
+            value={details.lat?.toString() ?? ""}
+            onChangeText={(value) =>
+              dispatch({
+                type: "updateDetails",
+                patch: {
+                  lat:
+                    value.trim() && Number.isFinite(Number(value))
+                      ? Number(value)
+                      : undefined,
+                },
+              })
+            }
           />
-          {errors.notes ? <Text style={styles.fieldError}>{errors.notes}</Text> : null}
-        </View>
-
-        {/* 6. Nurse preference: disabled until the backend stores it (GAP-16) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. Сувилагчийн хүйс</Text>
-          <View style={[styles.wrapRow, styles.disabledRow]}>
-            {NURSE_PREFS.map((pref) => (
-              <View key={pref.value} style={styles.chip} accessibilityState={{ disabled: true }}>
-                <Text style={styles.chipText}>{pref.label}</Text>
-              </View>
-            ))}
-          </View>
-          <Text style={styles.noteText}>
-            Одоогоор сонгох боломжгүй: сервер энэ сонголтыг захиалгад хадгалдаггүй.
-          </Text>
-        </View>
-
-        {/* 7. Price */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Үнэ</Text>
-          <PriceSummary service={service} quote={state.quote} />
-        </View>
-
-        <Text style={styles.draftStatus}>{draftLabel}</Text>
-        {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
-
-        <TouchableOpacity
-          style={[styles.primaryButton, save.running && styles.primaryButtonDisabled]}
-          onPress={() => void save.run()}
-          disabled={save.running}
-        >
-          <Text style={styles.primaryButtonText}>{save.running ? "Хадгалж байна..." : "Үргэлжлүүлэх"}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
-  )
+          <Input
+            label="Уртраг"
+            keyboardType="decimal-pad"
+            value={details.lng?.toString() ?? ""}
+            onChangeText={(value) =>
+              dispatch({
+                type: "updateDetails",
+                patch: {
+                  lng:
+                    value.trim() && Number.isFinite(Number(value))
+                      ? Number(value)
+                      : undefined,
+                },
+              })
+            }
+          />
+          <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
+          {dates.map((date) => (
+            <Chip
+              key={date}
+              label={date}
+              selected={details.date === date}
+              onPress={() => {
+                setSlots([]);
+                setSlotsLoading(Boolean(details.zoneId && details.date));
+                dispatch({
+                  type: "updateDetails",
+                  patch: { date, timeSlot: "" },
+                });
+              }}
+            />
+          ))}
+          {slotsLoading ? (
+            <StateView title="Сул цаг шалгаж байна" loading />
+          ) : (
+            slots.map((slot) => (
+              <Chip
+                key={slot.id}
+                label={`${time(slot.startsAt)}–${time(slot.endsAt)}`}
+                selected={
+                  details.timeSlot ===
+                  `${time(slot.startsAt)}-${time(slot.endsAt)}`
+                }
+                onPress={() =>
+                  dispatch({
+                    type: "updateDetails",
+                    patch: {
+                      timeSlot: `${time(slot.startsAt)}-${time(slot.endsAt)}`,
+                    },
+                  })
+                }
+              />
+            ))
+          )}
+          {details.zoneId && details.date && !slotsLoading && !slots.length && (
+            <StateView
+              title="Сул цаг алга"
+              message="Өөр өдөр эсвэл бүс сонгоно уу."
+            />
+          )}
+          <Button
+            title="Үргэлжлүүлэх"
+            disabled={
+              !details.timeSlot ||
+              !details.zoneId ||
+              details.lat === undefined ||
+              details.lng === undefined ||
+              details.addressText.trim().length < 5
+            }
+            onPress={() => setStep(2)}
+          />
+        </>
+      )}
+      {step === 2 && (
+        <>
+          <Copy variant="heading">Үйлчлүүлэгч</Copy>
+          {parents.map((p) => (
+            <Chip
+              key={p.id}
+              label={p.name}
+              selected={details.parentId === p.id}
+              onPress={() =>
+                dispatch({
+                  type: "updateDetails",
+                  patch: { parentId: p.id, parentName: p.name },
+                })
+              }
+            />
+          ))}
+          <Button
+            secondary
+            title="Шинэ үйлчлүүлэгч"
+            onPress={() => router.push("/patients/edit")}
+          />
+          {patient && !patient.birthYear && (
+            <Banner error>
+              Төрсөн он дутуу байна. Үйлчлүүлэгчийн мэдээллийг шинэчилнэ үү.
+            </Banner>
+          )}
+          <Chip
+            label="Үйлчлүүлэгч өөрөө зөвшөөрөл өгч байна"
+            selected={form.consent.signer !== "REPRESENTATIVE"}
+            onPress={() =>
+              setForm({ consent: { ...form.consent, signer: "RECIPIENT" } })
+            }
+          />
+          <Chip
+            label="Төлөөлөгч зөвшөөрөл өгч байна"
+            selected={form.consent.signer === "REPRESENTATIVE"}
+            onPress={() =>
+              setForm({
+                consent: { ...form.consent, signer: "REPRESENTATIVE" },
+              })
+            }
+          />
+          <Chip
+            label="Үйлчилгээ авахыг зөвшөөрч байна"
+            selected={form.consent.service}
+            onPress={() =>
+              setForm({
+                consent: {
+                  ...form.consent,
+                  service: !form.consent.service,
+                  acceptedAt: new Date().toISOString(),
+                },
+              })
+            }
+          />
+          <Chip
+            label="Эрүүл мэндийн мэдээллийг боловсруулахыг зөвшөөрч байна"
+            selected={form.consent.sensitiveData}
+            onPress={() =>
+              setForm({
+                consent: {
+                  ...form.consent,
+                  sensitiveData: !form.consent.sensitiveData,
+                  acceptedAt: new Date().toISOString(),
+                },
+              })
+            }
+          />
+          {familyRequired && (
+            <Banner>
+              Насанд хүрсэн гэр бүлийн гишүүн байлцах шаардлагатай.
+            </Banner>
+          )}
+          <Chip
+            label="Насанд хүрсэн гэр бүлийн гишүүн байлцана"
+            selected={form.familyPresent}
+            onPress={() => setForm({ familyPresent: !form.familyPresent })}
+          />
+          <Button
+            title="Үргэлжлүүлэх"
+            disabled={
+              !patient?.birthYear ||
+              !form.consent.service ||
+              !form.consent.sensitiveData ||
+              (familyRequired &&
+                (!form.familyPresent ||
+                  form.consent.signer !== "REPRESENTATIVE"))
+            }
+            onPress={() => {
+              if (!details.bookingForm) setForm({});
+              setStep(3);
+            }}
+          />
+        </>
+      )}
+      {step === 3 && (
+        <>
+          <Card>
+            <Copy variant="heading">Заалт, эм, аюулын шинж</Copy>
+            <Copy>
+              Эмчийн заалтын зураг болон аюулын шинжийн асуулгыг дараагийн дэд
+              дэлгэцүүдэд бөглөнө.
+            </Copy>
+          </Card>
+          {service.code === "S04" && (
+            <Chip
+              label="Мэс заслын дараах шарх"
+              selected={form.postoperative}
+              onPress={() => setForm({ postoperative: !form.postoperative })}
+            />
+          )}
+          {medicationRequired && (
+            <>
+              {(["name", "dose", "route", "expiresAt"] as const).map(
+                (key, i) => (
+                  <Input
+                    key={key}
+                    label={
+                      [
+                        "Эмийн нэр",
+                        "Тун",
+                        "Хэрэглэх арга",
+                        "Хугацаа дуусах огноо (YYYY-MM-DD)",
+                      ][i]
+                    }
+                    value={
+                      key === "expiresAt"
+                        ? medication.expiresAt.slice(0, 10)
+                        : medication[key]
+                    }
+                    onChangeText={(value) =>
+                      setForm({
+                        medication: {
+                          ...medication,
+                          [key]:
+                            key === "expiresAt"
+                              ? `${value}T23:59:59+08:00`
+                              : value,
+                        },
+                      })
+                    }
+                  />
+                ),
+              )}
+              <Input
+                label="Хэд дэх тун"
+                keyboardType="number-pad"
+                value={String(medication.doseNumber)}
+                onChangeText={(value) =>
+                  setForm({
+                    medication: {
+                      ...medication,
+                      doseNumber: Number(value) || 1,
+                    },
+                  })
+                }
+              />
+              <Banner>
+                Эхний тунг гэрт хийхгүй. Эмийн нэр, тун, аргыг заалттайгаа
+                тулган оруулна уу.
+              </Banner>
+            </>
+          )}
+          <Button
+            network
+            title="Заалт, асуулгыг бөглөх"
+            busy={save.running}
+            disabled={
+              medicationRequired &&
+              (!form.medication?.name ||
+                !form.medication.dose ||
+                !form.medication.route ||
+                !Number.isFinite(Date.parse(form.medication.expiresAt)) ||
+                (firstDoseCheck && form.medication.doseNumber < 2) ||
+                Date.parse(form.medication.expiresAt) <= scheduledAt)
+            }
+            onPress={() => {
+              void save.run();
+            }}
+          />
+        </>
+      )}
+      {step > 1 && (
+        <Button
+          secondary
+          title="Өмнөх алхам"
+          onPress={() => setStep((s) => s - 1)}
+        />
+      )}
+    </Screen>
+  );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#f9fafb" },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e1e4e8",
-  },
-  headerTitle: { fontSize: 24, fontWeight: "800", color: "#111", marginBottom: 4 },
-  headerSubtitle: { fontSize: 14, color: "#666" },
-  container: { padding: 20, paddingBottom: 40 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 17, fontWeight: "700", color: "#111", marginBottom: 12 },
-  centered: { alignItems: "center", paddingVertical: 20, gap: 10 },
-  mutedText: { fontSize: 15, color: "#666", textAlign: "center" },
-  errorText: { fontSize: 15, color: "#c62828", textAlign: "center" },
-  optionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#e1e4e8",
-    padding: 14,
-    marginBottom: 10,
-    gap: 12,
-  },
-  optionCardActive: { borderColor: "#2f80ed", backgroundColor: "#f0f6ff" },
-  optionInfo: { flex: 1 },
-  optionTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
-  optionMeta: { fontSize: 14, color: "#555", marginTop: 4 },
-  warnText: { fontSize: 13, color: "#c62828", marginTop: 6 },
-  tagText: { fontSize: 12, color: "#e65100", fontWeight: "700", marginTop: 6 },
-  linkText: { color: "#2f80ed", fontSize: 15, fontWeight: "700" },
-  dashedButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#2f80ed",
-    backgroundColor: "#fff",
-  },
-  chipRow: { gap: 8, paddingBottom: 10 },
-  wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e1e4e8",
-  },
-  chipActive: { backgroundColor: "#2f80ed", borderColor: "#2f80ed" },
-  chipText: { fontSize: 14, color: "#555", fontWeight: "600" },
-  chipTextActive: { fontSize: 14, color: "#fff", fontWeight: "700" },
-  noteText: { fontSize: 12, color: "#888", marginTop: 8 },
-  disabledRow: { opacity: 0.4 },
-  awaitingBanner: { backgroundColor: "#e3f2fd", borderRadius: 12, padding: 12, marginBottom: 12 },
-  awaitingText: { color: "#1565c0", fontSize: 14, fontWeight: "700" },
-  pendingBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 12, marginBottom: 16, gap: 6 },
-  pendingBannerText: { color: "#b71c1c", fontSize: 13, lineHeight: 18 },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e1e4e8",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
-    color: "#111",
-  },
-  textArea: { minHeight: 90, textAlignVertical: "top" },
-  fieldError: { color: "#c62828", fontSize: 13, marginTop: 6 },
-  draftStatus: { fontSize: 13, color: "#666", textAlign: "center", marginBottom: 8 },
-  saveError: { fontSize: 14, color: "#c62828", textAlign: "center", marginBottom: 8 },
-  primaryButton: { backgroundColor: "#2f80ed", borderRadius: 14, paddingVertical: 18, alignItems: "center" },
-  primaryButtonDisabled: { backgroundColor: "#a0c4f0" },
-  primaryButtonText: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  secondaryButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#2f80ed",
-    marginTop: 8,
-  },
-  secondaryButtonText: { color: "#2f80ed", fontSize: 15, fontWeight: "700", textAlign: "center" },
-  blockedCard: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-  blockedTitle: { fontSize: 22, fontWeight: "800", color: "#c62828" },
-  blockedText: { fontSize: 15, color: "#444", textAlign: "center", lineHeight: 22 },
-  emergencyButton: {
-    backgroundColor: "#c62828",
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    marginTop: 8,
-  },
-  emergencyButtonText: { color: "#fff", fontSize: 18, fontWeight: "800" },
-})

@@ -1,91 +1,68 @@
-import { Redirect, Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { Ionicons } from "@expo/vector-icons"
-import Entypo from "@expo/vector-icons/Entypo"
-
-import FontAwesome from "@expo/vector-icons/FontAwesome"
-
-import { storage } from '@/utils/storage';
-
-type AuthState = 'checking' | 'signed_in' | 'signed_out'
-
+import { Redirect, Tabs } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
+import { House, CalendarDays, FileText, UserRound } from "lucide-react-native";
+import { storage } from "@/utils/storage";
+import { theme } from "@/design/theme";
+import { StateView } from "@/components/ui";
 export default function TabLayout() {
-  const [authState, setAuthState] = useState<AuthState>('checking')
-
-  // Tabs are only for signed-in users. Header visibility is already set by the
-  // root Stack (screenOptions.headerShown = false).
+  const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
   useEffect(() => {
-    let active = true
-    storage.getValidSession().then((session) => {
-      if (active) setAuthState(session ? 'signed_in' : 'signed_out')
-    })
+    let active = true;
+    void storage.getValidSession().then((s) => {
+      if (active) setAuth(s ? "in" : "out");
+    });
     return () => {
-      active = false
-    }
-  }, [])
-
-  if (authState === 'checking') {
+      active = false;
+    };
+  }, []);
+  if (auth === "checking")
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#2f80ed" />
+      <View style={{ flex: 1, padding: 16 }}>
+        <StateView title="Нэвтрэлтийг шалгаж байна" loading />
       </View>
-    )
-  }
-  if (authState === 'signed_out') {
-    return <Redirect href="/auth/login" />
-  }
-
+    );
+  if (auth === "out") return <Redirect href="/auth/phone" />;
   return (
-    <Tabs screenOptions={{}}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: theme.color.brand,
+        tabBarInactiveTintColor: theme.color.secondary,
+        tabBarStyle: { minHeight: 64 },
+        tabBarLabelStyle: { fontFamily: "NotoSans_600SemiBold", fontSize: 14 },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: "Нүүр",
-          tabBarIcon: ({ color, size }) => (
-            <Entypo name="home" size={size} color={color} />
-          ),
-          headerShown: false,
-          // tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <House size={24} color={color} />,
         }}
       />
-
       <Tabs.Screen
-        name="bookappointment"
+        name="orders"
         options={{
           title: "Захиалга",
-          headerShown: false,
-
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="calendar" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <CalendarDays size={24} color={color} />,
         }}
       />
-
       <Tabs.Screen
-        name="add-parent"
+        name="records"
         options={{
-          title: "Өвчтөн нэмэх",
-          tabBarIcon: ({ color, size }) => (
-            <Entypo name="add-user" size={size} color={ color} />
-          ),
-          headerShown: false,
-
-          // tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: "Тэмдэглэл",
+          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Профайл",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" color={color} size={size} />
-          ),
-          headerShown: false,
-
-          // tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <UserRound size={24} color={color} />,
         }}
       />
+      <Tabs.Screen name="bookappointment" options={{ href: null }} />
+      <Tabs.Screen name="add-parent" options={{ href: null }} />
     </Tabs>
-  )
+  );
 }
