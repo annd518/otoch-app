@@ -1,5 +1,6 @@
 import { after, before, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import jwt from 'jsonwebtoken'
 import { api, createUser, decodeJwtPayload, errorCode, prisma, startServer, TEST_PASSWORD, TestServer, uniqueEmail } from './helpers'
 
 let srv: TestServer
@@ -115,6 +116,29 @@ describe('auth middleware and error contract', () => {
             assert.equal(res.status, 401)
             assert.equal(errorCode(res), 'UNAUTHENTICATED')
         }
+    })
+
+    it('expired token gives 401 TOKEN_EXPIRED; forged signature gives 401 UNAUTHENTICATED', async () => {
+        const user = await createUser('CHILD')
+        const claims = { userId: user.id, email: user.email, role: user.role }
+        const expired = jwt.sign({ ...claims, exp: Math.floor(Date.now() / 1000) - 60 }, process.env.JWT_SECRET!)
+        const forged = jwt.sign(claims, 'not-the-server-secret', { expiresIn: '1h' })
+
+        const exp = await api(srv.baseUrl, 'GET', '/api/parents', { token: expired })
+        assert.equal(exp.status, 401)
+        assert.equal(errorCode(exp), 'TOKEN_EXPIRED')
+
+        const bad = await api(srv.baseUrl, 'GET', '/api/parents', { token: forged })
+        assert.equal(bad.status, 401)
+        assert.equal(errorCode(bad), 'UNAUTHENTICATED')
+    })
+
+    it('valid token with the wrong role gives 403 FORBIDDEN (not 401)', async () => {
+        const user = await createUser('CHILD')
+        const token = (await login({ email: user.email, password: TEST_PASSWORD })).json.data.token
+        const res = await api(srv.baseUrl, 'GET', '/api/users', { token })
+        assert.equal(res.status, 403)
+        assert.equal(errorCode(res), 'FORBIDDEN')
     })
 
     it('unknown /api route gives 404 NOT_FOUND in the error contract', async () => {

@@ -23,6 +23,7 @@ model User {
   parents        Parent[] @relation("ChildParents")
   nurseVisits    Visit[]  @relation("NurseVisits")
   approvedVisits Visit[]  @relation("ApprovedBy")
+  orders         Order[]  @relation("ChildOrders")
   createdAt      DateTime @default(now())
 }
 
@@ -37,6 +38,7 @@ model Parent {
   emergencyContact String
   children         User[]  @relation("ChildParents")
   visits           Visit[]
+  orders           Order[]
 }
 
 model Visit {
@@ -91,20 +93,125 @@ enum VisitType {
 
 // ---- L1-1: service catalog (additive; no relations to existing models yet) ----
 model ServiceCatalogItem {
-  id               String   @id @default(cuid())
-  code             String   @unique // stable machine code, e.g. HOME_BASIC_CHECK
+  id               String      @id @default(cuid())
+  code             String      @unique // stable machine code, e.g. HOME_BASIC_CHECK
   name             String
   description      String?
   category         String
   priceMnt         Int // integer MNT, display only — final price comes from the server quote
   durationMin      Int
-  requiresReferral Boolean  @default(false)
+  requiresReferral Boolean     @default(false)
   questionnaire    String? // red flag questionnaire code, e.g. GENERAL_V1
-  isActive         Boolean  @default(true)
-  isFixture        Boolean  @default(false) // true = fictional test data, not an approved service/price
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive         Boolean     @default(true)
+  isFixture        Boolean     @default(false) // true = fictional test data, not an approved service/price
+  sortOrder        Int         @default(0)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  orderItems       OrderItem[]
 
   @@index([isActive, category, sortOrder])
+}
+
+// ---- L1-1: draft orders + red flag (PROPOSED: separate Order model, docs/l1-1-api.md D2) ----
+// Additive only. Existing Visit flow is untouched; an Order will create a Visit after payment (not implemented).
+enum OrderStatus {
+  DRAFT
+  BLOCKED_RED_FLAG
+  AWAITING_PAYMENT
+  PAID
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum RedFlagStatus {
+  NOT_ANSWERED
+  CLEAR
+  FLAGGED
+}
+
+model Order {
+  id                String        @id @default(cuid())
+  childId           String
+  parentId          String
+  status            OrderStatus   @default(DRAFT)
+  version           Int           @default(1) // optimistic locking for PATCH
+  catalogVersion    String // catalog version the server validated the items against
+  scheduledFor      DateTime?
+  timeSlot          String?
+  addressText       String?
+  lat               Float?
+  lng               Float?
+  notes             String?
+  redFlagStatus     RedFlagStatus @default(NOT_ANSWERED)
+  redFlagAnsweredAt DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  child          User            @relation("ChildOrders", fields: [childId], references: [id])
+  parent         Parent          @relation(fields: [parentId], references: [id])
+  items          OrderItem[]
+  redFlagAnswers RedFlagAnswer[]
+  events         OrderEvent[]
+
+  @@index([childId, status])
+}
+
+model OrderItem {
+  id          String @id @default(cuid())
+  orderId     String
+  serviceId   String
+  serviceCode String // snapshot of the stable catalog code
+  quantity    Int    @default(1)
+
+  order   Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  service ServiceCatalogItem @relation(fields: [serviceId], references: [id])
+
+  @@unique([orderId, serviceCode])
+}
+
+// Questionnaire codes are versioned identifiers (e.g. GENERAL_V1); a new text = a new code.
+model RedFlagQuestion {
+  id            String  @id @default(cuid())
+  questionnaire String
+  code          String
+  text          String
+  sortOrder     Int     @default(0)
+  isActive      Boolean @default(true)
+  isFixture     Boolean @default(false) // true = placeholder text, not approved clinical content
+
+  answers RedFlagAnswer[]
+
+  @@unique([questionnaire, code])
+}
+
+model RedFlagAnswer {
+  id         String   @id @default(cuid())
+  orderId    String
+  questionId String
+  value      Boolean
+  createdAt  DateTime @default(now())
+
+  order    Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  question RedFlagQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([orderId, questionId])
+}
+
+// Audit trail. metadata must never contain health details (e.g. which red flag answer was "yes").
+model OrderEvent {
+  id         String   @id @default(cuid())
+  orderId    String
+  type       String
+  fromStatus String?
+  toStatus   String?
+  actorId    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
 }

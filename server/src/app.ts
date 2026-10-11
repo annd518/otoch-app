@@ -11,6 +11,7 @@ import nursesRoutes from './routes/nurses.routes'
 import analyticsRoutes from './routes/analytics.routes'
 import reviewRoutes from './routes/review.routes'
 import catalogRoutes from './routes/catalog.routes'
+import orderRoutes from './routes/orders.routes'
 import { specs } from './config/swagger'
 import { errorHandler, notFoundHandler } from './middlwares/error'
 
@@ -64,6 +65,7 @@ export function createApp() {
     app.use('/api/analytics', analyticsRoutes)
     app.use('/api/review', reviewRoutes)
     app.use('/api/catalog', catalogRoutes)
+    app.use('/api/orders', orderRoutes)
 
     app.use('/api', notFoundHandler)
     app.use(errorHandler)

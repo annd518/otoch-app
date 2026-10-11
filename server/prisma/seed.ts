@@ -1,6 +1,7 @@
 import { PrismaClient, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { CATALOG_FIXTURES } from './fixtures/catalog'
+import { RED_FLAG_FIXTURES } from './fixtures/redFlags'
 
 const prisma = new PrismaClient()
 
@@ -26,8 +27,20 @@ async function seedCatalogFixtures() {
     }
 }
 
+// Placeholder (non-clinical) red flag questions, isFixture = true
+async function seedRedFlagFixtures() {
+    for (const q of RED_FLAG_FIXTURES) {
+        await prisma.redFlagQuestion.upsert({
+            where: { questionnaire_code: { questionnaire: q.questionnaire, code: q.code } },
+            update: { text: q.text, sortOrder: q.sortOrder, isFixture: true },
+            create: { ...q, isFixture: true },
+        })
+    }
+}
+
 async function main() {
     await seedCatalogFixtures()
+    await seedRedFlagFixtures()
 
     const password = await bcrypt.hash(DEMO_PASSWORD, 10)
 

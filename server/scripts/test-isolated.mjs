@@ -59,9 +59,13 @@ try {
     // Applies the committed migrations — this also verifies the migration SQL
     if (run('npx', ['prisma', 'migrate', 'deploy']) !== 0) throw new Error('prisma migrate deploy failed')
 
-    const testFiles = readdirSync(path.join(root, 'tests'))
-        .filter((f) => f.endsWith('.test.ts'))
-        .map((f) => path.join('tests', f))
+    // Optional: `npm test -- <file.test.ts> ...` runs only the given files
+    const requested = process.argv.slice(2)
+    const testFiles = requested.length
+        ? requested
+        : readdirSync(path.join(root, 'tests'))
+            .filter((f) => f.endsWith('.test.ts'))
+            .map((f) => path.join('tests', f))
     exitCode = run('node', ['--import', 'tsx', '--test', '--test-concurrency=1', ...testFiles])
 } catch (err) {
     console.error('[test] setup failed:', err instanceof Error ? err.message : err)

@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../db/db.config'
 import { ok, validationError } from '../utils/http'
+import { getCatalogVersion } from '../services/catalog'
 
 const querySchema = z.object({
     category: z.string().trim().regex(/^[A-Z_]{2,40}$/, 'Ангиллын код буруу байна').optional()
@@ -17,8 +18,8 @@ export const listCatalogServices = async (req: Request, res: Response) => {
         orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }]
     })
 
-    // Changes whenever any active row changes, so clients can cache by it
-    const latest = items.reduce<Date | null>((max, i) => (!max || i.updatedAt > max ? i.updatedAt : max), null)
+    // Whole-catalog version (independent of the category filter); orders are validated against it
+    const catalogVersion = await getCatalogVersion()
 
     const services = items.map((i) => ({
         id: i.id,
@@ -35,7 +36,7 @@ export const listCatalogServices = async (req: Request, res: Response) => {
     }))
 
     return ok(res, {
-        catalogVersion: latest ? latest.toISOString() : null,
+        catalogVersion,
         currency: 'MNT',
         containsFixtures: services.some((s) => s.isFixture),
         services

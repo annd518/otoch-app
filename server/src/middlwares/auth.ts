@@ -14,8 +14,12 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     }
 
     jwt.verify(token, process.env.JWT_SECRET!, (err: any, user: any) => {
+        // 401 = who are you? (missing/invalid/expired). 403 FORBIDDEN = known user, wrong role.
+        if (err?.name === 'TokenExpiredError') {
+            return fail(res, 401, 'TOKEN_EXPIRED', 'Нэвтрэх хугацаа дууссан. Дахин нэвтэрнэ үү')
+        }
         if (err) {
-            return fail(res, 401, 'UNAUTHENTICATED', 'Нэвтрэх хугацаа дууссан эсвэл токен хүчингүй байна. Дахин нэвтэрнэ үү')
+            return fail(res, 401, 'UNAUTHENTICATED', 'Токен хүчингүй байна. Дахин нэвтэрнэ үү')
         }
         req.user = user
         next()
