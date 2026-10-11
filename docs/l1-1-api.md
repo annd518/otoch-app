@@ -1,7 +1,7 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-16, backend (`work/backend-l1-1`).
-> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй). 10.16 — төлбөр сэргээх гэрээ (§7.1.1).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-17, backend (`work/backend-l1-1`).
+> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй). 10.16 — төлбөр сэргээх гэрээ (§7.1.1). 10.17 — production-д fixture үнэ/асуулгыг хаах (§6). Хүлээлгэн өгөх: [l1-1-handover-backend.md](l1-1-handover-backend.md).
 > **Таамаг:** захиалгыг тусдаа `Order` model-оор хийсэн (D2 батлагдаагүй). Red flag асуулт, каталог нь **fixture**.
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
 > Mobile тал эдгээрийг mock-оор хөгжүүлж болно. Бодит сервертэй холбохоос өмнө энэ гэрээг хоёр тал батлах ёстой.
@@ -487,6 +487,8 @@ Response **201**: `{ attachment: { id, kind, mimeType, sizeBytes, createdAt }, s
 ## 6. Серверийн үнийн quote — ✅ ХЭРЭГЖСЭН (10.14). Үнэ нь FIXTURE
 
 ### `POST /api/orders/:id/quote`
+
+> **10.17 — Production хамгаалалт:** `NODE_ENV=production` үед захиалга fixture үнэтэй үйлчилгээ эсвэл fixture (батлагдаагүй) red flag асуулга ашиглаж байвал quote болон `POST …/payments/qpay` **503 `FIXTURE_DATA_NOT_ALLOWED`** буцаана. Зөвхөн fixture-ийг мэдсээр ашиглах staging-д `ALLOW_FIXTURE_DATA=true`. Production seed demo хэрэглэгч үүсгэхгүй, fixture-ийг зөвхөн энэ тугтай үед үүсгэнэ. Одоо байгаа payment-ийн сэргээх хариу (§7.1.1) энэ шалгалтаас өмнө ажиллана.
 
 Request: `{ "orderVersion": 4 }` (**зөвлөмж**) эсвэл `{}`. Илгээвэл одоогийн `version`-тэй таарах ёстой, үгүй бол **409 `VERSION_CONFLICT`**. Илгээгээгүй бол (mobile `cec500c` `{}` илгээдэг) одоогийн хувилбарыг үнэлнэ. Аль ч тохиолдолд quote нь `quote.orderVersion`-д заасан **нэг л хувилбарт** хамаарна (10.15).
 

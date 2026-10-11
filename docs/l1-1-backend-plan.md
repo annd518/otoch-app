@@ -121,6 +121,18 @@
 5. Payment reconciliation-ийн operator хэрэгсэл байхгүй (`NEEDS_RECONCILIATION`, `PAID_AFTER_EXPIRY` гараар).
 6. Локал WIN1252 DB-ийн UTF8 шилжилт зөвшөөрөл хүлээж байна (§12).
 
+### 0.6 Явцын тэмдэглэл — 2026-10-17 (хүлээлгэн өгөх)
+
+| Ажил | Төлөв |
+|---|---|
+| Эхлэх SHA | main `901bb91`, backend `8f6309f`, mobile `0200821` (өдрийн турш шинэ mobile push ирээгүй) |
+| `ORDER_NOT_EDITABLE` | Дахин засаагүй. `d74e524`-д шийдэгдсэнийг mobile `0200821`-ийн функцээр баталгаажуулсан (`PAYMENT_IN_PROGRESS` → ижил invoice) |
+| Production fixture | ⚠️ Олдвор: production seed fixture үнэ/`approved:false` асуулга үүсгэж, тэдгээрээр quote/invoice хийх боломжтой байсан. ✅ `49f0f65`: production-д 503 `FIXTURE_DATA_NOT_ALLOWED`, seed нь `ALLOW_FIXTURE_DATA=true`-гүй бол юу ч үүсгэхгүй. **Fixture байгаа тул production-ready биш** |
+| Integration (`tmp/integration-1017` = `49f0f65` + mobile `0200821`) | ✅ 14/14 (DONE/WAIT/CONTACT_SUPPORT/NEW_QUOTE, QR-гүй pending polling, давхар invoice 0, эзэмшил, red flag, upload retry). Mobile unit 143/143 |
+| Server | 100/100, `tsc`, `prisma validate` OK |
+| Хүлээлгэн өгөх баримт | [l1-1-handover-backend.md](l1-1-handover-backend.md) |
+| Access | ❌ Өөрчлөлтгүй (staging, DB, bucket, QPay sandbox байхгүй) |
+
 ---
 
 ## 14. Integration шалгалт — 2026-10-14
