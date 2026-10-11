@@ -277,3 +277,21 @@ Account нээх, төлбөр хийх, cloud build эхлүүлэх, store р�
 7. **Тусдаа зөвшөөрөлтэйгээр:** `eas submit`-ээр TestFlight, Play internal руу илгээнэ. Play-ийн анхны AAB-ийг Play Console-д гараар upload хийнэ.
 
 Энэ өдөр эдгээр алхмын аль нь ч хийгдээгүй. Account холбоогүй, cloud build эхлүүлээгүй, store руу юу ч илгээгээгүй.
+
+## 11. 2026-10-14: build төлөв
+
+Өдрийн эхэнд мэдээлсэн дутуу зүйлс өөрчлөгдөөгүй:
+
+| Зүйл | Төлөв |
+|---|---|
+| iOS bundle ID, Android package | Батлагдаагүй. app.json-д бичээгүй. |
+| Expo account, project ID | Эрх олгогдоогүй |
+| Apple Developer, App Store Connect | Эрх олгогдоогүй |
+| Google Play Console | Эрх олгогдоогүй |
+| Staging HTTPS URL | Байхгүй. Release blocker. |
+| App icon, splash | Expo template хэвээр. Брэнд дутуу. |
+| Build/version | `version` 1.0.0, build number EAS remote-оор (`eas.json`). Шалгагдаагүй, учир нь build хийгдээгүй. |
+| Камер, зургийн permission | app.json-д тохируулсан (10.1). Төхөөрөмж дээр шалгагдаагүй. |
+| Бодит төхөөрөмж | Байхгүй. Blocker. |
+
+Cloud build, store upload эхлүүлээгүй. Зөвшөөрөл ба батлагдсан утга байхгүй.
