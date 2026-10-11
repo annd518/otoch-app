@@ -10,10 +10,9 @@ import {
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
-import axios from "axios"
 
-import { env } from "@/utils/env"
-import { storage } from "@/utils/storage"
+import { apiService } from "@/services/api"
+import { normalizeMongolianPhone } from "@/utils/phone"
 
 // Display labels only; stored values stay in English
 const GENDER_LABELS: Record<string, string> = { Female: "Эмэгтэй", Male: "Эрэгтэй", Other: "Бусад" }
@@ -47,53 +46,54 @@ export default function AddParent() {
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    if (!name || !age || !phone || !address) {
+    const trimmedName = name.trim()
+    const trimmedAddress = address.trim()
+    const ageNumber = Number(age.trim())
+    const contact = normalizeMongolianPhone(emergencyPhone.trim() || phone.trim())
+
+    if (!trimmedName || !age.trim() || !phone.trim() || !trimmedAddress) {
       Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү")
       return
     }
+    // Mirrors the current server rules (server parentController parentSchema)
+    // so the user sees a specific message instead of a generic rejection.
+    if (trimmedName.length < 2) {
+      Alert.alert("Алдаа", "Нэр хамгийн багадаа 2 тэмдэгт байна")
+      return
+    }
+    if (!Number.isInteger(ageNumber) || ageNumber < 1 || ageNumber > 130) {
+      Alert.alert("Алдаа", "Насыг зөв оруулна уу")
+      return
+    }
+    if (trimmedAddress.length < 5) {
+      Alert.alert("Алдаа", "Хаягийг дэлгэрэнгүй оруулна уу")
+      return
+    }
+    if (contact.length < 10) {
+      Alert.alert("Алдаа", "Утасны дугаарыг 8 оронтойгоор эсвэл улсын кодтой оруулна уу")
+      return
+    }
+
+    const fullAddress = `${trimmedAddress}${city.trim() ? ", " + city.trim() : ""}${pincode.trim() ? ", " + pincode.trim() : ""}`
 
     setLoading(true)
     try {
-      // Get the auth token
-      const token = await storage.getAuthToken()
-
-      if (!token) {
-        Alert.alert("Алдаа", "Эцэг/эх нэмэхийн тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү.")
-        router.replace("/auth/login")
-        return
+      const result = await apiService.createParent({
+        name: trimmedName,
+        age: ageNumber,
+        gender,
+        address: fullAddress,
+        diseases: medicalHistory.trim() || "None",
+        medications: currentMedications.trim() || "None",
+        emergencyContact: contact,
+      })
+      if (result.ok) {
+        Alert.alert("Амжилттай", "Эцэг/эхийн профайл амжилттай нэмэгдлээ!", [
+          { text: "OK", onPress: () => router.back() },
+        ])
+      } else {
+        Alert.alert("Хадгалж чадсангүй", result.message)
       }
-
-      // Combine address fields
-      const fullAddress = `${address}${city ? ', ' + city : ''}${pincode ? ', ' + pincode : ''}`
-
-      const response = await axios.post(
-        `${env.baseUrl}api/parents`,
-        {
-          name,
-          age: parseInt(age),
-          gender,
-          address: fullAddress,
-          diseases: medicalHistory || "None",
-          medications: currentMedications || "None",
-          emergencyContact: emergencyPhone || phone
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
-
-      console.log("Add Parent Response: sucess", response.data)
-      console.log("Add Parent Response:", response)
-
-      Alert.alert("Амжилттай", "Эцэг/эхийн профайл амжилттай нэмэгдлээ!", [
-        { text: "OK", onPress: () => router.back() }
-      ])
-    } catch (error: any) {
-      console.error("Add Parent Error:", error)
-      const errorMessage = error.response?.data?.message || "Эцэг/эх нэмж чадсангүй. Дахин оролдоно уу."
-      Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
     }
@@ -190,7 +190,7 @@ export default function AddParent() {
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
-            placeholder="+91 XXXXX XXXXX"
+            placeholder="8800 0000"
             placeholderTextColor="#999"
           />
         </View>
@@ -253,7 +253,7 @@ export default function AddParent() {
             value={emergencyPhone}
             onChangeText={setEmergencyPhone}
             keyboardType="phone-pad"
-            placeholder="+91 XXXXX XXXXX"
+            placeholder="8800 0000"
             placeholderTextColor="#999"
           />
         </View>

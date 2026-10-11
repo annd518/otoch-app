@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useCallback, useState } from "react"
 import {
   StyleSheet,
   Text,
@@ -12,249 +12,134 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
 import MapView from "react-native-maps"
-import axios from "axios"
-import { env } from "@/utils/env"
-import { storage } from "@/utils/storage"
-import { useRouter } from "expo-router"
+import { useFocusEffect, useRouter } from "expo-router"
 
-// Interface for Parent data from API
-interface Parent {
-  id: string
-  name: string
-  age: number
-  gender: string
-  address: string
-  diseases: string
-  medications: string
-  emergencyContact: string
-}
+import { PriceSummary } from "@/components/PriceSummary"
+import { useBookingDraft } from "@/context/BookingDraftContext"
+import { apiService } from "@/services/api"
+import type { ApiResult } from "@/services/apiResult"
+import type { Parent } from "@/services/apiTypes"
+import { slotStartToUtcIso, ulaanbaatarDate } from "@/utils/datetime"
+import { formatMnt } from "@/utils/money"
 
 // Display labels only; stored values stay in English
 const GENDER_LABELS: Record<string, string> = { Female: "Эмэгтэй", Male: "Эрэгтэй", Other: "Бусад" }
 
+// Placeholder windows until the backend provides allowed slots (mobile plan GAP-1).
+const TIME_SLOTS = ["09:00-11:00", "11:00-13:00", "13:00-15:00", "15:00-17:00", "17:00-19:00"]
+const REPEAT_OPTIONS = [
+  { value: "one-time", label: "Нэг удаа" },
+  { value: "weekly", label: "Долоо хоног бүр" },
+  { value: "monthly", label: "Сар бүр" },
+]
+
+type ParentsState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; parents: Parent[] }
+
+function toParentsState(result: ApiResult<Parent[]>): ParentsState {
+  return result.ok ? { status: "ready", parents: result.data } : { status: "error", message: result.message }
+}
+
 export default function BookAppointment() {
   const router = useRouter()
+  const draft = useBookingDraft()
 
-  // State for parents data
-  const [parents, setParents] = useState<Parent[]>([])
-  const [loadingParents, setLoadingParents] = useState(true)
-  const [loading, setLoading] = useState(false)
+  const [parentsState, setParentsState] = useState<ParentsState>({ status: "loading" })
+  const [submitting, setSubmitting] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
-  const [selectedService, setSelectedService] = useState("")
   const [appointmentDate, setAppointmentDate] = useState("")
   const [timeSlot, setTimeSlot] = useState("")
   const [repeatSchedule, setRepeatSchedule] = useState("one-time")
-  const [location, setLocation] = useState("Lalitpur, Ward-5, near Sunrise Apartments")
   const [specialInstructions, setSpecialInstructions] = useState("")
   const [nurseGenderPref, setNurseGenderPref] = useState("any")
-  const [promoCode, setPromoCode] = useState("")
 
-  const services = [
-    { id: "checkup", name: "Эрүүл мэндийн ердийн үзлэг", icon: "medkit-outline", price: "रू 500" },
-    { id: "diagnostic", name: "Оношилгооны шинжилгээ", icon: "flask-outline", price: "रू 800" },
-    { id: "physio", name: "Физик эмчилгээ", icon: "fitness-outline", price: "रू 1200" },
-    { id: "post-surgery", name: "Мэс заслын дараах асаргаа", icon: "bandage-outline", price: "रू 1500" },
-    { id: "chronic", name: "Архаг өвчний асаргаа", icon: "pulse-outline", price: "रू 600" },
-    { id: "custom", name: "Бусад", icon: "add-circle-outline", price: "Холбогдох" },
-  ]
-
-  const timeSlots = ["09:00-11:00", "11:00-13:00", "13:00-15:00", "15:00-17:00", "17:00-19:00"]
-  const repeatOptions = [
-    { value: "one-time", label: "Нэг удаа" },
-    { value: "weekly", label: "Долоо хоног бүр" },
-    { value: "monthly", label: "Сар бүр" },
-  ]
-
-  // Fetch parents from API
-  const getParents = async () => {
-    setLoadingParents(true)
-    try {
-      // Get the auth token
-      const token = await storage.getAuthToken()
-
-      if (!token) {
-        Alert.alert("Алдаа", "Цаг захиалахын тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү.")
-        router.replace("/auth/login")
-        return
-      }
-
-      // Fetch parents with Authorization header
-      const response = await axios.get(`${env.baseUrl}api/parents`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+  // Reload when the tab gains focus, e.g. after adding a parent.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true
+      apiService.getParents().then((result) => {
+        if (active) setParentsState(toParentsState(result))
       })
-
-      console.log("Parents Response:", response.data)
-
-      // Map the API response to parents state
-      if (response.data.success && response.data.data.parents) {
-        setParents(response.data.data.parents)
+      return () => {
+        active = false
       }
-    } catch (error: any) {
-      console.error("Error while getting parents:", error)
-      const errorMessage = error.response?.data?.message || "Эцэг эхийн мэдээллийг авч чадсангүй. Дахин оролдоно уу."
-      Alert.alert("Error", errorMessage)
-    } finally {
-      setLoadingParents(false)
-    }
-  }
-    
-    
-  const BookAppoinment = async ({
-    parentId,
-    scheduledFor,
-  }: {
-    parentId: string
-    scheduledFor: string
-  }) => {
-    try {
-      // Get the auth token
-      const token = await storage.getAuthToken()
+    }, []),
+  )
 
-      if (!token) {
-        Alert.alert(
-          "Алдаа",
-          "Цаг захиалахын тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү."
-        )
-        router.replace("/auth/login")
-        return false
-      }
-
-      // Make API request
-      const response = await axios.post(
-        `${env.baseUrl}api/visits`,
-        {
-          parentId,
-          scheduledFor,
-          visitType: "FULL",
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      console.log("Book Appointment Response:", response.data)
-
-      // Show success message
-      const selectedParent = parents.find((p) => p.id === parentId)
-      Alert.alert(
-        "Захиалга баталгаажлаа! ✅",
-        `Цаг амжилттай захиалагдлаа!\n\nӨвчтөн: ${selectedParent?.name}\nОгноо: ${appointmentDate}\nЦаг: ${timeSlot}\n\nСувилагч удахгүй томилогдоно.`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              // Navigate back or to appointments list
-              router.back()
-            },
-          },
-        ]
-      )
-
-      return true
-    } catch (error: any) {
-      console.error("Error while creating book appointment:", error)
-      const errorMessage =
-        error.response?.data?.message ||
-        "Цаг захиалж чадсангүй. Дахин оролдоно уу."
-      Alert.alert("Error", errorMessage)
-      return false
-    }
+  const retryParents = () => {
+    setParentsState({ status: "loading" })
+    apiService.getParents().then((result) => setParentsState(toParentsState(result)))
   }
 
-  // Fetch parents on component mount
-  useEffect(() => {
-    getParents()
-  }, [])
+  const parents = parentsState.status === "ready" ? parentsState.parents : []
+  const selectedParent = parents.find((p) => p.id === selectedPatient) ?? null
 
-  // Format date and time for API
-  const formatScheduledFor = (date: string, time: string): string => {
-    // Convert date from YYYY-MM-DD and time slot to ISO format
-    // Example: "2024-01-15" + "9-11 AM" -> "2024-01-15T09:00:00.000Z"
-
-    // Extract start hour from time slot (e.g., "9-11 AM" -> "9")
-    const timeMatch = time.match(/^(\d+)/)
-    if (!timeMatch) return new Date().toISOString()
-
-    const hour = parseInt(timeMatch[1])
-    const isPM = time.includes("PM")
-    const hour24 = isPM && hour !== 12 ? hour + 12 : hour === 12 && !isPM ? 0 : hour
-
-    // Create date object
-    const dateTime = new Date(date)
-    dateTime.setHours(hour24, 0, 0, 0)
-
-    return dateTime.toISOString()
+  const resetForm = () => {
+    setSelectedPatient(null)
+    setAppointmentDate("")
+    setTimeSlot("")
+    setRepeatSchedule("one-time")
+    setSpecialInstructions("")
+    setNurseGenderPref("any")
+    draft.resetDraft()
   }
 
-  // Handle form submission
-    const handleSubmit = async () => {
-      
-        console.log("Book appoinment button clicked ")
-    // Validation
-    if (!selectedPatient) {
+  const handleSubmit = async () => {
+    if (!selectedParent) {
       Alert.alert("Мэдээлэл дутуу", "Өвчтөнөө сонгоно уу")
       return
     }
-
-    if (!selectedService) {
-      Alert.alert("Мэдээлэл дутуу", "Үйлчилгээний төрлөө сонгоно уу")
+    if (!draft.service) {
+      Alert.alert("Мэдээлэл дутуу", "Каталогоос үйлчилгээ сонгоно уу")
       return
     }
-
-    if (!appointmentDate) {
-      Alert.alert("Мэдээлэл дутуу", "Захиалгын огноогоо сонгоно уу")
+    const date = appointmentDate.trim()
+    if (!date) {
+      Alert.alert("Мэдээлэл дутуу", "Захиалгын огноогоо оруулна уу")
       return
     }
-
     if (!timeSlot) {
       Alert.alert("Мэдээлэл дутуу", "Цагаа сонгоно уу")
       return
     }
-
-    // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(appointmentDate)) {
-      Alert.alert(
-        "Огноо буруу",
-        "Огноог YYYY-MM-DD хэлбэрээр оруулна уу (жишээ нь: 2024-01-15)"
-      )
+    const scheduledFor = slotStartToUtcIso(date, timeSlot)
+    if (!scheduledFor) {
+      Alert.alert("Огноо буруу", "Огноог YYYY-MM-DD хэлбэрээр зөв оруулна уу (жишээ нь: 2026-10-20)")
       return
     }
-
-    // Validate date is not in the past
-    const selectedDate = new Date(appointmentDate)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    if (selectedDate < today) {
+    if (date < ulaanbaatarDate(new Date())) {
       Alert.alert("Огноо буруу", "Ирээдүйн огноо сонгоно уу")
       return
     }
+    if (new Date(scheduledFor).getTime() <= Date.now()) {
+      Alert.alert("Цаг буруу", "Сонгосон цаг өнгөрсөн байна. Өөр цаг сонгоно уу")
+      return
+    }
 
-    setLoading(true)
+    setSubmitting(true)
     try {
-      // Format the scheduled date/time for API
-      const scheduledFor = formatScheduledFor(appointmentDate, timeSlot)
-console.log("working on booking data")
-      // Call BookAppointment (success message and navigation handled inside)
-    const data =   await BookAppoinment({
-        parentId: selectedPatient,
-        scheduledFor: scheduledFor,
-    })
-        console.log("Appointment Booking Data:", data)
-    } catch (error) {
-      console.error("Error in handleSubmit:", error)
-      Alert.alert("Алдаа", "Гэнэтийн алдаа гарлаа. Дахин оролдоно уу.")
+      // Legacy endpoint: it stores only parentId, scheduledFor and visitType.
+      // Service, payment and notes move to the orders API (docs/l1-1-api.md §3).
+      const result = await apiService.createVisit({
+        parentId: selectedParent.id,
+        scheduledFor,
+        visitType: "FULL",
+      })
+      if (!result.ok) {
+        Alert.alert("Захиалга илгээгдсэнгүй", result.message)
+        return
+      }
+      Alert.alert(
+        "Үзлэгийн хүсэлт бүртгэгдлээ",
+        `Өвчтөн: ${selectedParent.name}\nОгноо: ${date}\nЦаг: ${timeSlot} (Улаанбаатарын цагаар)\n\nСувилагч томилогдсоны дараа мэдэгдэнэ.`,
+        [{ text: "OK", onPress: resetForm }],
+      )
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
-
- 
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -273,10 +158,18 @@ console.log("working on booking data")
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Өвчтөн сонгох</Text>
 
-          {loadingParents ? (
+          {parentsState.status === "loading" ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#2f80ed" />
               <Text style={styles.loadingText}>Эцэг эхийн мэдээллийг ачаалж байна...</Text>
+            </View>
+          ) : parentsState.status === "error" ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cloud-offline-outline" size={48} color="#999" />
+              <Text style={styles.errorText}>{parentsState.message}</Text>
+              <TouchableOpacity style={styles.addParentBtn} onPress={retryParents}>
+                <Text style={styles.addParentBtnText}>Дахин оролдох</Text>
+              </TouchableOpacity>
             </View>
           ) : parents.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -323,29 +216,32 @@ console.log("working on booking data")
           )}
         </View>
 
-        {/* 2. Service Type */}
+        {/* 2. Service */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Үйлчилгээний төрөл</Text>
-          <View style={styles.servicesGrid}>
-            {services.map((service) => (
-              <TouchableOpacity
-                key={service.id}
-                style={[
-                  styles.serviceCard,
-                  selectedService === service.id && styles.serviceCardActive,
-                ]}
-                onPress={() => setSelectedService(service.id)}
-              >
-                <Ionicons
-                  name={service.icon as any}
-                  size={28}
-                  color={selectedService === service.id ? "#2f80ed" : "#666"}
-                />
-                <Text style={styles.serviceName}>{service.name}</Text>
-                <Text style={styles.servicePrice}>{service.price}</Text>
+          <Text style={styles.sectionTitle}>2. Үйлчилгээ</Text>
+          {draft.service ? (
+            <View style={styles.selectedServiceCard}>
+              <View style={styles.selectedServiceInfo}>
+                <Text style={styles.selectedServiceName}>{draft.service.name}</Text>
+                <Text style={styles.selectedServiceMeta}>
+                  {draft.service.durationMin} мин • {formatMnt(draft.service.priceMnt)}
+                </Text>
+                {draft.service.requiresReferral && (
+                  <Text style={styles.referralNote}>Эмчийн заалт шаардлагатай. Зураг оруулах алхам удахгүй нэмэгдэнэ.</Text>
+                )}
+                {draft.service.source === "mock" && <Text style={styles.mockTag}>MOCK өгөгдөл</Text>}
+                {draft.service.isFixture && <Text style={styles.mockTag}>Серверийн туршилтын өгөгдөл</Text>}
+              </View>
+              <TouchableOpacity onPress={() => router.push("/booking/catalog")}>
+                <Text style={styles.changeServiceText}>Солих</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.chooseServiceBtn} onPress={() => router.push("/booking/catalog")}>
+              <Ionicons name="list-outline" size={22} color="#2f80ed" />
+              <Text style={styles.chooseServiceText}>Каталогоос үйлчилгээ сонгох</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 3. Appointment Details */}
@@ -366,7 +262,7 @@ console.log("working on booking data")
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Хүссэн цаг *</Text>
             <View style={styles.timeSlotContainer}>
-              {timeSlots.map((slot) => (
+              {TIME_SLOTS.map((slot) => (
                 <TouchableOpacity
                   key={slot}
                   style={[
@@ -392,7 +288,7 @@ console.log("working on booking data")
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Давтамж</Text>
             <View style={styles.repeatContainer}>
-              {repeatOptions.map((option) => (
+              {REPEAT_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.value}
                   style={[
@@ -424,7 +320,9 @@ console.log("working on booking data")
 
           <View style={styles.locationCard}>
             <Ionicons name="location" size={20} color="#2f80ed" />
-            <Text style={styles.locationText}>{location}</Text>
+            <Text style={styles.locationText}>
+              {selectedParent ? selectedParent.address : "Өвчтөн сонгоход түүний хаяг энд харагдана"}
+            </Text>
           </View>
           <TouchableOpacity style={styles.editLocationBtn}>
             <Ionicons name="map-outline" size={16} color="#2f80ed" />
@@ -478,71 +376,20 @@ console.log("working on booking data")
           </View>
         </View>
 
-        {/* 7. Payment Summary */}
+        {/* 7. Price */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Төлбөрийн хураангуй</Text>
-          <View style={styles.paymentCard}>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Үйлчилгээний төлбөр:</Text>
-              <Text style={styles.paymentValue}>रू 800</Text>
-            </View>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Унааны зардал:</Text>
-              <Text style={styles.paymentValue}>रू 150</Text>
-            </View>
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Хөнгөлөлт:</Text>
-              <Text style={[styles.paymentValue, { color: "#4caf50" }]}>
-                - रू 100
-              </Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.paymentRow}>
-              <Text style={styles.paymentTotal}>Нийт:</Text>
-              <Text style={styles.paymentTotal}>रू 850</Text>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Промо код</Text>
-            <View style={styles.promoContainer}>
-              <TextInput
-                style={[styles.input, styles.promoInput]}
-                value={promoCode}
-                onChangeText={setPromoCode}
-                placeholder="Код оруулах"
-                placeholderTextColor="#999"
-              />
-              <TouchableOpacity style={styles.applyBtn}>
-                <Text style={styles.applyBtnText}>Ашиглах</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={styles.paymentMethods}>
-            <Text style={styles.label}>Төлбөрийн хэрэгсэл</Text>
-            <View style={styles.paymentMethodsRow}>
-              <TouchableOpacity style={styles.paymentMethodBtn}>
-                <Text style={styles.paymentMethodText}>eSewa</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.paymentMethodBtn}>
-                <Text style={styles.paymentMethodText}>Khalti</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.paymentMethodBtn}>
-                <Text style={styles.paymentMethodText}>Карт</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>7. Үнэ</Text>
+          <PriceSummary service={draft.service} quote={draft.quote} />
         </View>
 
         {/* 8. Submit Button */}
         <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={loading}
+          disabled={submitting}
         >
           <Text style={styles.submitButtonText}>
-            {loading ? "Захиалж байна..." : "Захиалга баталгаажуулах"}
+            {submitting ? "Илгээж байна..." : "Үзлэгийн хүсэлт илгээх"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -662,38 +509,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 2,
-  },
-  // Service Cards
-  servicesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  serviceCard: {
-    width: "48%",
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#e1e4e8",
-  },
-  serviceCardActive: {
-    borderColor: "#2f80ed",
-    backgroundColor: "#f0f7ff",
-  },
-  serviceName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#333",
-    textAlign: "center",
-    marginTop: 8,
-  },
-  servicePrice: {
-    fontSize: 12,
-    color: "#2f80ed",
-    fontWeight: "700",
-    marginTop: 4,
   },
   // Form Inputs
   inputGroup: {
@@ -828,79 +643,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
   },
-  // Payment
-  paymentCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e1e4e8",
-    marginBottom: 16,
-  },
-  paymentRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  paymentLabel: {
-    fontSize: 15,
-    color: "#666",
-  },
-  paymentValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#e1e4e8",
-    marginVertical: 10,
-  },
-  paymentTotal: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#111",
-  },
-  promoContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  promoInput: {
-    flex: 1,
-  },
-  applyBtn: {
-    backgroundColor: "#2f80ed",
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  applyBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  paymentMethods: {
-    marginTop: 16,
-  },
-  paymentMethodsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  paymentMethodBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e1e4e8",
-    alignItems: "center",
-  },
-  paymentMethodText: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "600",
-  },
   // Submit Button
   submitButton: {
     backgroundColor: "#2f80ed",
@@ -926,5 +668,68 @@ const styles = StyleSheet.create({
   map: {
     width: "100%",
     height: 150,
+  },
+  errorText: {
+    fontSize: 15,
+    color: "#c62828",
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  selectedServiceCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f6ff",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#2f80ed",
+    padding: 14,
+    gap: 12,
+  },
+  selectedServiceInfo: {
+    flex: 1,
+  },
+  selectedServiceName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+  },
+  selectedServiceMeta: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 4,
+  },
+  referralNote: {
+    fontSize: 13,
+    color: "#c62828",
+    marginTop: 6,
+  },
+  mockTag: {
+    fontSize: 12,
+    color: "#e65100",
+    fontWeight: "700",
+    marginTop: 6,
+  },
+  changeServiceText: {
+    color: "#2f80ed",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  chooseServiceBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#2f80ed",
+    backgroundColor: "#fff",
+  },
+  chooseServiceText: {
+    color: "#2f80ed",
+    fontSize: 15,
+    fontWeight: "700",
   },
 })

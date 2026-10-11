@@ -12,9 +12,10 @@ import {
 } from 'react-native'
 import { Link, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import axios from 'axios'
-import { env } from '@/utils/env'
-import { storage } from '@/utils/storage'
+
+import { apiService } from '@/services/api'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function RegisterScreen() {
   const router = useRouter()
@@ -26,9 +27,16 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false)
 
   const handleRegister = async () => {
-    // Validation
-    if (!name || !email || !password || !confirmPassword) {
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+
+    if (!trimmedName || !trimmedEmail || !password || !confirmPassword) {
       Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү")
+      return
+    }
+
+    if (!EMAIL_PATTERN.test(trimmedEmail)) {
+      Alert.alert("Алдаа", "Имэйл хаяг буруу байна")
       return
     }
 
@@ -44,36 +52,15 @@ export default function RegisterScreen() {
 
     setLoading(true)
     try {
-      console.log("Registering user:", { name, email })
-      const {data} = await axios.post(`${env.baseUrl}api/auth/signup`, {
-        name,
-        email,
-        password,
-        role: "CHILD"
-      })
-
-      console.log("Signup Response:", data.data)
-
-      if (data.data.token) {
-        // Store the token
-        await storage.setAuthToken(data.data.token)
-
-        // Store user data if available
-        if (data.data.user) {
-          await storage.setUserData(data.data.user)
-        }
-
-        Alert.alert("Амжилттай", "Бүртгэл амжилттай үүслээ!", [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(tabs)")
-          }
-        ])
+      const result = await apiService.signup({ name: trimmedName, email: trimmedEmail, password })
+      if (result.kind === 'signed_in') {
+        router.replace("/(tabs)")
+      } else if (result.kind === 'login_required') {
+        // The server created the account but returned no token (current contract).
+        router.replace({ pathname: "/auth/login", params: { email: result.email, registered: "1" } })
+      } else {
+        Alert.alert("Бүртгүүлж чадсангүй", result.message)
       }
-    } catch (error: any) {
-      console.error("Signup Error:", error)
-      const errorMessage = error.response?.data?.message || "Бүртгүүлэхэд алдаа гарлаа. Дахин оролдоно уу."
-      Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
     }
@@ -188,7 +175,7 @@ export default function RegisterScreen() {
 
             <View style={styles.loginSection}>
               <Text style={styles.loginText}>Бүртгэлтэй юу? </Text>
-              <Link href="/" asChild>
+              <Link href="/auth/login" asChild>
                 <TouchableOpacity>
                   <Text style={styles.loginLink}>Нэвтрэх</Text>
                 </TouchableOpacity>

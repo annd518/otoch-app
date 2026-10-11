@@ -1,22 +1,40 @@
-import { Tabs, useNavigation } from 'expo-router';
-import React, { useEffect } from 'react';
+import { Redirect, Tabs } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from "@expo/vector-icons"
 import Entypo from "@expo/vector-icons/Entypo"
 
 import FontAwesome from "@expo/vector-icons/FontAwesome"
 
+import { storage } from '@/utils/storage';
 
-
+type AuthState = 'checking' | 'signed_in' | 'signed_out'
 
 export default function TabLayout() {
-  const navigation = useNavigation()
+  const [authState, setAuthState] = useState<AuthState>('checking')
 
-
+  // Tabs are only for signed-in users. Header visibility is already set by the
+  // root Stack (screenOptions.headerShown = false).
   useEffect(() => {
-    navigation.setOptions({
-      headerShown:false
+    let active = true
+    storage.getValidSession().then((session) => {
+      if (active) setAuthState(session ? 'signed_in' : 'signed_out')
     })
-  },[])
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (authState === 'checking') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#2f80ed" />
+      </View>
+    )
+  }
+  if (authState === 'signed_out') {
+    return <Redirect href="/auth/login" />
+  }
 
   return (
     <Tabs screenOptions={{}}>

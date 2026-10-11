@@ -10,55 +10,34 @@ import {
   ScrollView,
   Alert,
 } from "react-native"
-import { Link, useRouter } from "expo-router"
+import { Link, useLocalSearchParams, useRouter } from "expo-router"
 import { SafeAreaView } from "react-native-safe-area-context"
-import axios from "axios"
-import { env } from "@/utils/env"
-import { storage } from "@/utils/storage"
 
-export default function login() {
+import { apiService } from "@/services/api"
+
+export default function LoginScreen() {
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const params = useLocalSearchParams<{ email?: string; registered?: string }>()
+  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
+  const justRegistered = params.registered === "1"
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail || !password) {
       Alert.alert("Алдаа", "Бүх талбарыг бөглөнө үү")
       return
     }
 
     setLoading(true)
     try {
-      console.log("Logging in with:", { email })
-      const response = await axios.post(`${env.baseUrl}api/auth/login`, {
-        email,
-        password,
-      })
-
-        console.log("Login Response 1:", response.data.data)
-
-
-      if (response.data.data.token) {
-        // Store the token
-        await storage.setAuthToken(response.data.data.token)
-
-        // Store user data if available
-        if (response.data.data.user) {
-          await storage.setUserData(response.data.data.user)
-        }
-
-        Alert.alert("Амжилттай", "Амжилттай нэвтэрлээ!", [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(tabs)")
-          }
-        ])
+      const result = await apiService.login(trimmedEmail, password)
+      if (result.ok) {
+        router.replace("/(tabs)")
+      } else {
+        Alert.alert("Нэвтэрч чадсангүй", result.message)
       }
-    } catch (error: any) {
-      console.error("Login Error:", error)
-      const errorMessage = error.response?.data?.message || "Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу."
-      Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
     }
@@ -80,6 +59,14 @@ export default function login() {
               PariwarCare-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
             </Text>
           </View>
+
+          {justRegistered && (
+            <View style={styles.notice}>
+              <Text style={styles.noticeText}>
+                Бүртгэл амжилттай үүслээ. Нууц үгээ оруулаад нэвтэрнэ үү.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
@@ -254,5 +241,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#2f80ed",
     fontWeight: "700",
+  },
+  notice: {
+    backgroundColor: "#e8f5e9",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  noticeText: {
+    color: "#1b5e20",
+    fontSize: 14,
+    lineHeight: 20,
   },
 })
