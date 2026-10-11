@@ -38,7 +38,21 @@ async function seedRedFlagFixtures() {
     }
 }
 
+// Staging/production (NODE_ENV=production) get fixtures only: demo accounts have a published password
+const isProduction = process.env.NODE_ENV === 'production'
+
 async function main() {
+    if (isProduction) {
+        // Fixture prices/questions are not approved data: only a staging that opts in gets them
+        if (process.env.ALLOW_FIXTURE_DATA !== 'true') {
+            console.log('NODE_ENV=production: nothing seeded (no demo users; fixtures need ALLOW_FIXTURE_DATA=true, staging only).')
+            return
+        }
+        await seedCatalogFixtures()
+        await seedRedFlagFixtures()
+        console.log('NODE_ENV=production + ALLOW_FIXTURE_DATA=true: fixtures only (NOT approved prices/questions), no demo users.')
+        return
+    }
     await seedCatalogFixtures()
     await seedRedFlagFixtures()
 
@@ -150,6 +164,7 @@ async function main() {
 
 main()
     .then(() => {
+        if (isProduction) return
         console.log(`Demo logins (password: ${DEMO_PASSWORD}): ${demoUsers.map((u) => u.email).join(', ')}`)
     })
     .catch((e) => {

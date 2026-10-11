@@ -59,7 +59,11 @@ async function answerAll(orderId: string, yesCode: string | null, token = tokenA
     })
 }
 
-const quote = (orderId: string, token = tokenA) => api(srv.baseUrl, 'POST', `/api/orders/${orderId}/quote`, { token })
+async function quote(orderId: string, token = tokenA) {
+    const current = await api(srv.baseUrl, 'GET', `/api/orders/${orderId}`, { token })
+    const orderVersion = current.json?.data?.order?.version ?? 1
+    return api(srv.baseUrl, 'POST', `/api/orders/${orderId}/quote`, { token, body: { orderVersion } })
+}
 
 before(async () => {
     srv = await startServer()
@@ -96,7 +100,7 @@ describe('POST /api/orders (draft)', () => {
         assert.deepEqual(order.items.map((i: any) => i.serviceCode), ['HOME_BASIC_CHECK'])
         assert.equal(order.redFlag.status, 'NOT_ANSWERED')
         assert.equal(order.redFlag.required, true)
-        assert.equal(order.quote, null, 'no fake quote')
+        assert.equal(order.quote, null, 'no quote until requested')
         assert.deepEqual(ignoredFields, ['allergies', 'bloodGroup', 'phone', 'status'])
         for (const f of ['bloodGroup', 'allergies', 'phone']) assert.equal(f in order, false, `${f} must not look saved`)
 
@@ -141,6 +145,8 @@ describe('POST /api/orders (draft)', () => {
         const ok = await createDraft(tokenA, draftBody({ catalogVersion: cat.json.data.catalogVersion }))
         assert.equal(ok.status, 201)
         assert.equal(ok.json.data.order.catalogVersion, cat.json.data.catalogVersion)
+        const nullVersion = await createDraft(tokenA, draftBody({ catalogVersion: null }))
+        assert.equal(nullVersion.status, 201, 'null catalogVersion = not sent (mobile DraftOrderInput)')
         const stale = await createDraft(tokenA, draftBody({ catalogVersion: '2000-01-01T00:00:00.000Z' }))
         assert.equal(stale.status, 409)
         assert.equal(errorCode(stale), 'CATALOG_OUTDATED')
@@ -253,7 +259,7 @@ describe('red flag', () => {
         assert.equal(errorCode(res), 'QUESTIONNAIRE_OUTDATED')
     })
 
-    it('all "no" -> CLEAR; quote guard passes red flag and reports NOT_IMPLEMENTED (no fake success)', async () => {
+    it('all "no" -> CLEAR; quote is then priced by the server (201)', async () => {
         const order = await newDraft()
         const res = await answerAll(order.id, null)
         assert.equal(res.status, 200, JSON.stringify(res.json))
@@ -262,8 +268,8 @@ describe('red flag', () => {
         assert.equal('advice' in res.json.data, false)
 
         const q = await quote(order.id)
-        assert.equal(q.status, 501)
-        assert.equal(errorCode(q), 'NOT_IMPLEMENTED')
+        assert.equal(q.status, 201, JSON.stringify(q.json))
+        assert.equal(q.json.data.quote.isPayment, false)
     })
 
     it('one "yes" -> BLOCKED_RED_FLAG with placeholder advice', async () => {
@@ -325,10 +331,10 @@ describe('red flag', () => {
         assert.equal(errorCode(await quote(order.id)), 'RED_FLAG_REQUIRED')
     })
 
-    it('referral services are refused at pricing while upload is unavailable (422 REFERRAL_REQUIRED)', async () => {
+    it('referral services are refused at pricing until a referral image is attached (422 REFERRAL_REQUIRED)', async () => {
         const order = await newDraft({ items: [{ serviceCode: 'HOME_IV_THERAPY' }] })
         assert.equal(order.requirements.referralAttachment, true)
-        assert.equal(order.requirements.referralUploadAvailable, false)
+        assert.equal(order.requirements.referralUploadAvailable, true)
         await answerAll(order.id, null)
         const q = await quote(order.id)
         assert.equal(q.status, 422)

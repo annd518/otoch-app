@@ -45,6 +45,107 @@
 | Staging | ❌ Эрх байхгүй (§10) | |
 | `next build` | ⚠️ Compile амжилттай, гэхдээ **өмнө нь байсан** хоосон `wclient/app/lab/reports/[id]/page.tsx` (0 byte, main болон upstream-д ч мөн адил) Next-ийн route type check-ийг унагаадаг. Auth-тай холбоогүй, өнөөдрийн хүрээнээс гадуур | |
 
+### 0.2 Явцын тэмдэглэл — 2026-10-14
+
+**Өдрийн эхэнд мэдэгдсэн blocker:** staging hosting, домэйн/TLS, managed PostgreSQL, private bucket, QPay sandbox credential — **аль нь ч байхгүй**. Docker daemon хариу өгөхгүй хэвээр.
+
+| Ажил | Төлөв (fixture / mock / sandbox / real) | Нотолгоо |
+|---|---|---|
+| `POST /api/orders` Idempotency-Key (user+scope, 24 цаг, DB unique) | ✅ **Real** (код + DB constraint). Тест: давталт, өөр payload 409, 8 зэрэг хүсэлт → 1 order, timeout-ийн дараах retry, хугацаа дуусалт | [services/idempotency.ts](../server/src/services/idempotency.ts) |
+| Эрт "Тийм" → серверт BLOCKED (дутуу хариутай ч) | ✅ **Real** логик. Асуултууд **fixture** | [orderController.ts](../server/src/controllers/orderController.ts) |
+| Асуулгын гэрээ: `approved` талбар, тоо нь гэрээ биш | ✅ Docs + код | [l1-1-api.md §4](l1-1-api.md) |
+| Quote | ✅ **Real** тооцоо (order/catalog version, guard, integer MNT). **Үнэ fixture**, хураамж тооцохгүй | [services/orders.ts](../server/src/services/orders.ts) |
+| Private upload | ✅ **Real** урсгал (magic bytes, 10 MB, 5, owner, random key, soft delete). Storage: **memory (тест) / local-dev (dev)**. **S3/staging bucket хэрэгжээгүй, эрхгүй** | [attachmentController.ts](../server/src/controllers/attachmentController.ts), [services/storage.ts](../server/src/services/storage.ts) |
+| Payment + QPay | ✅ **Mock** горим бүрэн тестлэгдсэн (давхар callback → 1 PAID, дүн зөрвөл PAID болохгүй, хугацаа дуусалт). **Sandbox код бий, нэг ч удаа ажиллуулаагүй (credential байхгүй).** Production идэвхгүй | [paymentController.ts](../server/src/controllers/paymentController.ts), [services/qpay.ts](../server/src/services/qpay.ts) |
+| Migration `20261014000000_add_idempotency_quote_attachment_payment` | ✅ Зөвхөн шинэ хүснэгт/enum. Хоосон UTF8 тест DB-д apply болсон. **Бодит/локал DB-д хийгээгүй** | [prisma/migrations](../server/prisma/migrations) |
+| `wclient/app/lab/reports/[id]/page.tsx` (0 byte) | ✅ Хамгийн бага placeholder ("хэрэгжээгүй, демо"). **Production lab feature биш.** `next build` амжилттай (14/14) | |
+| `catalogVersion: null` (mobile) | ✅ "Илгээгээгүй"-тэй адил хүлээн авна (integration-аар илэрсэн) | |
+| Server тест | ✅ **85/85** (null catalogVersion шалгалт одоо байгаа тест дотор) | `npm test` |
+| Integration (`tmp/integration-1014` = backend + mobile `6f46d17`, локал түр branch, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **106/106**, server **85/85**. Mobile service функцуудыг бодит backend-тэй тулгасан **5/5** (идемпотент draft, эрт "Тийм", CLEAR+PATCH, upload/delete, PDF 415) | §14 |
+| Staging | ❌ Эрх байхгүй | §10 |
+
+### 0.3 Явцын тэмдэглэл — 2026-10-15
+
+| Ажил | Төлөв |
+|---|---|
+| Mobile `cec500c`-тэй тулгалт (`tmp/integration-1015`, локал түр branch) | ✅ Git conflict байхгүй. Mobile unit **128/128**. Mobile функцууд → backend **5/5**: auth, draft retry (ижил order, өөр payload 409), хэсэгчилсэн "Тийм" → `recorded` (давтахад ч мөн), `{}` quote + upload retry (1 attachment, 1 blob), mock invoice → provider check → `PAID` + `paidAt` |
+| Илэрсэн 2 зөрүү, засагдсан | (1) Mobile quote-д `{}` илгээдэг байхад сервер `orderVersion` шаарддаг байсан (400). Одоо заавал биш. (2) Mobile `parseQuote` `travelFeeMnt`/`discountMnt` integer шаарддаг. Одоо `0` ("тооцоогүй", `excludes`-тэй) |
+| GAP-13/GAP-15 | Дахин хэрэгжүүлээгүй. Шинэ mobile-тэй ажиллаж байгааг баталгаажуулсан |
+| Upload retry | Зэрэг 5 оролдлого ижил key-тэй → 1 attachment, orphan blob 0 (тест) |
+| Config template | `server/.env.sample` (storage/QPay env нэрс, утгагүй), шинэ `wclient/.env.example`. `wclient/.gitignore`-д `!.env.example` нэмсэн (`.env*` дүрэм template-ийг ч нууж байсан) |
+| Staging / bucket / QPay sandbox | ❌ Эрх байхгүй хэвээр |
+
+### 0.4 Deploy-ийн дараалал (эрх ирсний дараа)
+
+1. Managed PostgreSQL (**UTF8**) үүсгэж backup тохируулна.
+2. Secret store-д `.env.sample`-ийн нэрсээр утга оруулна (`NODE_ENV=production`, `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGINS`, `PUBLIC_BASE_URL`, `QPAY_MODE=sandbox` эсвэл `mock`, `STORAGE_DRIVER`).
+3. `docker build --target migrate` → нэг удаа `prisma migrate deploy` (шинэ DB тул baseline шаардлагагүй). **`db push`, `migrate reset` хориотой.**
+4. `docker build` (runtime) → deploy → `GET /api/health`.
+5. Smoke: signup/login, `GET /api/catalog/services`, draft, red flag, quote, (bucket байвал) upload, (sandbox байвал) invoice.
+6. Fixture seed (каталог, red flag) — зөвхөн зохиомол өгөгдөл. Demo хэрэглэгчийг staging-д үүсгэхгүй.
+7. Rollback: өмнөх image + DB backup. Migration-ууд зөвхөн нэмэлт тул хуучин код шинэ хүснэгтийг үл тооно.
+
+Одоо байгаа WIN1252 локал DB-ийн үйлдэл: §12 (зөвшөөрөл хүлээж буй).
+
+### 0.5 Явцын тэмдэглэл — 2026-10-16
+
+Эхлэх SHA: main `901bb91`, backend `28590ee`, mobile `bd7d9f9`. Ажлын явцад mobile `0200821` (payment recovery) болж шинэчлэгдсэн тул түүнтэй дахин тулгасан.
+
+| Ажил | Төлөв |
+|---|---|
+| Payment recovery зөрүү | ✅ Засагдсан. Өөр key-ээр давтан invoice хүсэхэд гэрээнд байсан 409 `PAYMENT_IN_PROGRESS` + `paymentId` одоо үнэхээр буцна (өмнө нь `assertOrderReadyForPricing` түрүүлж `ORDER_NOT_EDITABLE` өгдөг байсан). Нэмэлт: `PAYMENT_ALREADY_PAID`, `PAYMENT_RECONCILIATION_REQUIRED`, `PAYMENT_UNCONFIRMED`, `error.fields.recovery`. Гэрээ: api §7.1.1 |
+| Provider timeout | ✅ Тодорхойгүй үр дүн → payment `PENDING` (`PROVIDER_UNCONFIRMED`), захиалга түгжээтэй, хугацаа дуустал шинэ invoice үүсэхгүй. Тодорхой татгалзал → `FAILED`, `DRAFT`. Автомат reconciliation **байхгүй** (хязгаарыг §7.1.1-д бичсэн) |
+| Аюулгүй байдлын regression | ✅ Signup зөвхөн CHILD, password/hash response-д байхгүй, logger мессеж/Prisma args хэвлэхгүй, order/payment/attachment ownership 404, upload magic-byte/10MB/5 файл (бүгд тесттэй). **Шинэ засвар:** `seed` нь `NODE_ENV=production` үед demo хэрэглэгч (нийтэд мэдэгдэж буй нууц үгтэй ADMIN гэх мэт) үүсгэдэг байсан → одоо зөвхөн fixture. Production config тест: mock QPay, memory/local-dev storage production-д ажиллахгүй |
+| Fixture | Каталог `isFixture: true`, red flag `approved: false` хэвээр. Үнэ, эмнэлзүйн бичвэрийг батлаагүй |
+| Integration — эцсийн (`tmp/integration-1016b` = backend `81ce53d` + mobile `0200821`, локал, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **143/143**. Mobile функцууд → backend **10/10** (доорх 8 + mobile `recoverPayment`: хадгалсан `paymentId`, ижил key replay, **шинэ төхөөрөмж (өөр key) → `PAYMENT_IN_PROGRESS` → ижил invoice**; unconfirmed үед төлөх боломжтой invoice харагдахгүй). Тестийн дараа remote mobile `0200821` хэвээр |
+| Integration — эхний (`tmp/integration-1016` = `d74e524` + mobile `bd7d9f9`) | ✅ Git conflict байхгүй. Mobile unit **132/132**. Mobile функцууд → backend **8/8**: auth (expired token локал ба серверийн 401), role 403 session хадгална, draft concurrent + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED_RED_FLAG` ба PATCH/quote/payment тойрох боломжгүй, quote version/expiry/fixture, upload retry/read/delete/ownership, payment recovery (`inProgressPaymentId`), provider timeout |
+| Server | 98/98, `tsc`, `prisma validate` OK. wclient `next build` 14/14 |
+| Access (өдрийн эхэнд шалгасан) | ❌ Hosting/HTTPS, UTF8 managed PostgreSQL, private bucket, QPay sandbox credential/`invoice_code` байхгүй. Docker daemon API 500 |
+
+**Mobile handoff (backend засвар шаардлагагүй, mobile талд):**
+
+| # | Олдвор (`0200821`) | Нотолгоо | Санал |
+|---|---|---|---|
+| H1 | `recoverPayment` зөвхөн `PAYMENT_IN_PROGRESS`-ийн `paymentId`-г дагадаг. `PAYMENT_ALREADY_PAID` (шинэ төхөөрөмж, төлөгдсөн захиалга) → `error` | `App/services/payment.ts` `inProgressPaymentId`, `recoverPayment`; integration "HANDOFF paid/new device -> error" | `PAYMENT_ALREADY_PAID`-ийн `error.fields.paymentId`-аар `getInvoice` → `paid` |
+| H2 | `PAYMENT_UNCONFIRMED` (502) ба `recovery: WAIT` → `error`. `getInvoice`/`parseInvoice` `qrText` шаарддаг тул QR-гүй payment-ийг уншиж чадахгүй | integration "HANDOFF unconfirmed -> [error, error]". Давхар invoice үүсээгүй (аюулгүй) | `recovery: WAIT` үед `getPaymentState`-ээр `expiresAt` хүртэл polling, "Төлбөрийн төлөв тодорхойгүй, давхар төлбөрөөс сэргийлж хүлээж байна" гэж харуулах |
+| H3 | `PAYMENT_RECONCILIATION_REQUIRED` (`recovery: CONTACT_SUPPORT`) | api §7.1.1 | Дахин оролдуулахгүй, тусламж руу чиглүүлэх |
+| H4 | `ORDER_NOT_EDITABLE` → `unknown_pending` салбар төлбөрт хэрэггүй болсон (backend `d74e524`-аас `PAYMENT_IN_PROGRESS`) | `recoverPayment`, `payment.tsx` | Хуучин сервертэй нийцлийн fallback болгож үлдээж болно |
+| H5 | `PAYMENT_PROVIDER_ERROR` + `recovery: NEW_QUOTE` үед ижил key-ээр давтвал ижил 502 буцна | api §7.1.1 | Шинэ quote + шинэ key руу шилжих |
+
+**10.17-нд биелэхгүй үлдэх L1-1 шалгуур (одоогийн мэдээллээр):**
+
+1. Staging HTTPS backend байхгүй → бодит төхөөрөмж + staging дээрх бүтэн урсгал (mobile plan-ийн "L1-1 дууссан" шалгуур) хийгдэхгүй.
+2. QPay sandbox invoice/check/callback/PAID, буруу дүн, давхар callback-ийг sandbox дээр шалгаагүй (зөвхөн mock).
+3. Private bucket (S3) adapter хэрэгжээгүй → staging/production-д upload 503 `STORAGE_UNAVAILABLE`.
+4. Каталогийн үнэ, хураамж, red flag асуулт fixture (D3, D4 батлагдаагүй). `Order` model таамаг (D2).
+5. Payment reconciliation-ийн operator хэрэгсэл байхгүй (`NEEDS_RECONCILIATION`, `PAID_AFTER_EXPIRY` гараар).
+6. Локал WIN1252 DB-ийн UTF8 шилжилт зөвшөөрөл хүлээж байна (§12).
+
+### 0.6 Явцын тэмдэглэл — 2026-10-17 (хүлээлгэн өгөх)
+
+| Ажил | Төлөв |
+|---|---|
+| Эхлэх SHA | main `901bb91`, backend `8f6309f`, mobile `0200821` (өдрийн турш шинэ mobile push ирээгүй) |
+| `ORDER_NOT_EDITABLE` | Дахин засаагүй. `d74e524`-д шийдэгдсэнийг mobile `0200821`-ийн функцээр баталгаажуулсан (`PAYMENT_IN_PROGRESS` → ижил invoice) |
+| Production fixture | ⚠️ Олдвор: production seed fixture үнэ/`approved:false` асуулга үүсгэж, тэдгээрээр quote/invoice хийх боломжтой байсан. ✅ `49f0f65`: production-д 503 `FIXTURE_DATA_NOT_ALLOWED`, seed нь `ALLOW_FIXTURE_DATA=true`-гүй бол юу ч үүсгэхгүй. **Fixture байгаа тул production-ready биш** |
+| Integration (`tmp/integration-1017` = `49f0f65` + mobile `0200821`) | ✅ 14/14 (DONE/WAIT/CONTACT_SUPPORT/NEW_QUOTE, QR-гүй pending polling, давхар invoice 0, эзэмшил, red flag, upload retry). Mobile unit 143/143 |
+| Server | 100/100, `tsc`, `prisma validate` OK |
+| Mobile `4b711da` (өдрийн төгсгөлд push хийгдсэн, H1–H5) | ✅ `tmp/integration-1017b` = backend `db8837e` + mobile `4b711da`: **14/14**, mobile unit **149/149**. `recoverPayment` → `paid` / `unconfirmed` / `new_quote` / `reconciliation` |
+| Хүлээлгэн өгөх баримт | [l1-1-handover-backend.md](l1-1-handover-backend.md) |
+| Access | ❌ Өөрчлөлтгүй (staging, DB, bucket, QPay sandbox байхгүй) |
+
+---
+
+## 14. Integration шалгалт — 2026-10-14
+
+- **Арга:** `git worktree` scratch хавтсанд, локал түр branch `tmp/integration-1014`: `work/backend-l1-1` + `origin/work/mobile-l1-1` (`6f46d17`). Өөрийн branch болон main-д нэгтгээгүй, push хийгээгүй. `node_modules`-ийг junction-оор холбосон (install хийгээгүй).
+- **Git conflict байхгүй.** Энэ нь ажиллагааны нийцлийн нотолгоо биш тул доорх тестүүдийг ажиллуулсан:
+  - Mobile unit тест (`App: npm test`): 106/106.
+  - Server тест (тусгаарласан UTF8 DB): 85/85.
+  - Mobile `App/services/{orders,authFlow,catalog,redFlag,httpClient}.ts`-ийн бодит функцууд → backend (тусгаарласан DB, mock QPay, memory storage): 5/5.
+- **Илэрсэн зөрүү ба шийдэл:** mobile `catalogVersion: null` илгээдэг байсан бол сервер 400 буцааж байсан. Засагдсан (`6253cf3`).
+- **Шалгаагүй:** mobile UI/дэлгэц, бодит төхөөрөмж, mobile-ийн quote/payment дэлгэц (mobile-д хараахан байхгүй), HTTPS staging.
+
 ---
 
 ## 1. Одоогийн төлөв (кодоор баталгаажсан)
@@ -362,8 +463,8 @@ model OrderEvent {
 | Үндсэн | `NODE_ENV`, `PORT`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (✅ кодонд), `LOG_LEVEL`, `TRUST_PROXY` (✅ кодонд), `PRISMA_LOG_QUERIES` (✅ кодонд, staging/prod-д тохируулахгүй) |
 | DB | `DATABASE_URL`, `DATABASE_SSL_MODE` |
 | Auth | `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_BOOTSTRAP_EMAIL` |
-| Storage | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `ATTACHMENT_MAX_BYTES`, `SIGNED_URL_TTL_SECONDS` |
-| QPay | `QPAY_MODE` (`mock`/`sandbox`/`production`), `QPAY_BASE_URL`, `QPAY_USERNAME`, `QPAY_PASSWORD`, `QPAY_INVOICE_CODE`, `QPAY_CALLBACK_URL`, `QPAY_CALLBACK_SECRET` |
+| Storage | `STORAGE_DRIVER` (✅ кодонд: `memory` тест, `local-dev` dev; `s3` хэрэгжээгүй), `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SIGNED_URL_TTL_SECONDS` |
+| QPay | `QPAY_MODE` (✅ кодонд: `mock`/`sandbox`; `production` идэвхгүй), `QPAY_BASE_URL`, `QPAY_USERNAME`, `QPAY_PASSWORD`, `QPAY_INVOICE_CODE`, `QPAY_CALLBACK_SECRET`, `PUBLIC_BASE_URL` (callback URL-ийг эндээс угсарна) |
 | Үнэ/дүрэм | `QUOTE_TTL_SECONDS`, `PAYMENT_TTL_SECONDS`, `EMERGENCY_PHONE` |
 | Имэйл (заавал биш) | `EMAIL_USER`, `EMAIL_PASS` |
 | Rate limit | `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` |
@@ -397,7 +498,7 @@ model OrderEvent {
 
 ---
 
-## 10. Staging бэлэн байдал — 2026-10-12 (10.13-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
+## 10. Staging бэлэн байдал — 2026-10-12 (10.13, 10.14-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
 
 | Зүйл | Байгаа юу | Тэмдэглэл |
 |---|---|---|

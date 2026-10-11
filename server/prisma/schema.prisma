@@ -155,6 +155,9 @@ model Order {
   items          OrderItem[]
   redFlagAnswers RedFlagAnswer[]
   events         OrderEvent[]
+  quotes         Quote[]
+  attachments    Attachment[]
+  payments       Payment[]
 
   @@index([childId, status])
 }
@@ -214,4 +217,108 @@ model OrderEvent {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt])
+}
+
+// ---- L1-1 (10.14): idempotency, quote, private attachments, payments ----
+
+// Stores the outcome of a request made with an Idempotency-Key, scoped per user + operation.
+// The unique constraint makes concurrent duplicates collapse to one resource.
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  userId       String
+  scope        String // e.g. "orders.create", "attachments.create:<orderId>", "payments.create:<orderId>"
+  key          String
+  requestHash  String // sha256 of the canonical request payload
+  resourceType String
+  resourceId   String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@unique([userId, scope, key])
+  @@index([expiresAt])
+}
+
+// Server-computed price snapshot. Valid only for the exact order version and catalog version.
+// A quote is NOT a payment and does not confirm the order.
+model Quote {
+  id             String   @id @default(cuid())
+  orderId        String
+  orderVersion   Int
+  catalogVersion String
+  pricingVersion String
+  currency       String   @default("MNT")
+  lines          Json
+  subtotalMnt    Int
+  totalMnt       Int
+  isFixture      Boolean // true when any priced service is fixture data
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([orderId, createdAt])
+}
+
+enum AttachmentStatus {
+  ACTIVE
+  DELETED
+}
+
+// Private file metadata. The blob lives in private storage under a random key; never under /uploads.
+model Attachment {
+  id            String           @id @default(cuid())
+  orderId       String
+  uploaderId    String
+  kind          String           @default("REFERRAL")
+  storageDriver String // memory | local-dev | s3
+  storageKey    String           @unique
+  mimeType      String
+  sizeBytes     Int
+  sha256        String
+  status        AttachmentStatus @default(ACTIVE)
+  createdAt     DateTime         @default(now())
+  deletedAt     DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, status])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  quoteId           String
+  userId            String
+  provider          String        @default("QPAY")
+  mode              String // mock | sandbox (production disabled)
+  idempotencyKey    String
+  amountMnt         Int
+  currency          String        @default("MNT")
+  status            PaymentStatus @default(PENDING)
+  providerInvoiceId String?       @unique
+  providerPaymentId String?       @unique
+  qrText            String?
+  qrImage           String?
+  deeplinks         Json?
+  expiresAt         DateTime
+  paidAt            DateTime?
+  lastCheckedAt     DateTime?
+  failureCode       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+  quote Quote @relation(fields: [quoteId], references: [id])
+
+  @@unique([orderId, idempotencyKey])
+  @@index([orderId, status])
 }

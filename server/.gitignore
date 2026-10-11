@@ -9,3 +9,4 @@ node_modules
 /dist
 /.local-pg
 .dev-local.log
+/.local-uploads

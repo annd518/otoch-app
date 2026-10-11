@@ -44,6 +44,9 @@ const env = {
     JWT_SECRET: randomBytes(32).toString('hex'),
     JWT_EXPIRES_IN: '1h',
     EMAIL_USER: '',
+    STORAGE_DRIVER: 'memory',
+    QPAY_MODE: 'mock',
+    QPAY_CALLBACK_SECRET: randomBytes(16).toString('hex'),
     EMAIL_PASS: '',
 }
 
