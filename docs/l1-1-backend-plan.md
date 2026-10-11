@@ -87,6 +87,29 @@
 
 Одоо байгаа WIN1252 локал DB-ийн үйлдэл: §12 (зөвшөөрөл хүлээж буй).
 
+### 0.5 Явцын тэмдэглэл — 2026-10-16
+
+Эхлэх SHA: main `901bb91`, backend `28590ee`, mobile `bd7d9f9`.
+
+| Ажил | Төлөв |
+|---|---|
+| Payment recovery зөрүү | ✅ Засагдсан. Өөр key-ээр давтан invoice хүсэхэд гэрээнд байсан 409 `PAYMENT_IN_PROGRESS` + `paymentId` одоо үнэхээр буцна (өмнө нь `assertOrderReadyForPricing` түрүүлж `ORDER_NOT_EDITABLE` өгдөг байсан). Нэмэлт: `PAYMENT_ALREADY_PAID`, `PAYMENT_RECONCILIATION_REQUIRED`, `PAYMENT_UNCONFIRMED`, `error.fields.recovery`. Гэрээ: api §7.1.1 |
+| Provider timeout | ✅ Тодорхойгүй үр дүн → payment `PENDING` (`PROVIDER_UNCONFIRMED`), захиалга түгжээтэй, хугацаа дуустал шинэ invoice үүсэхгүй. Тодорхой татгалзал → `FAILED`, `DRAFT`. Автомат reconciliation **байхгүй** (хязгаарыг §7.1.1-д бичсэн) |
+| Аюулгүй байдлын regression | ✅ Signup зөвхөн CHILD, password/hash response-д байхгүй, logger мессеж/Prisma args хэвлэхгүй, order/payment/attachment ownership 404, upload magic-byte/10MB/5 файл (бүгд тесттэй). **Шинэ засвар:** `seed` нь `NODE_ENV=production` үед demo хэрэглэгч (нийтэд мэдэгдэж буй нууц үгтэй ADMIN гэх мэт) үүсгэдэг байсан → одоо зөвхөн fixture. Production config тест: mock QPay, memory/local-dev storage production-д ажиллахгүй |
+| Fixture | Каталог `isFixture: true`, red flag `approved: false` хэвээр. Үнэ, эмнэлзүйн бичвэрийг батлаагүй |
+| Integration (`tmp/integration-1016` = `d74e524` + mobile `bd7d9f9`, локал, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **132/132**. Mobile функцууд → backend **8/8**: auth (expired token локал ба серверийн 401), role 403 session хадгална, draft concurrent + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED_RED_FLAG` ба PATCH/quote/payment тойрох боломжгүй, quote version/expiry/fixture, upload retry/read/delete/ownership, payment recovery (`inProgressPaymentId`), provider timeout |
+| Server | 98/98, `tsc`, `prisma validate` OK. wclient `next build` 14/14 |
+| Access (өдрийн эхэнд шалгасан) | ❌ Hosting/HTTPS, UTF8 managed PostgreSQL, private bucket, QPay sandbox credential/`invoice_code` байхгүй. Docker daemon API 500 |
+
+**10.17-нд биелэхгүй үлдэх L1-1 шалгуур (одоогийн мэдээллээр):**
+
+1. Staging HTTPS backend байхгүй → бодит төхөөрөмж + staging дээрх бүтэн урсгал (mobile plan-ийн "L1-1 дууссан" шалгуур) хийгдэхгүй.
+2. QPay sandbox invoice/check/callback/PAID, буруу дүн, давхар callback-ийг sandbox дээр шалгаагүй (зөвхөн mock).
+3. Private bucket (S3) adapter хэрэгжээгүй → staging/production-д upload 503 `STORAGE_UNAVAILABLE`.
+4. Каталогийн үнэ, хураамж, red flag асуулт fixture (D3, D4 батлагдаагүй). `Order` model таамаг (D2).
+5. Payment reconciliation-ийн operator хэрэгсэл байхгүй (`NEEDS_RECONCILIATION`, `PAID_AFTER_EXPIRY` гараар).
+6. Локал WIN1252 DB-ийн UTF8 шилжилт зөвшөөрөл хүлээж байна (§12).
+
 ---
 
 ## 14. Integration шалгалт — 2026-10-14

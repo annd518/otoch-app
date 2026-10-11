@@ -1,7 +1,7 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-15, backend (`work/backend-l1-1`).
-> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-16, backend (`work/backend-l1-1`).
+> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй). 10.16 — төлбөр сэргээх гэрээ (§7.1.1).
 > **Таамаг:** захиалгыг тусдаа `Order` model-оор хийсэн (D2 батлагдаагүй). Red flag асуулт, каталог нь **fixture**.
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
 > Mobile тал эдгээрийг mock-оор хөгжүүлж болно. Бодит сервертэй холбохоос өмнө энэ гэрээг хоёр тал батлах ёстой.
@@ -50,12 +50,12 @@
 | 401 | Token байхгүй/хүчингүй | `UNAUTHENTICATED` |
 | 403 | Эрх хүрэхгүй, өөр хүний захиалга | `FORBIDDEN` |
 | 404 | Олдсонгүй | `NOT_FOUND` |
-| 409 | Төлөв зөрсөн, хуучин version | `ORDER_NOT_EDITABLE`, `VERSION_CONFLICT`, `QUOTE_EXPIRED` |
+| 409 | Төлөв зөрсөн, хуучин version | `ORDER_NOT_EDITABLE`, `VERSION_CONFLICT`, `QUOTE_EXPIRED`, `PAYMENT_IN_PROGRESS`, `PAYMENT_ALREADY_PAID`, `PAYMENT_RECONCILIATION_REQUIRED` |
 | 413 | Файл хэт том | `FILE_TOO_LARGE` |
 | 415 | Файлын төрөл буруу | `UNSUPPORTED_MEDIA_TYPE` |
 | 422 | Бизнес дүрэм зөрчсөн | `RED_FLAG_BLOCKED`, `REFERRAL_REQUIRED` |
 | 429 | Хэт олон хүсэлт | `RATE_LIMITED` |
-| 502 | QPay алдаа | `PAYMENT_PROVIDER_ERROR` |
+| 502 | QPay алдаа | `PAYMENT_PROVIDER_ERROR`, `PAYMENT_UNCONFIRMED` |
 
 > ✅ **10.12: ХЭРЭГЖСЭН.** Бүх одоо байгаа endpoint (auth, parents, visits, review, users, analytics, catalog, auth/RBAC middleware) энэ хэлбэрт шилжсэн. Алдааг HTTP 200-аар буцаахаа больсон. Код: [server/src/utils/http.ts](../server/src/utils/http.ts), [server/src/middlwares/error.ts](../server/src/middlwares/error.ts).
 > 500 алдаанд дотоод мессеж (`error.message`) буцаахгүй, зөвхөн ерөнхий мессеж ба `INTERNAL_ERROR` буцна.
@@ -527,24 +527,117 @@ Response **201**:
 - Header **`Idempotency-Key` заавал** (байхгүй → 400 `IDEMPOTENCY_KEY_REQUIRED`). Ижил key + ижил `quoteId` → ижил payment (replay). Өөр `quoteId` → 409 `IDEMPOTENCY_KEY_REUSED`.
 - Body: `{ "quoteId": "quo_…" }`. **Дүнг клиентээс авахгүй.**
 - Шалгалт: red flag ба бүх guard **дахин** (блоклогдсон → 422), quote тухайн захиалгынх, `quote.orderVersion === order.version` (үгүй → 409 `QUOTE_MISMATCH`), хугацаа (409 `QUOTE_EXPIRED`), каталогийн хувилбар, **quote-ийн дүнг каталогоос дахин тооцож тулгана**, валют MNT.
-- Нэг захиалгад нэг `PENDING` төлбөр. Өөр key-ээр давхар оролдвол → 409 `PAYMENT_IN_PROGRESS` (`error.fields.paymentId`).
+- Нэг захиалгад нэг `PENDING` төлбөр. Өөр key-ээр давхар оролдвол → 409 `PAYMENT_IN_PROGRESS` (`error.fields.paymentId`). **10.16-аас код үүнийг үнэхээр буцаана** (өмнө нь `ORDER_NOT_EDITABLE` буцаадаг байсан). Дэлгэрэнгүй: §7.1.1.
 - Амжилттай бол захиалга **`AWAITING_PAYMENT`** болж түгжигдэнэ (PATCH, хариулт, upload → 409).
-- Provider алдаа → 502 `PAYMENT_PROVIDER_ERROR`, payment `FAILED`, захиалга `DRAFT` руу буцна. Тохиргоогүй → 503 `PAYMENT_UNAVAILABLE`.
+- Provider алдаа хоёр төрөлтэй (§7.1.1): **тодорхой татгалзал** → 502 `PAYMENT_PROVIDER_ERROR`, payment `FAILED`, захиалга `DRAFT`; **үр дүн тодорхойгүй** (timeout, сүлжээ, 5xx) → 502 `PAYMENT_UNCONFIRMED`, payment `PENDING` хэвээр, захиалга түгжээтэй. Тохиргоогүй → 503 `PAYMENT_UNAVAILABLE`.
 
 Response **201**: `{ payment: { id, provider: "QPAY", mode, isMock, status: "PENDING", amountMnt, currency: "MNT", qrText, qrImageBase64, deeplinks, expiresAt, paidAt: null, failureCode: null }, orderStatus: "AWAITING_PAYMENT" }`.
+
+### 7.1.1 Төлбөр сэргээх (recovery) — ✅ 10.16 хэрэгжсэн, тестлэгдсэн (MOCK горимд)
+
+Зорилго: нэг захиалгад **давхар нэхэмжлэх үүсэхгүй**, апп дахин эхэлсэн/key алдсан ч хэрэглэгч өмнөх төлбөрөө үргэлжлүүлнэ.
+
+**Дүрэм**
+
+| Нөхцөл | Хариу |
+|---|---|
+| Ижил `Idempotency-Key` + ижил `quoteId` | Эхний хүсэлттэй **ижил үр дүн**. Invoice байгаа бол 201 replay (одоогийн төлөвтэй, `PAID` ч байж болно). Invoice үүсээгүй бол эхний алдааг (502) давтана. Provider-ийг **дахин дуудахгүй** |
+| Ижил key + өөр `quoteId` | 409 `IDEMPOTENCY_KEY_REUSED` |
+| Өөр key, захиалгад `PENDING` payment байгаа | 409 `PAYMENT_IN_PROGRESS`. Шинэ invoice үүсэхгүй |
+| Өөр key, захиалга төлөгдсөн | 409 `PAYMENT_ALREADY_PAID` |
+| Өөр key, гараар шалгах шаардлагатай payment байгаа | 409 `PAYMENT_RECONCILIATION_REQUIRED` |
+| Өмнөх payment хугацаа дууссан (`EXPIRED`) эсвэл татгалзсан (`FAILED`) | Блоклохгүй. Захиалга `DRAFT` болж version өссөн тул **шинэ quote + шинэ key** хэрэгтэй (хуучин quote → 409 `QUOTE_MISMATCH`) |
+| Өөр хэрэглэгчийн захиалга | 404 `ORDER_NOT_FOUND`. `error.fields` **байхгүй** (paymentId задрахгүй) |
+
+Шалгалтын дараалал: эзэмшил → replay → идэвхтэй payment → red flag/guard → quote. Тиймээс сэргээх хариу нь `quoteId`-аас хамаарахгүй (хуучин quoteId-тай ч ажиллана).
+
+**`error.fields`** (бүх төлбөрийн 409/502-д нэг хэлбэр, утгууд бүгд string):
+
+| Талбар | Утга |
+|---|---|
+| `paymentId` | Үргэлжлүүлэх payment. `GET /api/orders/:id/payments/:paymentId`-ээр шалгана |
+| `paymentStatus` | `PENDING` · `PAID` · `FAILED` · `EXPIRED` |
+| `recovery` | Клиентийн дараагийн алхам (доор) |
+| `expiresAt` | ISO 8601. `WAIT` үед энэ хугацаа хүртэл шинэ invoice үүсгэхгүй |
+
+| `recovery` | Клиент юу хийх |
+|---|---|
+| `RESUME` | `paymentId`-аар GET хийж QR/polling-оо үргэлжлүүлнэ |
+| `DONE` | Төлөгдсөн. GET хийж `PAID` + `paidAt`-ийг харуулна |
+| `WAIT` | Provider-ийн хариу алдагдсан. `paymentId`-аар polling хийнэ. QR байхгүй. `expiresAt` хүртэл хүлээж `EXPIRED` болмогц шинэ quote авна |
+| `NEW_QUOTE` | Invoice үүсээгүй. Шинэ quote + шинэ key-ээр дахин оролдоно |
+| `CONTACT_SUPPORT` | Мөнгө бидний бүртгэлээс гадуур хөдөлсөн байж магадгүй. Дахин оролдуулахгүй, тусламжийн төв рүү чиглүүлнэ |
+
+**Жишээ** (зохиомол, mock):
+
+```http
+POST /api/orders/ord_demo_001/payments/qpay
+Authorization: Bearer <token>
+Idempotency-Key: 6f1c2d4e-0000-4000-8000-000000000002
+Content-Type: application/json
+
+{ "quoteId": "quo_demo_001" }
+```
+
+```json
+HTTP/1.1 409
+{ "success": false, "message": "Энэ захиалгад төлбөр хүлээгдэж байна",
+  "error": { "code": "PAYMENT_IN_PROGRESS",
+    "fields": { "paymentId": "pay_demo_001", "paymentStatus": "PENDING", "recovery": "RESUME", "expiresAt": "2026-10-16T03:30:00.000Z" } } }
+```
+
+```json
+HTTP/1.1 409
+{ "success": false, "message": "Энэ захиалгын төлбөр төлөгдсөн байна",
+  "error": { "code": "PAYMENT_ALREADY_PAID",
+    "fields": { "paymentId": "pay_demo_001", "paymentStatus": "PAID", "recovery": "DONE", "expiresAt": "2026-10-16T03:30:00.000Z" } } }
+```
+
+```json
+HTTP/1.1 502
+{ "success": false, "message": "Нэхэмжлэх үүссэн эсэх тодорхойгүй байна. Давхар төлбөрөөс сэргийлж түр хүлээнэ үү",
+  "error": { "code": "PAYMENT_UNCONFIRMED",
+    "fields": { "paymentId": "pay_demo_002", "paymentStatus": "PENDING", "recovery": "WAIT", "expiresAt": "2026-10-16T03:30:00.000Z" } } }
+```
+
+```json
+HTTP/1.1 502
+{ "success": false, "message": "Төлбөрийн үйлчилгээ түр алдаатай байна. Шинэ үнийн санал авч дахин оролдоно уу",
+  "error": { "code": "PAYMENT_PROVIDER_ERROR",
+    "fields": { "paymentId": "pay_demo_003", "paymentStatus": "FAILED", "recovery": "NEW_QUOTE", "expiresAt": "2026-10-16T03:30:00.000Z" } } }
+```
+
+**Provider алдааны ангилал** ([services/qpay.ts](../server/src/services/qpay.ts) `QPayProviderError.definite`):
+
+| Тохиолдол | Ангилал | Payment / захиалга |
+|---|---|---|
+| Auth token авч чадаагүй (invoice хүсэлт илгээгдээгүй), 4xx (408/429-өөс бусад) | Тодорхой — invoice **үүсээгүй** | `FAILED` (`failureCode: PROVIDER_REJECTED`), захиалга `DRAFT` |
+| Timeout, сүлжээ, 5xx, 408, 429, хариу уншигдахгүй, `invoice_id` байхгүй | **Тодорхойгүй** — invoice provider дээр үүссэн байж магадгүй | `PENDING` (`failureCode: PROVIDER_UNCONFIRMED`), захиалга `AWAITING_PAYMENT` хэвээр |
+
+Callback HTTPS/secret тохиргоогүй бол payment үүсэхээс **өмнө** 503 `PAYMENT_UNAVAILABLE` буцна (захиалга хөндөгдөхгүй).
+
+**Reconciliation-ийн хязгаар (шийдэгдээгүй, илэрхий бичив):**
+
+- Тодорхойгүй үед бидэнд provider-ийн `invoice_id` байхгүй. QPay v2-д `sender_invoice_no`-оор invoice хайх API-г бид баталгаажуулаагүй тул **автомат reconciliation хийхгүй**. Захиалга payment-ийн `expiresAt` (30 мин) хүртэл түгжигдэж, дараа нь `EXPIRED` → `DRAFT` болно.
+- Энэ хугацаанд callback ирвэл (invoice үнэхээр үүссэн гэсэн дохио) payment `NEEDS_RECONCILIATION` болж, **хугацаа дууссан ч захиалга түгжээтэй үлдэнэ** (409 `PAYMENT_RECONCILIATION_REQUIRED`). Үүнийг гараар шийдэх **operator хэрэгсэл/endpoint байхгүй** (D5-тэй хамт шийдэх).
+- `EXPIRED` payment-ийн invoice-д хожим мөнгө орвол callback-аар `PAID_AFTER_EXPIRY` гэж тэмдэглэнэ. **`PAID` болгохгүй**, буцаалт/холболтыг гараар хийнэ. Шинэ invoice-ийг 409 `PAYMENT_RECONCILIATION_REQUIRED`-ээр хориглоно.
+- Хугацаа дууссан invoice-ийг QPay дээр цуцлах (`DELETE /v2/invoice`) хэрэгжээгүй. Callback ирэхгүй бол хожуу төлөлтийг илрүүлэхгүй.
+- Бүгд зөвхөн **mock** горимд тестлэгдсэн. Sandbox-ийн бодит timeout/5xx зан төлөв шалгагдаагүй.
 
 ### 7.2 `GET /api/orders/:id/payments/:paymentId`
 
 Эзэмшигч. `PENDING` бол provider-ийн `payment/check`-ийг дуудна (2 сек throttle). Шилжилт:
 - Төлөгдсөн, дүн тэнцүү → `PAID`, захиалга `PAID`.
 - Төлөгдсөн, дүн зөрүүтэй → `PENDING` хэвээр, `failureCode: "AMOUNT_MISMATCH"`. **PAID болгохгүй.**
-- Хугацаа (30 мин) дууссан → `EXPIRED`, захиалга `DRAFT` (шинэ quote авна).
+- Хугацаа (30 мин) дууссан → `EXPIRED`, захиалга `DRAFT` (шинэ quote авна). `NEEDS_RECONCILIATION` payment хугацаа дуусахгүй (§7.1.1).
+- `failureCode`: `null` · `AMOUNT_MISMATCH` · `PROVIDER_UNCONFIRMED` (QR байхгүй, хүлээнэ) · `PROVIDER_REJECTED` · `NEEDS_RECONCILIATION` · `PAID_AFTER_EXPIRY`.
 
 ### 7.3 Callback — `GET|POST /api/payments/qpay/callback/:secret?paymentId=…` (QPay → backend)
 
 - Нууц path segment (`QPAY_CALLBACK_SECRET`, constant-time харьцуулалт). Буруу бол 404.
 - **Callback өөрөө төлбөрийг батлахгүй.** Зөвхөн provider-ийн `payment/check`-ийг өдөөнө.
 - Нөхцөлт шилжилт (`status = PENDING` үед л) хийгддэг тул давхар, зэрэг callback ирсэн ч нэг л `PAID`, нэг л event үүснэ (тестлэгдсэн).
+- Invoice id-гүй (`PROVIDER_UNCONFIRMED`) payment-д callback ирвэл → `NEEDS_RECONCILIATION`. `EXPIRED` payment-д provider төлөгдсөн гэвэл → `PAID_AFTER_EXPIRY` (§7.1.1).
 - Хариу үргэлж `200 { success: true }`.
 
 ### 7.4 Dev/mock туслах
