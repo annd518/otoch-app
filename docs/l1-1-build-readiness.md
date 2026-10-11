@@ -264,7 +264,7 @@ Account нээх, төлбөр хийх, cloud build эхлүүлэх, store р�
 | 4 | Apple Developer, App Store Connect эрх, signing | Apple account эзэмшигч |
 | 5 | Google Play Console эрх, Play App Signing, анхны AAB-ийг гараар upload хийх | Play account эзэмшигч |
 | 6 | Брэндийн app icon (одоо Expo template) | Бүтээгдэхүүний эзэн |
-| 7 | Orders, red flag, attachment endpoint backend-д хэрэгжээгүй. Store build дээр урсгал зөвхөн "хэрэгжээгүй" гэж харагдана. | Backend |
+| 7 | Orders, red flag `work/backend-l1-1` дээр хэрэгжсэн ч main болон staging-д ороогүй. Upload хэрэгжээгүй. Store build нь staging-д юу байхаас хамаарна. | Backend |
 
 ### 10.5 Хийх яг үйлдэл (зөвшөөрөл авсны дараа)
 

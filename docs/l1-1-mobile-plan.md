@@ -457,19 +457,21 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 
 ### 10.2 Дэлгэц ба endpoint-ийн mock/real төлөв
 
-| Дэлгэц | Route | Endpoint | Төлөв |
-|---|---|---|---|
-| Login, бүртгэл | `auth/login`, `auth/register` | `POST /api/auth/login`, `/signup` | Real. Хоёр серверийн хариуг дэмжинэ. |
-| Өвчтөн | `(tabs)/add-parent`, захиалгын алхам 1 | `GET/POST /api/parents` | Real |
-| Каталог | `booking/catalog` | `GET /api/catalog/services` | Real нь зөвхөн backend branch дээр. origin/main дээр "хэрэгжээгүй". Dev mock бий. |
-| Захиалга, алхам 1 | `(tabs)/bookappointment` | `POST /api/orders`, `PATCH /api/orders/:id` | Backend-д хэрэгжээгүй. Зөвхөн dev mock. Real горимд "хэрэгжээгүй" гэж харуулна. |
-| Red flag | `booking/red-flags` | `GET .../red-flag-questions`, `PUT .../red-flag-answers` | Зөвхөн dev mock |
-| 103 | `booking/emergency` | Байхгүй | Апп дотор |
-| Заалтын зураг | `booking/referral` | `POST/DELETE /api/orders/:id/attachments` | Зөвхөн dev mock. Зураг серверт хадгалагдахгүй. |
-| Хураангуй | `booking/review` | Quote (§6) хэрэгжээгүй | Хүсэлт илгээхгүй |
+Ажлын явцад backend branch `16ce810` (`d842241`) болж draft захиалга, red flag асуулгыг хэрэгжүүлсэн. Mobile-ийг тэр хэрэгжүүлэлттэй нийцүүлж, локалд ажиллуулсан серверийн эсрэг шалгасан. Тэр branch main-д ороогүй, staging байхгүй.
+
+| Дэлгэц | Route | Endpoint | origin/main сервер | backend branch `16ce810` | Dev mock |
+|---|---|---|---|---|---|
+| Login, бүртгэл | `auth/*` | `POST /api/auth/login`, `/signup` | Real (хуучин хэлбэр) | Real | Үгүй |
+| Өвчтөн | `(tabs)/add-parent`, алхам 1 | `GET/POST /api/parents` | Real | Real | Үгүй |
+| Каталог | `booking/catalog` | `GET /api/catalog/services` | "Хэрэгжээгүй" | Real (fixture өгөгдөл) | Бий |
+| Захиалга, алхам 1 | `(tabs)/bookappointment` | `POST /api/orders`, `PATCH /api/orders/:id` | "Хэрэгжээгүй" | Real | Бий |
+| Red flag | `booking/red-flags` | `GET .../red-flag-questions`, `PUT .../red-flag-answers` | "Хэрэгжээгүй" | Real (3 fixture асуулт) | Бий (5 dev fixture асуулт) |
+| 103 | `booking/emergency` | Байхгүй | Апп дотор | Апп дотор | Үгүй |
+| Заалтын зураг | `booking/referral` | `POST/DELETE /api/orders/:id/attachments` | "Хэрэгжээгүй" | "Хэрэгжээгүй" (`referralUploadAvailable: false`) | Бий. Серверт хадгалагдахгүй. |
+| Хураангуй | `booking/review` | Quote (§6) | Дуудахгүй | Guard бий, үнэ 501 | Дуудахгүй |
 
 - Захиалгын урсгал `POST /api/visits`-ийг цаашид дуудахгүй.
-- Mock-ийг endpoint тус бүрээр сонгоно: `EXPO_PUBLIC_MOCK_ENDPOINTS=orders,redFlags,attachments`. Энэ нь каталогийг real, бусдыг mock болгоно. Release build-д mock хэзээ ч асахгүй.
+- Mock-ийг endpoint тус бүрээр сонгоно: `EXPO_PUBLIC_MOCK_ENDPOINTS=attachments` нь зөвхөн upload-ийг mock болгоно. Release build-д mock хэзээ ч асахгүй.
 - Mock хувилбарууд: `EXPO_PUBLIC_MOCK_SCENARIO`-д `order-network-error-once`, `redflag-load-error`, `redflag-submit-error`, `upload-fail-once`, `empty`, `error`.
 
 ### 10.3 Draft-ийн хамгаалалт
@@ -477,7 +479,10 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 - **State.** Ноорог `app/_layout.tsx` дээрх reducer-д (`App/services/bookingDraft.ts`) хадгалагдана. Буцах, дахин оролдох үед үйлчилгээ, өвчтөн, хаяг, огноо, тэмдэглэл алдагдахгүй.
 - **Payload.** `items[{ serviceId, serviceCode, quantity: 1 }]`, `catalogVersion`, `parentId`, `scheduledFor` (`2026-10-20T09:00:00+08:00` хэлбэр), `timeSlot`, `address.text`, `notes`, `nurseGenderPreference`.
 - **Давхар хүсэлт.** Товч ажиллаж байх үед дахин дарахад нэг л хүсэлт явна. Сүлжээний алдааны дараах дахин оролдлого ижил `Idempotency-Key`-ийг ашиглана.
-- **Засвар.** Хадгалсан ноорогт өөрчлөлт хийвэл `version`-тэй PATCH илгээнэ. Өвчтөн солигдвол шинэ ноорог үүснэ.
+- **Засвар.** Хадгалсан ноорогт өөрчлөлт хийвэл `version`-тэй PATCH илгээнэ. `items`-ийг зөвхөн үйлчилгээ солигдсон үед илгээнэ, учир нь сервер `items` ирэхэд red flag хариултыг тэглэдэг. Өвчтөн солигдвол шинэ ноорог үүснэ.
+- **Серверийн төлөв.** Хадгалсны дараа red flag-ийн төлвийг серверийн хариунаас авна. Асуулгад хариулахад сервер `version`-ийг нэмдэг тул апп шинэ `version`-ийг хадгална.
+- **Хадгалагдаагүй талбар.** Сервер `nurseGenderPreference`-ийг хадгалдаггүй (`ignoredFields`). Апп энэ тухай сонголтын доор бичнэ.
+- **Хуучирсан каталог.** `409 CATALOG_OUTDATED` ирвэл үйлчилгээгээ дахин сонгохыг санал болгоно.
 - **Үнэн төлөв.** Апп "хадгалагдаагүй", "MOCK ноорог", "серверт хадгалагдсан, төлбөр хийгдээгүй" гэсэн төлвийг ялгаж харуулна. Эцсийн дүн зөвхөн `quote.totalMnt`, quote хэрэгжээгүй тул нийт дүн харагдахгүй.
 - **Газрын зураг.** Ажиллагаагүй `MapView` ба давтамжийн сонголтыг захиалгын дэлгэцээс хассан. Хаягийг текстээр оруулна, `lat/lng` илгээхгүй.
 
@@ -487,7 +492,8 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 - Асуулт анхдагчаар сонгоогүй. Бүгд "Үгүй" болтол "Үргэлжлүүлэх" идэвхгүй.
 - Нэг "Тийм" дармагц баталгаажуулах цонхгүйгээр 103 дэлгэц рүү шилжиж, ноорог энэ төхөөрөмж дээр түгжигдэнэ.
 - 103 дэлгэцэд захиалга үргэлжлүүлэх товч байхгүй. `tel:103` товч ба "Нүүр хуудас руу буцах" товч л байна. iOS-ийн swipe-back болон Android-ийн back товч асуулга руу буцаахгүй.
-- Асуулга ачаалах эсвэл илгээх алдаа гарвал апп шалгалтыг алгасахгүй, "Дахин оролдох" л санал болгоно.
+- Асуулга ачаалах эсвэл илгээх алдаа гарвал апп шалгалтыг алгасахгүй, "Дахин оролдох" л санал болгоно. `QUESTIONNAIRE_OUTDATED` бол асуулгыг дахин ачаална.
+- Серверийн fixture асуулгыг (`isFixture`) "Серверийн туршилтын асуулга, батлагдаагүй" гэж харуулна. Сервер асуулга шаардаагүй бол (хоосон жагсаалт) энэ тухай бичиж үргэлжлүүлнэ.
 - Сервер `FLAGGED`, `BLOCKED_RED_FLAG` эсвэл `RED_FLAG_BLOCKED` буцаавал апп 103 руу шилжинэ.
 - Түгжигдсэн ноорогоос гарах цорын ганц зам нь "Шинэ захиалга эхлэх".
 - **Хязгаарлалт.** Эрт "Тийм" гэсэн хариуг серверт мэдэгддэггүй, учир нь гэрээ бүх хариултыг нэг дор шаарддаг (GAP-13).
@@ -506,19 +512,22 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 |---|---|
 | Lint | 0 error, 0 warning |
 | Typecheck: апп ба тест | 0 error |
-| Unit тест | 96/96 |
+| Unit тест | 106/106 |
 | Мутаци: "Тийм"-тэй үргэлжлүүлэх, түгжигдсэн ноорог засах, хугацаа дууссан token илгээх | 3 мутаци бүгд тестээр баригдсан |
-| Backend branch-ийн серверийн эсрэг интеграц | 11/11 |
+| Backend branch-ийн эсрэг интеграц: auth (`3a5e2be`) | 11/11 |
+| Backend branch-ийн эсрэг интеграц: draft, red flag (`16ce810`) | 14/14 |
 | `expo-doctor` | 21/21 (app.json-ийн хуучирсан 2 түлхүүрийг хассаны дараа) |
 | `expo export` iOS, Android | Амжилттай. Native build биш. |
 | Төхөөрөмж, simulator | Хийгээгүй. Холбогдсон төхөөрөмж, Xcode, Android SDK байхгүй. |
 
-### 10.7 Backend-д өгөх шинэ санал
+### 10.7 Backend-д өгөх handoff
 
 | # | Асуудал | Санал |
 |---|---|---|
-| GAP-12 | `POST /api/orders`-д `items[].serviceCode`, `catalogVersion` гэрээнд алга. Апп илгээж байгаа. | Хүлээн авах, хуучирсан каталогт 409 буцаах. Эсвэл үл мэдэгдэх талбарыг хаяхыг баталгаажуулах (strict validation хэрэглэхгүй). |
-| GAP-13 | Эрт "Тийм" хариуг серверт бүртгэх зам алга. | Аль нэг STOP асуулт `true` бол дутуу хариултыг хүлээн авч `BLOCKED_RED_FLAG` болгох. |
-| GAP-14 | Асуулгын бичвэр батлагдсан эсэх талбар алга. | `approved: boolean` (каталогийн `isFixture`-тэй адил). |
-| GAP-15 | `POST /api/orders`-д `Idempotency-Key` гэрээнд алга. | Ижил key-д ижил ноорог буцаах. |
-| Хэрэгжүүлэлт | Orders, red flag, attachment endpoint алга. | Backend plan-ийн дагуу 10-13, 10-14. |
+| GAP-12 | Сервер `items[].serviceCode`, `catalogVersion`-ийг хүлээн авдаг болсон. `items[].serviceId`-г чимээгүй хаядаг. | Шийдэгдсэн. Mobile `serviceId`-г зөвхөн гэрээний анхны саналд нийцүүлэх зорилгоор илгээдэг. |
+| GAP-13 | Эрт "Тийм" хариуг серверт бүртгэх зам алга. Апп 103 руу шууд шилжиж ноорогийг төхөөрөмж дээр түгжинэ, серверт DRAFT хэвээр үлдэнэ. | Аль нэг асуулт `true` бол дутуу хариултыг хүлээн авч `BLOCKED_RED_FLAG` болгох. |
+| GAP-14 | Асуулгын бичвэр батлагдсан эсэх. | `isFixture`-ээр шийдэгдсэн. Батлагдсан бичвэр ирэхэд `approved: true` эсвэл `isFixture: false`. |
+| GAP-15 | Сервер `Idempotency-Key`-ийг үл тоодог. Ижил key-тэй давтан хүсэлт шинэ ноорог үүсгэсэн (интеграцаар батлагдсан). | `POST /api/orders`-д ижил key-д ижил ноорог буцаах. Тэр болтол сүлжээний алдааны дараах retry давхар ноорог үүсгэж болзошгүй. |
+| GAP-16 | `nurseGenderPreference` хадгалагддаггүй. | Хадгалах эсвэл mobile-аас сонголтыг хасах шийдвэр. |
+| Upload | `referralUploadAvailable: false`. Заалт шаардсан үйлчилгээ quote дээр `REFERRAL_REQUIRED` авна. | Storage эрх (D6), upload endpoint. |
+| Merge, staging | Backend branch main-д ороогүй, staging байхгүй. | Mobile client тэр branch-тэй нийцсэн тул main руу оруулах, HTTPS staging гаргах. |
