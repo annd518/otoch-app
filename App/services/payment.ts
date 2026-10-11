@@ -20,8 +20,10 @@ export interface Invoice {
   mode: string | null
   status: PaymentStatus
   amountMnt: number
-  qrText: string
+  // null when the provider result is unconfirmed (no payable QR exists)
+  qrText: string | null
   qrImageBase64: string | null
+  failureCode: string | null
   deeplinks: BankDeeplink[]
   expiresAt: string
 }
@@ -63,14 +65,16 @@ export function parseInvoice(data: unknown): Invoice | null {
   if (!isRecord(data) || !isRecord(data.payment)) return null
   const p = data.payment
   if (!text(p.id) || !isStatus(p.status) || typeof p.amountMnt !== 'number' || !Number.isInteger(p.amountMnt)) return null
-  if (!text(p.qrText) || !text(p.expiresAt) || Number.isNaN(Date.parse(p.expiresAt))) return null
+  // qrText is optional: an unconfirmed invoice (PROVIDER_UNCONFIRMED) has none.
+  if (!text(p.expiresAt) || Number.isNaN(Date.parse(p.expiresAt))) return null
   return {
     id: p.id,
-    isMock: p.isMock === true || p.mode === 'mock' || p.qrText.startsWith('MOCK_'),
+    isMock: p.isMock === true || p.mode === 'mock' || (text(p.qrText) && p.qrText.startsWith('MOCK_')),
     mode: text(p.mode) ? p.mode : null,
     status: p.status,
     amountMnt: p.amountMnt,
-    qrText: p.qrText,
+    qrText: text(p.qrText) ? p.qrText : null,
+    failureCode: text(p.failureCode) ? p.failureCode : null,
     qrImageBase64: text(p.qrImageBase64) && /^[A-Za-z0-9+/=]+$/.test(p.qrImageBase64) ? p.qrImageBase64 : null,
     deeplinks: safeDeeplinks(p.deeplinks),
     expiresAt: p.expiresAt,
@@ -140,7 +144,7 @@ export function pollDecision(status: PaymentStatus, expiresAt: string, nowMs: nu
   return 'poll'
 }
 
-// ---- Recovery ---------------------------------------------------------------
+// ---- Recovery (docs/l1-1-api.md §7.1.1, backend 8f6309f) -----------------------
 // What the device remembers about an invoice attempt (no amounts, no QR):
 // enough to replay the same create (same key + same quote) or read the status.
 export interface PaymentRecord {
@@ -150,28 +154,68 @@ export interface PaymentRecord {
   paymentId: string | null
 }
 
+export type RecoveryHint = 'RESUME' | 'DONE' | 'WAIT' | 'NEW_QUOTE' | 'CONTACT_SUPPORT'
+
+export interface RecoveryFields {
+  paymentId: string | null
+  paymentStatus: string | null
+  recovery: RecoveryHint | null
+  expiresAt: string | null
+}
+
+const HINTS: readonly RecoveryHint[] = ['RESUME', 'DONE', 'WAIT', 'NEW_QUOTE', 'CONTACT_SUPPORT']
+
+// Reads error.fields of a payment 409/502 (all values are strings).
+export function recoveryFields(result: ApiResult<unknown>): RecoveryFields | null {
+  if (result.ok || !result.fields) return null
+  const f = result.fields
+  const recovery = (HINTS as readonly string[]).includes(f.recovery ?? '') ? (f.recovery as RecoveryHint) : null
+  if (!f.paymentId && !recovery) return null
+  return { paymentId: f.paymentId ?? null, paymentStatus: f.paymentStatus ?? null, recovery, expiresAt: f.expiresAt ?? null }
+}
+
 export type RecoveryResult =
   | { kind: 'pending'; invoice: Invoice }
   | { kind: 'paid'; invoice: Invoice; paidAt: string }
+  // provider result unknown: no QR, wait until expiresAt, never a new invoice
+  | { kind: 'unconfirmed'; paymentId: string; expiresAt: string | null; invoice: Invoice | null }
   | { kind: 'expired'; invoice: Invoice | null }
   | { kind: 'failed'; invoice: Invoice }
+  // invoice not created: a new quote and a new key are needed
+  | { kind: 'new_quote'; message: string }
+  // money may have moved outside our records: no retry, no new invoice
+  | { kind: 'reconciliation'; message: string }
   | { kind: 'unavailable'; message: string }
   | { kind: 'error'; message: string }
-  // the order is waiting for a payment this device cannot identify
+  // legacy server (before 8f6309f): order waits for a payment this device cannot identify
   | { kind: 'unknown_pending'; message: string }
 
 export const UNKNOWN_PENDING_MESSAGE =
   'Энэ захиалгад төлбөр хүлээгдэж байгаа ч энэ төхөөрөмж тэр нэхэмжлэхийг сэргээж чадахгүй байна. Шинэ нэхэмжлэх үүсгэхгүй.'
+export const RECONCILIATION_MESSAGE =
+  'Энэ төлбөрийг гараар шалгах шаардлагатай. Дахин төлбөр бүү хийнэ үү. Шийдэгдтэл шинэ нэхэмжлэх үүсгэхгүй.'
+export const NEW_QUOTE_MESSAGE = 'Нэхэмжлэх үүсээгүй. Шинэ үнийн санал авч дахин оролдоно уу.'
 
+// Classifies a server payment. PAID needs paidAt; a PENDING payment without a
+// QR (or flagged PROVIDER_UNCONFIRMED) is "unconfirmed", never payable.
 export function invoiceOutcome(invoice: Invoice, nowMs: number): RecoveryResult {
-  const decision = pollDecision(invoice.status, invoice.expiresAt, nowMs)
-  if (decision === 'paid') return invoice.paidAt ? { kind: 'paid', invoice, paidAt: invoice.paidAt } : { kind: 'pending', invoice }
-  if (decision === 'expired') return { kind: 'expired', invoice }
-  if (decision === 'stop_failed') return { kind: 'failed', invoice }
+  if (invoice.failureCode === 'NEEDS_RECONCILIATION' || invoice.failureCode === 'PAID_AFTER_EXPIRY') {
+    return { kind: 'reconciliation', message: RECONCILIATION_MESSAGE }
+  }
+  if (invoice.status === 'PAID') {
+    return invoice.paidAt
+      ? { kind: 'paid', invoice, paidAt: invoice.paidAt }
+      : { kind: 'unconfirmed', paymentId: invoice.id, expiresAt: invoice.expiresAt, invoice }
+  }
+  if (invoice.status === 'FAILED' || invoice.status === 'CANCELLED') return { kind: 'failed', invoice }
+  if (invoice.status === 'EXPIRED' || Date.parse(invoice.expiresAt) <= nowMs) return { kind: 'expired', invoice }
+  if (!invoice.qrText || invoice.failureCode === 'PROVIDER_UNCONFIRMED') {
+    return { kind: 'unconfirmed', paymentId: invoice.id, expiresAt: invoice.expiresAt, invoice }
+  }
   return { kind: 'pending', invoice }
 }
 
-// GET payment returns the full invoice (QR, deeplinks, expiry) on 28590ee.
+// GET payment returns the full payment (QR when one exists).
 export async function getInvoice(client: HttpClient, orderId: string, paymentId: string): Promise<ApiResult<Invoice>> {
   const result = await client.request({
     method: 'GET',
@@ -181,28 +225,57 @@ export async function getInvoice(client: HttpClient, orderId: string, paymentId:
   return markNotImplemented(result, PAYMENT_NOT_IMPLEMENTED_MESSAGE)
 }
 
-function fromFailure(result: { kind: string; message: string; code?: string }): RecoveryResult {
+function fromFailure(result: { kind: string; message: string }): RecoveryResult {
   if (result.kind === 'not_implemented') return { kind: 'unavailable', message: result.message }
   return { kind: 'error', message: result.message }
 }
 
-// Never creates a second invoice: it either reads the remembered payment, or
-// replays the remembered create (same key + same quote => same payment).
+async function readById(
+  client: HttpClient,
+  orderId: string,
+  paymentId: string,
+  nowMs: number,
+  fallback?: RecoveryResult,
+): Promise<{ result: RecoveryResult; paymentId: string | null }> {
+  const read = await getInvoice(client, orderId, paymentId)
+  if (read.ok) return { result: invoiceOutcome(read.data, nowMs), paymentId: read.data.id }
+  return { result: fallback ?? fromFailure(read), paymentId }
+}
+
+// Never creates a second invoice for an order: it reads the remembered payment,
+// replays the remembered create (same key + same quote), or follows the
+// server's recovery hint (error.fields.recovery).
 export async function recoverPayment(
   client: HttpClient,
   record: PaymentRecord,
   nowMs: number,
 ): Promise<{ result: RecoveryResult; paymentId: string | null }> {
-  if (record.paymentId) {
-    const read = await getInvoice(client, record.orderId, record.paymentId)
-    if (read.ok) return { result: invoiceOutcome(read.data, nowMs), paymentId: read.data.id }
-    return { result: fromFailure(read), paymentId: record.paymentId }
+  if (record.paymentId) return readById(client, record.orderId, record.paymentId, nowMs)
+
+  const created = await createInvoice(client, record.orderId, record.quoteId, record.key)
+  if (created.ok) return { result: invoiceOutcome(created.data, nowMs), paymentId: created.data.id }
+
+  const hint = recoveryFields(created)
+  if (hint?.recovery === 'CONTACT_SUPPORT' || created.code === 'PAYMENT_RECONCILIATION_REQUIRED') {
+    return { result: { kind: 'reconciliation', message: RECONCILIATION_MESSAGE }, paymentId: hint?.paymentId ?? null }
   }
-  const replay = await createInvoice(client, record.orderId, record.quoteId, record.key)
-  if (replay.ok) return { result: invoiceOutcome(replay.data, nowMs), paymentId: replay.data.id }
-  const inProgress = inProgressPaymentId(replay)
-  if (inProgress) return recoverPayment(client, { ...record, paymentId: inProgress }, nowMs)
-  if (replay.code === 'ORDER_NOT_EDITABLE') return { result: { kind: 'unknown_pending', message: UNKNOWN_PENDING_MESSAGE }, paymentId: null }
-  if (replay.code === 'QUOTE_MISMATCH' || replay.code === 'QUOTE_EXPIRED') return { result: { kind: 'expired', invoice: null }, paymentId: null }
-  return { result: fromFailure(replay), paymentId: null }
+  if (hint?.recovery === 'NEW_QUOTE') return { result: { kind: 'new_quote', message: NEW_QUOTE_MESSAGE }, paymentId: null }
+  if (hint?.paymentId && hint.recovery === 'WAIT') {
+    // No QR exists yet: read the status if possible, otherwise just wait.
+    return readById(client, record.orderId, hint.paymentId, nowMs, {
+      kind: 'unconfirmed',
+      paymentId: hint.paymentId,
+      expiresAt: hint.expiresAt,
+      invoice: null,
+    })
+  }
+  if (hint?.paymentId) {
+    // RESUME (PAYMENT_IN_PROGRESS) or DONE (PAYMENT_ALREADY_PAID): read the server's
+    // payment; "paid" is shown only if that read says PAID with paidAt.
+    return readById(client, record.orderId, hint.paymentId, nowMs)
+  }
+  // Compatibility with servers before 8f6309f, which answered ORDER_NOT_EDITABLE.
+  if (created.code === 'ORDER_NOT_EDITABLE') return { result: { kind: 'unknown_pending', message: UNKNOWN_PENDING_MESSAGE }, paymentId: null }
+  if (created.code === 'QUOTE_MISMATCH' || created.code === 'QUOTE_EXPIRED') return { result: { kind: 'expired', invoice: null }, paymentId: null }
+  return { result: fromFailure(created), paymentId: null }
 }

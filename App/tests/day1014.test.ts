@@ -376,8 +376,8 @@ describe('backend 76b7e9e contract details', () => {
     assert.equal(inProgressPaymentId(second), inv.ok ? inv.data.id : '')
   })
 
-  it('server 28590ee behaviour: second key while pending -> ORDER_NOT_EDITABLE without paymentId', async () => {
-    const { client, id } = await cleared()
+  it('legacy server (before 8f6309f): second key while pending -> ORDER_NOT_EDITABLE without paymentId', async () => {
+    const { client, id } = await cleared('legacy-order-not-editable')
     const q = await quoteFor(client, id)
     if (!q.ok) return assert.fail('quote')
     await createInvoice(client, id, q.data.id, 'key-a')

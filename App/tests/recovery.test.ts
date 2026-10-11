@@ -5,7 +5,7 @@ import { DEV_FIXTURE_QUESTIONS } from '../mocks/mockBackend'
 import type { CatalogService } from '../services/apiTypes'
 import { INITIAL_DRAFT, bookingDraftReducer, buildDraftInput } from '../services/bookingDraft'
 import { createDraftOrder, getOrder, listOrders, requestQuote, submitRedFlagAnswers } from '../services/orders'
-import { UNKNOWN_PENDING_MESSAGE, createInvoice, getInvoice, recoverPayment, type PaymentRecord } from '../services/payment'
+import { UNKNOWN_PENDING_MESSAGE, createInvoice, getInvoice, invoiceOutcome, recoverPayment, type PaymentRecord } from '../services/payment'
 import { parseQuote } from '../services/validators'
 import { makeClient, makeMockClient } from './helpers'
 
@@ -83,8 +83,8 @@ describe('payment recovery', () => {
     }
   })
 
-  it('another key while pending (server answers ORDER_NOT_EDITABLE, no paymentId) -> unknown_pending, never a new invoice or success', async () => {
-    const { client, id, quoteId } = await quotedOrder()
+  it('legacy server: another key while pending (ORDER_NOT_EDITABLE, no paymentId) -> unknown_pending, never a new invoice or success', async () => {
+    const { client, id, quoteId } = await quotedOrder('legacy-order-not-editable')
     await createInvoice(client, id, quoteId, 'device-a')
     const other = await recoverPayment(client, { orderId: id, quoteId, key: 'device-b', paymentId: null }, Date.now())
     assert.deepEqual(other.result, { kind: 'unknown_pending', message: UNKNOWN_PENDING_MESSAGE })
@@ -141,5 +141,64 @@ describe('quote fees that are excluded', () => {
     assert.equal(q?.travelFeeMnt, null)
     assert.equal(q?.discountMnt, null)
     assert.deepEqual(q?.excludes, ['TRAVEL_FEE', 'DISCOUNT', 'VAT'])
+  })
+})
+
+describe('8f6309f recovery hints (H1-H5)', () => {
+  it('RESUME: another device (new key) resumes the same invoice, no second invoice', async () => {
+    const { client, id, quoteId } = await quotedOrder()
+    const a = await createInvoice(client, id, quoteId, 'device-a')
+    const b = await recoverPayment(client, { orderId: id, quoteId, key: 'device-b', paymentId: null }, Date.now())
+    assert.equal(b.result.kind, 'pending')
+    assert.equal(b.paymentId, a.ok ? a.data.id : 'x')
+  })
+
+  it('DONE (PAYMENT_ALREADY_PAID): reads the payment and shows paid only with PAID + paidAt (H1)', async () => {
+    const { client, id, quoteId } = await quotedOrder()
+    const a = await createInvoice(client, id, quoteId, 'device-a')
+    if (!a.ok) return assert.fail('invoice')
+    for (let i = 0; i < 3; i += 1) await getInvoice(client, id, a.data.id) // mock pays on the 3rd read
+    const b = await recoverPayment(client, { orderId: id, quoteId, key: 'device-b', paymentId: null }, Date.now())
+    assert.ok(b.result.kind === 'paid' && b.result.paidAt && b.result.invoice.isMock)
+  })
+
+  it('WAIT (PAYMENT_UNCONFIRMED): no QR, unconfirmed until expiresAt; replay never creates another invoice (H2)', async () => {
+    const { client, id, quoteId, fetchCount } = await quotedOrder('payment-unconfirmed')
+    const first = await recoverPayment(client, { orderId: id, quoteId, key: 'k-wait', paymentId: null }, Date.now())
+    assert.equal(first.result.kind, 'unconfirmed')
+    if (first.result.kind !== 'unconfirmed') return
+    assert.ok(first.paymentId)
+    assert.equal(first.result.invoice?.qrText ?? null, null)
+    const again = await recoverPayment(client, { orderId: id, quoteId, key: 'k-wait', paymentId: first.paymentId }, Date.now())
+    assert.equal(again.result.kind, 'unconfirmed')
+    const other = await recoverPayment(client, { orderId: id, quoteId, key: 'k-other', paymentId: null }, Date.now())
+    assert.equal(other.paymentId, first.paymentId)
+    assert.ok(fetchCount() > 0)
+  })
+
+  it('NEW_QUOTE (PAYMENT_PROVIDER_ERROR): no retry with the same key; a new quote is required (H5)', async () => {
+    const { client, id, quoteId } = await quotedOrder('payment-provider-error')
+    const r = await recoverPayment(client, { orderId: id, quoteId, key: 'k-rej', paymentId: null }, Date.now())
+    assert.equal(r.result.kind, 'new_quote')
+    const same = await recoverPayment(client, { orderId: id, quoteId, key: 'k-rej', paymentId: null }, Date.now())
+    assert.equal(same.result.kind, 'new_quote')
+    const old = await createInvoice(client, id, quoteId, 'k-new')
+    assert.equal(old.ok ? '' : old.code, 'QUOTE_MISMATCH') // the old quote is no longer valid
+  })
+
+  it('CONTACT_SUPPORT (PAYMENT_RECONCILIATION_REQUIRED): no retry, no invoice (H3)', async () => {
+    const { client, id, quoteId } = await quotedOrder('payment-reconciliation')
+    const first = await recoverPayment(client, { orderId: id, quoteId, key: 'k-1', paymentId: null }, Date.now())
+    assert.equal(first.result.kind, 'reconciliation')
+    const other = await recoverPayment(client, { orderId: id, quoteId, key: 'k-2', paymentId: null }, Date.now())
+    assert.equal(other.result.kind, 'reconciliation')
+  })
+
+  it('a PENDING payment without a QR is never shown as payable', () => {
+    const out = invoiceOutcome(
+      { id: 'p', paidAt: null, isMock: false, mode: 'sandbox', status: 'PENDING', amountMnt: 1, qrText: null, qrImageBase64: null, failureCode: 'PROVIDER_UNCONFIRMED', deeplinks: [], expiresAt: new Date(Date.now() + 60_000).toISOString() },
+      Date.now(),
+    )
+    assert.equal(out.kind, 'unconfirmed')
   })
 })

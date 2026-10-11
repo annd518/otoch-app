@@ -1,6 +1,6 @@
 // FABRICATED development backend for endpoints the server has not implemented
 // or has implemented only on a branch. Response shapes follow the implemented
-// server on work/backend-l1-1 (28590ee) and docs/l1-1-api.md §0.3-§7. Used only
+// server on work/backend-l1-1 (8f6309f) and docs/l1-1-api.md §0.3-§7.1.1. Used only
 // when utils/env.ts enables mocks, which is never the case in release builds.
 //
 // Scenario tokens (EXPO_PUBLIC_MOCK_SCENARIO, comma separated):
@@ -16,9 +16,14 @@
 //   quote-501                     quote answers 501 NOT_IMPLEMENTED like the current server
 //   quote-expired                 quotes are already expired
 //   payment-expire | payment-fail payment ends EXPIRED / FAILED instead of PAID
-//   payment-in-progress-contract  a second key while pending gets 409 PAYMENT_IN_PROGRESS
-//                                 with paymentId (documented contract); by default the
-//                                 mock answers ORDER_NOT_EDITABLE like the server (28590ee)
+//   legacy-order-not-editable     a second key while pending gets ORDER_NOT_EDITABLE
+//                                 without paymentId (servers before 8f6309f)
+//   payment-unconfirmed           provider result unknown: 502 PAYMENT_UNCONFIRMED (WAIT),
+//                                 payment PENDING without QR (PROVIDER_UNCONFIRMED)
+//   payment-provider-error        provider rejected: 502 PAYMENT_PROVIDER_ERROR (NEW_QUOTE)
+//   payment-reconciliation        unconfirmed payment later needs manual reconciliation:
+//                                 GET shows NEEDS_RECONCILIATION, a new key gets 409
+//                                 PAYMENT_RECONCILIATION_REQUIRED (CONTACT_SUPPORT)
 import type { FetchLike, HttpResponseLike, UploadLike } from '../services/httpClient'
 import { isRecord } from '../services/apiResult'
 import { pathOfUrl } from '../services/endpoints'
@@ -115,7 +120,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
   let loseUploadResponseOnce = tokens.has('upload-lost-response-once')
   const uploadsByKey = new Map<string, unknown>()
   const quotes = new Map<string, { orderId: string; totalMnt: number; expiresAt: string; orderVersion: number }>()
-  const invoices = new Map<string, { id: string; orderId: string; amountMnt: number; expiresAt: string; polls: number; quoteId: string; status: string }>()
+  const invoices = new Map<string, { id: string; orderId: string; amountMnt: number; expiresAt: string; polls: number; quoteId: string; status: string; failureCode: string | null; key: string }>()
   const invoiceByKey = new Map<string, string>()
 
   const view = (o: MockOrder, ignored: string[] = []) => ({
@@ -141,7 +146,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
   })
 
   // Full invoice, as POST and GET payment return it on the server (28590ee).
-  const invoicePayload = (invoice: { id: string; amountMnt: number; expiresAt: string }, status: string) => ({
+  const invoicePayload = (invoice: { id: string; amountMnt: number; expiresAt: string; failureCode: string | null }, status: string) => ({
     id: invoice.id,
     provider: 'QPAY',
     mode: 'mock',
@@ -149,15 +154,17 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     status,
     amountMnt: invoice.amountMnt,
     currency: 'MNT',
-    qrText: `MOCK_QR_NOT_PAYABLE:${invoice.id}`,
-    qrImageBase64: MOCK_QR_PNG,
-    deeplinks: [
-      { name: '[MOCK] Bank app', logo: null, link: 'mockbank://q?qPay_QRcode=MOCK' },
-      { name: 'Web link (must be filtered)', logo: null, link: 'https://example.invalid/pay' },
-    ],
+    qrText: invoice.failureCode ? null : `MOCK_QR_NOT_PAYABLE:${invoice.id}`,
+    qrImageBase64: invoice.failureCode ? null : MOCK_QR_PNG,
+    deeplinks: invoice.failureCode
+      ? []
+      : [
+          { name: '[MOCK] Bank app', logo: null, link: 'mockbank://q?qPay_QRcode=MOCK' },
+          { name: 'Web link (must be filtered)', logo: null, link: 'https://example.invalid/pay' },
+        ],
     expiresAt: invoice.expiresAt,
     paidAt: status === 'PAID' ? new Date().toISOString() : null,
-    failureCode: null,
+    failureCode: invoice.failureCode,
   })
 
   const fetch: FetchLike = async (url, init) => {
@@ -344,47 +351,69 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     if (order && sub === '/payments/qpay' && init.method === 'POST') {
       const key = init.headers['Idempotency-Key']
       if (!key) return fail(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key шаардлагатай')
+      const fieldsOf = (i: { id: string; status: string; expiresAt: string }, recovery: string) => ({
+        paymentId: i.id,
+        paymentStatus: i.status,
+        recovery,
+        expiresAt: i.expiresAt,
+      })
+      // 1. replay: same key gives the first result (an unconfirmed create repeats its 502)
       const knownId = invoiceByKey.get(key)
       const known = knownId ? invoices.get(knownId) : undefined
       if (known) {
         if (known.quoteId !== String(body.quoteId)) return fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Ижил түлхүүрээр өөр quote')
-      } else {
-        const pending = [...invoices.values()].find((i) => i.orderId === order.id && i.status === 'PENDING')
-        if (pending) {
-          return tokens.has('payment-in-progress-contract')
-            ? fail(409, 'PAYMENT_IN_PROGRESS', 'Төлбөр хүлээгдэж байна', { paymentId: pending.id })
-            : fail(409, 'ORDER_NOT_EDITABLE', 'Захиалгын төлөв (AWAITING_PAYMENT) энэ үйлдлийг зөвшөөрөхгүй')
+        if (known.failureCode === 'PROVIDER_UNCONFIRMED') {
+          return fail(502, 'PAYMENT_UNCONFIRMED', 'Нэхэмжлэх үүссэн эсэх тодорхойгүй байна', fieldsOf(known, 'WAIT'))
         }
-        if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
-        const quote = quotes.get(String(body.quoteId))
-        if (!quote || quote.orderId !== order.id) return fail(409, 'QUOTE_MISMATCH', 'Үнийн санал энэ захиалгынх биш')
-        if (quote.orderVersion !== order.version) return fail(409, 'QUOTE_MISMATCH', 'Захиалга өөрчлөгдсөн. Үнийн саналыг дахин авна уу')
-        if (Date.parse(quote.expiresAt) <= Date.now()) return fail(409, 'QUOTE_EXPIRED', 'Үнийн саналын хугацаа дууссан. Дахин авна уу')
+        if (known.status === 'FAILED') return fail(502, 'PAYMENT_PROVIDER_ERROR', 'Төлбөрийн үйлчилгээ түр алдаатай байна', fieldsOf(known, 'NEW_QUOTE'))
+        return respond(201, { success: true, message: 'Нэхэмжлэх үүссэн байна', data: { payment: invoicePayload(known, known.status), orderStatus: 'AWAITING_PAYMENT', idempotentReplay: true } })
       }
-      let invoice = known
-      if (!invoice) {
-        const quote = quotes.get(String(body.quoteId))
-        seq += 1
-        invoice = {
-          id: `pay_mock_${seq}`,
-          orderId: order.id,
-          amountMnt: quote ? quote.totalMnt : 0,
-          expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
-          polls: 0,
-          quoteId: String(body.quoteId),
-          status: 'PENDING',
+      // 2. an active payment of the order (another key, e.g. another device)
+      const active = [...invoices.values()].find((i) => i.orderId === order.id && (i.status === 'PENDING' || i.status === 'PAID'))
+      if (active) {
+        if (tokens.has('legacy-order-not-editable') && active.status === 'PENDING') {
+          return fail(409, 'ORDER_NOT_EDITABLE', 'Захиалгын төлөв (AWAITING_PAYMENT) энэ үйлдлийг зөвшөөрөхгүй')
         }
-        invoices.set(invoice.id, invoice)
-        invoiceByKey.set(key, invoice.id)
+        if (active.failureCode === 'NEEDS_RECONCILIATION') {
+          return fail(409, 'PAYMENT_RECONCILIATION_REQUIRED', 'Төлбөрийг гараар шалгах шаардлагатай', fieldsOf(active, 'CONTACT_SUPPORT'))
+        }
+        if (active.status === 'PAID') return fail(409, 'PAYMENT_ALREADY_PAID', 'Энэ захиалгын төлбөр төлөгдсөн байна', fieldsOf(active, 'DONE'))
+        return fail(409, 'PAYMENT_IN_PROGRESS', 'Энэ захиалгад төлбөр хүлээгдэж байна', fieldsOf(active, 'RESUME'))
+      }
+      // 3. guards and quote
+      if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
+      const quote = quotes.get(String(body.quoteId))
+      if (!quote || quote.orderId !== order.id) return fail(409, 'QUOTE_MISMATCH', 'Үнийн санал энэ захиалгынх биш')
+      if (quote.orderVersion !== order.version) return fail(409, 'QUOTE_MISMATCH', 'Захиалга өөрчлөгдсөн. Үнийн саналыг дахин авна уу')
+      if (Date.parse(quote.expiresAt) <= Date.now()) return fail(409, 'QUOTE_EXPIRED', 'Үнийн саналын хугацаа дууссан. Дахин авна уу')
+      seq += 1
+      const invoice = {
+        id: `pay_mock_${seq}`,
+        orderId: order.id,
+        amountMnt: quote.totalMnt,
+        expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        polls: 0,
+        quoteId: String(body.quoteId),
+        status: 'PENDING',
+        failureCode: null as string | null,
+        key,
+      }
+      invoices.set(invoice.id, invoice)
+      invoiceByKey.set(key, invoice.id)
+      if (tokens.has('payment-provider-error')) {
+        invoice.status = 'FAILED'
+        invoice.failureCode = 'PROVIDER_REJECTED'
+        order.version += 1
+        return fail(502, 'PAYMENT_PROVIDER_ERROR', 'Төлбөрийн үйлчилгээ түр алдаатай байна. Шинэ үнийн санал авна уу', fieldsOf(invoice, 'NEW_QUOTE'))
+      }
+      if (tokens.has('payment-unconfirmed') || tokens.has('payment-reconciliation')) {
+        invoice.failureCode = tokens.has('payment-reconciliation') ? 'NEEDS_RECONCILIATION' : 'PROVIDER_UNCONFIRMED'
+        return fail(502, 'PAYMENT_UNCONFIRMED', 'Нэхэмжлэх үүссэн эсэх тодорхойгүй байна', fieldsOf(invoice, 'WAIT'))
       }
       return respond(201, {
         success: true,
         message: 'Нэхэмжлэх үүслээ (mock, бодит QPay биш)',
-        data: {
-          payment: invoicePayload(invoice, invoice.status),
-          orderStatus: 'AWAITING_PAYMENT',
-          ...(known ? { idempotentReplay: true } : {}),
-        },
+        data: { payment: invoicePayload(invoice, 'PENDING'), orderStatus: 'AWAITING_PAYMENT', idempotentReplay: false },
       })
     }
 
@@ -393,8 +422,10 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       const invoice = invoices.get(decodeURIComponent(payMatch[1]))
       if (!invoice || invoice.orderId !== order.id) return fail(404, 'PAYMENT_NOT_FOUND', 'Төлбөр олдсонгүй')
       invoice.polls += 1
-      let status: 'PENDING' | 'PAID' | 'EXPIRED' | 'FAILED' = 'PENDING'
-      if (invoice.polls >= 3) status = tokens.has('payment-expire') ? 'EXPIRED' : tokens.has('payment-fail') ? 'FAILED' : 'PAID'
+      let status = invoice.status
+      if (status === 'PENDING' && !invoice.failureCode && invoice.polls >= 3) {
+        status = tokens.has('payment-expire') ? 'EXPIRED' : tokens.has('payment-fail') ? 'FAILED' : 'PAID'
+      }
       invoice.status = status
       return respond(200, {
         success: true,

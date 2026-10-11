@@ -45,7 +45,10 @@ export default function PaymentScreen() {
 
   // Final states end the attempt: a new quote gets a new key next time.
   const settle = useCallback(async (result: RecoveryResult, paymentId: string | null): Promise<RecoveryResult> => {
-    if (result.kind === "paid" || result.kind === "expired" || result.kind === "failed") await remember(null)
+    // paid / expired / failed / new_quote end this logical attempt; the next
+    // invoice needs a new quote and a new key. reconciliation keeps the record.
+    const ended = ["paid", "expired", "failed", "new_quote"].includes(result.kind)
+    if (ended) await remember(null)
     else if (record.current && paymentId && record.current.paymentId !== paymentId) {
       await remember({ ...record.current, paymentId })
     }
@@ -62,7 +65,7 @@ export default function PaymentScreen() {
       const { result, paymentId } = await apiService.recoverPayment(saved)
       const settled = await settle(result, paymentId)
       // An old attempt that ended can be followed by a new invoice for a new quote.
-      const ended = settled.kind === "expired" || settled.kind === "failed"
+      const ended = settled.kind === "expired" || settled.kind === "failed" || settled.kind === "new_quote"
       if (!ended || !quote || quote.id === saved.quoteId) return settled
     }
     if (!quote) return { kind: "no_quote" }
@@ -101,10 +104,11 @@ export default function PaymentScreen() {
     }
   }, [start])
 
-  // One timer at a time, only while pending and in the foreground.
+  // One timer at a time, only while pending/unconfirmed and in the foreground.
+  // The server moves the payment to EXPIRED at expiresAt, which ends polling.
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
-    if (phase.kind !== "pending") return
+    if (phase.kind !== "pending" && phase.kind !== "unconfirmed") return
     timer.current = setTimeout(() => {
       if (appActive.current) void check()
     }, POLL_INTERVAL_MS)
@@ -148,11 +152,9 @@ export default function PaymentScreen() {
   }
 
   const invoice: Invoice | null =
-    phase.kind === "pending" || phase.kind === "paid" || phase.kind === "failed"
+    phase.kind === "pending" || phase.kind === "paid" || phase.kind === "failed" || phase.kind === "expired" || phase.kind === "unconfirmed"
       ? phase.invoice
-      : phase.kind === "expired"
-        ? phase.invoice
-        : null
+      : null
   const isMock = source === "mock" || invoice?.isMock === true
 
   return (
@@ -195,6 +197,37 @@ export default function PaymentScreen() {
             <Ionicons name="card-outline" size={48} color="#999" />
             <Text style={styles.muted}>{phase.message}</Text>
             <Text style={styles.muted}>Захиалга төлөгдөөгүй, баталгаажаагүй байна.</Text>
+          </View>
+        )}
+
+        {phase.kind === "unconfirmed" && (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#2f80ed" />
+            <Text style={styles.muted}>
+              Төлбөрийн үйлчилгээний хариу тодорхойгүй байна. Давхар төлбөрөөс сэргийлж хүлээж байна. QR харуулахгүй.
+            </Text>
+            {phase.expiresAt ? (
+              <Text style={styles.muted}>Хамгийн удаад {new Date(phase.expiresAt).toLocaleTimeString()} хүртэл шалгана.</Text>
+            ) : null}
+          </View>
+        )}
+
+        {phase.kind === "reconciliation" && (
+          <View style={styles.centered}>
+            <Ionicons name="alert-circle-outline" size={48} color="#c62828" />
+            <Text style={styles.error}>{phase.message}</Text>
+            <Text style={styles.muted}>
+              Тусламжийн суваг одоогоор батлагдаагүй тул энд холбоо барих мэдээлэл өгөхгүй.
+            </Text>
+          </View>
+        )}
+
+        {phase.kind === "new_quote" && (
+          <View style={styles.centered}>
+            <Text style={styles.error}>{phase.message}</Text>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => router.replace("/booking/review")}>
+              <Text style={styles.secondaryButtonText}>Шинэ үнийн санал авах</Text>
+            </TouchableOpacity>
           </View>
         )}
 
