@@ -1,6 +1,6 @@
 // FABRICATED development backend for endpoints the server has not implemented
 // or has implemented only on a branch. Response shapes follow the implemented
-// server on work/backend-l1-1 (d842241) and docs/l1-1-api.md §2-§5. Used only
+// server on work/backend-l1-1 (76b7e9e) and docs/l1-1-api.md §0.3-§7. Used only
 // when utils/env.ts enables mocks, which is never the case in release builds.
 //
 // Scenario tokens (EXPO_PUBLIC_MOCK_SCENARIO, comma separated):
@@ -10,9 +10,9 @@
 //   redflag-submit-error          answers request fails (500)
 //   upload-fail-once              first upload fails mid-way (network error)
 //   upload-lost-response-once     first upload is stored but the response is lost
-//   no-idempotency                ignore Idempotency-Key like the current server (16ce810)
-//   gap13-partial-block           accept a partial answer set with a "yes" (proposal GAP-13);
-//                                 without it partial answers get 400 RED_FLAG_INCOMPLETE like the server
+//   no-idempotency                ignore Idempotency-Key like the older server (16ce810)
+//   no-partial-block              reject a partial answer set with a "yes" (400
+//                                 RED_FLAG_INCOMPLETE) like the older server (16ce810)
 //   quote-501                     quote answers 501 NOT_IMPLEMENTED like the current server
 //   quote-expired                 quotes are already expired
 //   payment-expire | payment-fail payment ends EXPIRED / FAILED instead of PAID
@@ -111,8 +111,8 @@ export function createMockBackend(options: MockBackendOptions = {}) {
   let failUploadOnce = tokens.has('upload-fail-once')
   let loseUploadResponseOnce = tokens.has('upload-lost-response-once')
   const uploadsByKey = new Map<string, unknown>()
-  const quotes = new Map<string, { orderId: string; totalMnt: number; expiresAt: string }>()
-  const invoices = new Map<string, { id: string; orderId: string; amountMnt: number; expiresAt: string; polls: number }>()
+  const quotes = new Map<string, { orderId: string; totalMnt: number; expiresAt: string; orderVersion: number }>()
+  const invoices = new Map<string, { id: string; orderId: string; amountMnt: number; expiresAt: string; polls: number; quoteId: string; status: string }>()
   const invoiceByKey = new Map<string, string>()
 
   const view = (o: MockOrder, ignored: string[] = []) => ({
@@ -158,9 +158,9 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       const existing = key ? orders.get(byIdempotencyKey.get(key) ?? '') : undefined
       if (existing) {
         if (existing.createFingerprint !== JSON.stringify(body)) {
-          return fail(422, 'IDEMPOTENCY_KEY_REUSED', 'Ижил түлхүүрээр өөр захиалга илгээсэн байна')
+          return fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Ижил түлхүүрээр өөр захиалга илгээсэн байна')
         }
-        return respond(200, { success: true, message: 'Ноорог (давтан хүсэлт, mock)', data: view(existing) })
+        return respond(201, { success: true, message: 'Ноорог (давтан хүсэлт, mock)', data: { ...view(existing), idempotentReplay: true } })
       }
       const fields = validateDraftBody(body, false)
       if (Object.keys(fields).length > 0) return fail(400, 'VALIDATION_ERROR', 'Оруулсан мэдээлэл буруу байна', fields)
@@ -235,7 +235,9 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       if (order.status === 'BLOCKED_RED_FLAG' || order.redFlagStatus === 'FLAGGED') {
         return fail(409, 'RED_FLAG_BLOCKED', 'Энэ захиалга аюулын шинжийн асуулгаар хаагдсан')
       }
-      if (Array.isArray(body.questionnaires) && body.questionnaires.join(',') !== DEV_FIXTURE_QUESTIONNAIRE) {
+      const anyYes = Array.isArray(body.answers) && body.answers.some((a) => isRecord(a) && a.value === true)
+      const yesBlocks = anyYes && !tokens.has('no-partial-block')
+      if (!yesBlocks && Array.isArray(body.questionnaires) && body.questionnaires.join(',') !== DEV_FIXTURE_QUESTIONNAIRE) {
         return fail(409, 'QUESTIONNAIRE_OUTDATED', 'Асуулга шинэчлэгдсэн байна. Асуултуудыг дахин ачаална уу')
       }
       const answers = Array.isArray(body.answers) ? body.answers : []
@@ -249,7 +251,8 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       })
       if (Object.keys(fields).length > 0) return fail(400, 'VALIDATION_ERROR', 'Оруулсан мэдээлэл буруу байна', fields)
       const missing = DEV_FIXTURE_QUESTIONS.filter((q) => !answered.has(q.id))
-      const partialBlock = tokens.has('gap13-partial-block') && [...answered.values()].some((v) => v)
+      // 76b7e9e: a single "yes" blocks even with other questions unanswered
+      const partialBlock = !tokens.has('no-partial-block') && [...answered.values()].some((v) => v)
       if (missing.length > 0 && !partialBlock) {
         return fail(400, 'RED_FLAG_INCOMPLETE', 'Бүх асуултад хариулна уу', Object.fromEntries(missing.map((q) => [q.id, 'Хариулаагүй'])))
       }
@@ -270,6 +273,8 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     }
 
     if (order && sub === '/quote' && init.method === 'POST') {
+      if (typeof body.orderVersion !== 'number') return fail(400, 'VALIDATION_ERROR', 'orderVersion шаардлагатай', { orderVersion: 'Заавал' })
+      if (body.orderVersion !== order.version) return fail(409, 'VERSION_CONFLICT', 'Захиалга өөрчлөгдсөн байна')
       if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
       if (order.redFlagStatus !== 'CLEAR') return fail(422, 'RED_FLAG_REQUIRED', 'Эхлээд аюулын шинжийн асуулгад хариулна уу')
       if (!order.scheduledFor || !order.address) return fail(422, 'ORDER_INCOMPLETE', 'Захиалгын мэдээлэл дутуу байна')
@@ -279,59 +284,88 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       if (tokens.has('quote-501')) return fail(501, 'NOT_IMPLEMENTED', 'Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна')
       seq += 1
       const service = order.serviceCodes.reduce((sum, c) => sum + (MOCK_PRICES[c] ?? 30000), 0)
-      const travel = 5000
       const expiresAt = new Date(tokens.has('quote-expired') ? Date.now() - 1000 : Date.now() + 15 * 60_000).toISOString()
       const quote = {
         id: `quo_mock_${seq}`,
         currency: 'MNT',
-        lines: [
-          ...order.serviceCodes.map((c) => ({ code: c, name: `[MOCK] ${c}`, quantity: 1, unitPriceMnt: MOCK_PRICES[c] ?? 30000, amountMnt: MOCK_PRICES[c] ?? 30000 })),
-          { code: 'TRAVEL_FEE', name: '[MOCK] Унааны зардал', amountMnt: travel },
-        ],
+        orderVersion: order.version,
+        lines: order.serviceCodes.map((c) => ({
+          type: 'SERVICE',
+          serviceCode: c,
+          name: `[MOCK] ${c}`,
+          quantity: 1,
+          unitPriceMnt: MOCK_PRICES[c] ?? 30000,
+          amountMnt: MOCK_PRICES[c] ?? 30000,
+          isFixture: true,
+        })),
         subtotalMnt: service,
-        travelFeeMnt: travel,
-        discountMnt: 0,
-        totalMnt: service + travel,
-        pricingVersion: 'mock-1',
+        totalMnt: service,
+        excludes: ['TRAVEL_FEE', 'DISCOUNT', 'VAT'],
+        pricingVersion: 'LIST_PRICE_ONLY_V1',
         expiresAt,
         isFixture: true,
+        isPayment: false,
       }
-      quotes.set(quote.id, { orderId: order.id, totalMnt: quote.totalMnt, expiresAt })
-      return respond(200, { success: true, message: 'Үнийн санал (mock)', data: { quote } })
+      quotes.set(quote.id, { orderId: order.id, totalMnt: quote.totalMnt, expiresAt, orderVersion: order.version })
+      return respond(201, { success: true, message: 'Үнийн санал (төлбөр биш, mock)', data: { orderStatus: order.status, quote } })
     }
 
     if (order && sub === '/payments/qpay' && init.method === 'POST') {
       const key = init.headers['Idempotency-Key']
-      if (!key) return fail(400, 'VALIDATION_ERROR', 'Idempotency-Key шаардлагатай')
-      const known = invoiceByKey.get(key)
-      const quote = quotes.get(String(body.quoteId))
-      if (!quote || quote.orderId !== order.id || Date.parse(quote.expiresAt) <= Date.now()) {
-        return fail(409, 'QUOTE_EXPIRED', 'Үнийн саналын хугацаа дууссан. Дахин авна уу')
+      if (!key) return fail(400, 'IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key шаардлагатай')
+      const knownId = invoiceByKey.get(key)
+      const known = knownId ? invoices.get(knownId) : undefined
+      if (known) {
+        if (known.quoteId !== String(body.quoteId)) return fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Ижил түлхүүрээр өөр quote')
+      } else {
+        const pending = [...invoices.values()].find((i) => i.orderId === order.id && i.status === 'PENDING')
+        if (pending) return fail(409, 'PAYMENT_IN_PROGRESS', 'Төлбөр хүлээгдэж байна', { paymentId: pending.id })
+        if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
+        const quote = quotes.get(String(body.quoteId))
+        if (!quote || quote.orderId !== order.id) return fail(409, 'QUOTE_MISMATCH', 'Үнийн санал энэ захиалгынх биш')
+        if (quote.orderVersion !== order.version) return fail(409, 'QUOTE_MISMATCH', 'Захиалга өөрчлөгдсөн. Үнийн саналыг дахин авна уу')
+        if (Date.parse(quote.expiresAt) <= Date.now()) return fail(409, 'QUOTE_EXPIRED', 'Үнийн саналын хугацаа дууссан. Дахин авна уу')
       }
-      let invoice = known ? invoices.get(known) : undefined
+      let invoice = known
       if (!invoice) {
+        const quote = quotes.get(String(body.quoteId))
         seq += 1
-        invoice = { id: `pay_mock_${seq}`, orderId: order.id, amountMnt: quote.totalMnt, expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), polls: 0 }
+        invoice = {
+          id: `pay_mock_${seq}`,
+          orderId: order.id,
+          amountMnt: quote ? quote.totalMnt : 0,
+          expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+          polls: 0,
+          quoteId: String(body.quoteId),
+          status: 'PENDING',
+        }
         invoices.set(invoice.id, invoice)
         invoiceByKey.set(key, invoice.id)
       }
-      return respond(known ? 200 : 201, {
+      return respond(201, {
         success: true,
         message: 'Нэхэмжлэх үүслээ (mock, бодит QPay биш)',
         data: {
           payment: {
             id: invoice.id,
             provider: 'QPAY',
+            mode: 'mock',
+            isMock: true,
             status: 'PENDING',
             amountMnt: invoice.amountMnt,
-            qrText: 'MOCK_QR_TEXT_NOT_REAL',
+            currency: 'MNT',
+            qrText: `MOCK_QR_NOT_PAYABLE:${invoice.id}`,
             qrImageBase64: MOCK_QR_PNG,
             deeplinks: [
               { name: '[MOCK] Bank app', logo: null, link: 'mockbank://q?qPay_QRcode=MOCK' },
               { name: 'Web link (must be filtered)', logo: null, link: 'https://example.invalid/pay' },
             ],
             expiresAt: invoice.expiresAt,
+            paidAt: null,
+            failureCode: null,
           },
+          orderStatus: 'AWAITING_PAYMENT',
+          ...(known ? { idempotentReplay: true } : {}),
         },
       })
     }
@@ -343,11 +377,20 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       invoice.polls += 1
       let status: 'PENDING' | 'PAID' | 'EXPIRED' | 'FAILED' = 'PENDING'
       if (invoice.polls >= 3) status = tokens.has('payment-expire') ? 'EXPIRED' : tokens.has('payment-fail') ? 'FAILED' : 'PAID'
+      invoice.status = status
       return respond(200, {
         success: true,
         message: 'Төлбөрийн төлөв (mock)',
         data: {
-          payment: { id: invoice.id, status, amountMnt: invoice.amountMnt, paidAt: status === 'PAID' ? new Date().toISOString() : null },
+          payment: {
+            id: invoice.id,
+            mode: 'mock',
+            isMock: true,
+            status,
+            amountMnt: invoice.amountMnt,
+            paidAt: status === 'PAID' ? new Date().toISOString() : null,
+            failureCode: null,
+          },
           orderStatus: status === 'PAID' ? 'PAID' : 'AWAITING_PAYMENT',
         },
       })
@@ -356,6 +399,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     const deleteMatch = /^\/attachments\/([^/]+)$/.exec(sub)
     if (order && deleteMatch && init.method === 'DELETE') {
       order.attachments = order.attachments.filter((id) => id !== decodeURIComponent(deleteMatch[1]))
+      order.version += 1
       return respond(204)
     }
 
@@ -381,19 +425,20 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     }
     const key = request.headers['Idempotency-Key']
     const repeated = key ? uploadsByKey.get(key) : undefined
-    if (repeated) return respond(200, { success: true, message: 'Файл (давтан хүсэлт, mock)', data: { attachment: repeated } })
+    if (repeated) return respond(201, { success: true, message: 'Файл (давтан хүсэлт, mock)', data: { attachment: repeated, storage: 'mock', idempotentReplay: true } })
     if (order.attachments.length >= MAX_ATTACHMENTS) return fail(409, 'ATTACHMENT_LIMIT', 'Нэг захиалгад 5 хүртэл файл')
     await sleep(150)
     request.onProgress?.(1)
     seq += 1
     const attachment = { id: `att_mock_${seq}`, kind: 'REFERRAL', mimeType: request.file.type, sizeBytes: 0 }
     order.attachments.push(attachment.id)
+    order.version += 1 // 76b7e9e: an upload bumps the order version
     if (key) uploadsByKey.set(key, attachment)
     if (loseUploadResponseOnce) {
       loseUploadResponseOnce = false
       throw new TypeError('Network request failed after the server stored the file (mock)')
     }
-    return respond(201, { success: true, message: 'Файл хадгалагдлаа (mock, серверт хадгалагдаагүй)', data: { attachment } })
+    return respond(201, { success: true, message: 'Файл хадгалагдлаа (mock, серверт хадгалагдаагүй)', data: { attachment, storage: 'mock', idempotentReplay: false } })
   }
 
   return { fetch, upload }

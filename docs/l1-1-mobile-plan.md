@@ -590,3 +590,28 @@ Backend `16ce810`-аас хойш шинэчлэгдээгүй, main-д merge х
 | P1 | Upload (§5) storage. GAP-17: upload-д `Idempotency-Key`. |
 | P1 | QPay invoice ба status (§7), sandbox эрх. |
 | P2 | GAP-16: сувилагчийн хүйсийг хадгалах эсэх. |
+
+---
+
+## 12. 2026-10-15: backend `76b7e9e`-тэй нийцүүлэлт
+
+Туршсан сервер: `work/backend-l1-1` `76b7e9e`, scratchpad-д хуулж локалд `http://localhost:8080`, `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`. main (`901bb91`) нь хуучин `16ce810`-ийн кодтой.
+
+| Хэсэг | Backend `76b7e9e` | Mobile |
+|---|---|---|
+| Auth | Хэвээр | Нэг хүсэлттэй login, 401 → logout, эрхийн 403 → logout биш. 7/7 интеграцад багтсан. |
+| GAP-15 idempotency | **Засагдсан.** Ижил key + payload → replay, өөр payload → 409 | Payload-ийн fingerprint-тэй key, retry ижил key |
+| GAP-13 эрт "Тийм" | **Засагдсан.** Нэг `true` хариулт шууд блоклоно | Зөвхөн тэр нэг хариултыг илгээнэ. Блок хадгалагдаж, дахин илгээгдэнэ |
+| Quote | `orderVersion` заавал, `excludes`, `isFixture`, `isPayment: false` | Quote авахын өмнө `GET /api/orders/:id`-ээр version авна. Хуучин version-ий quote хүчингүй. Ороогүй зардлыг харуулна. |
+| Upload | Magic bytes, 10 MB, 5 файл, key-тэй replay, `storage: local-dev` | Зураг бүр тогтмол key. "local-dev storage" шошго. Staging bucket байхгүй. |
+| QPay | Зөвхөн mock горим шалгагдсан. Sandbox шалгагдаагүй | `isMock` шошго. PAID-ийг зөвхөн серверийн `paidAt`-тай үед. Mock PAID-ийг "QPay биш" гэж харуулна. |
+
+**Зөрүү (backend handoff):** өөр key-ээр давхар invoice үүсгэхэд гэрээ `409 PAYMENT_IN_PROGRESS` (`paymentId`-тэй) гэсэн ч сервер `409 ORDER_NOT_EDITABLE` буцаасан. Mobile хоёуланд нь шинэ нэхэмжлэх үүсгэхгүй. Хуучин нэхэмжлэхийг үргэлжлүүлэхэд `paymentId` хэрэгтэй.
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint, typecheck | 0 алдаа |
+| Unit тест | 132/132 |
+| Backend `76b7e9e`-ийн эсрэг интеграц | 7/7 |
+| iOS, Android JS export | Амжилттай. Native build биш. |
+| Бодит төхөөрөмж, native build, store upload | Хийгээгүй (төхөөрөмж, эрх, identifier байхгүй) |

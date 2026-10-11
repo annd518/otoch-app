@@ -114,7 +114,7 @@ export function parseAttachment(data: unknown): Attachment | null {
   if (!isRecord(data) || !isRecord(data.attachment)) return null
   const a = data.attachment
   if (!text(a.id) || !text(a.kind) || !text(a.mimeType) || typeof a.sizeBytes !== 'number') return null
-  return { id: a.id, kind: a.kind, mimeType: a.mimeType, sizeBytes: a.sizeBytes }
+  return { id: a.id, kind: a.kind, mimeType: a.mimeType, sizeBytes: a.sizeBytes, storage: text(data.storage) ? data.storage : null }
 }
 
 export async function createDraftOrder(
@@ -233,16 +233,24 @@ export async function getOrder(client: HttpClient, orderId: string): Promise<Api
 // ---- Quote (docs/l1-1-api.md §6) ---------------------------------------------
 export const QUOTE_NOT_IMPLEMENTED_MESSAGE = 'Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна.'
 
-export async function requestQuote(client: HttpClient, orderId: string): Promise<ApiResult<Quote>> {
+// orderVersion is required by the implemented server (76b7e9e): a quote is
+// only made for the exact order version the user is looking at.
+export async function requestQuote(client: HttpClient, orderId: string, orderVersion: number): Promise<ApiResult<Quote>> {
   const result = await client.request({
     method: 'POST',
     path: `${orderPaths.byId(orderId)}/quote`,
-    body: {},
+    body: { orderVersion },
     parse: parseQuote,
   })
   // 501 NOT_IMPLEMENTED (current server) is never a success.
   if (!result.ok && result.status === 501) return { ok: false, kind: 'not_implemented', status: 501, message: QUOTE_NOT_IMPLEMENTED_MESSAGE }
   return markNotImplemented(result, QUOTE_NOT_IMPLEMENTED_MESSAGE)
+}
+
+// A quote is usable only for the order version it was made for.
+export function isQuoteStale(quote: Quote, currentOrderVersion: number | null, nowMs: number): boolean {
+  if (isQuoteExpired(quote, nowMs)) return true
+  return quote.orderVersion !== null && currentOrderVersion !== null && quote.orderVersion !== currentOrderVersion
 }
 
 export function isQuoteExpired(quote: Quote, nowMs: number): boolean {

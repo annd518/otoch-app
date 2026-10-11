@@ -14,6 +14,9 @@ export interface BankDeeplink {
 
 export interface Invoice {
   id: string
+  // true for the backend's QPAY_MODE=mock invoices: not QPay, not payable
+  isMock: boolean
+  mode: string | null
   status: PaymentStatus
   amountMnt: number
   qrText: string
@@ -28,6 +31,9 @@ export interface PaymentState {
   amountMnt: number
   paidAt: string | null
   orderStatus: string | null
+  // e.g. AMOUNT_MISMATCH: the provider saw a payment but the server did not accept it
+  failureCode: string | null
+  isMock: boolean
 }
 
 export const PAYMENT_NOT_IMPLEMENTED_MESSAGE = 'QPay төлбөр одоогоор боломжгүй: серверт хараахан хэрэгжээгүй байна.'
@@ -59,6 +65,8 @@ export function parseInvoice(data: unknown): Invoice | null {
   if (!text(p.qrText) || !text(p.expiresAt) || Number.isNaN(Date.parse(p.expiresAt))) return null
   return {
     id: p.id,
+    isMock: p.isMock === true || p.mode === 'mock' || p.qrText.startsWith('MOCK_'),
+    mode: text(p.mode) ? p.mode : null,
     status: p.status,
     amountMnt: p.amountMnt,
     qrText: p.qrText,
@@ -80,6 +88,8 @@ export function parsePaymentState(data: unknown): PaymentState | null {
     amountMnt: p.amountMnt,
     paidAt: text(p.paidAt) ? p.paidAt : null,
     orderStatus: text(data.orderStatus) ? data.orderStatus : null,
+    failureCode: text(p.failureCode) ? p.failureCode : null,
+    isMock: p.isMock === true || p.mode === 'mock',
   }
 }
 
@@ -96,8 +106,17 @@ export async function createInvoice(
     headers: { 'Idempotency-Key': idempotencyKey },
     parse: parseInvoice,
   })
-  if (!result.ok && result.status === 501) return { ok: false, kind: 'not_implemented', status: 501, message: PAYMENT_NOT_IMPLEMENTED_MESSAGE }
+  if (!result.ok && (result.status === 501 || result.code === 'PAYMENT_UNAVAILABLE')) {
+    return { ok: false, kind: 'not_implemented', status: result.status, message: PAYMENT_NOT_IMPLEMENTED_MESSAGE }
+  }
   return markNotImplemented(result, PAYMENT_NOT_IMPLEMENTED_MESSAGE)
+}
+
+// 409 PAYMENT_IN_PROGRESS carries the pending payment id: the screen resumes
+// polling it instead of creating a second invoice.
+export function inProgressPaymentId(result: ApiResult<unknown>): string | null {
+  if (result.ok || result.code !== 'PAYMENT_IN_PROGRESS') return null
+  return result.fields?.paymentId ?? null
 }
 
 export async function getPaymentState(client: HttpClient, orderId: string, paymentId: string): Promise<ApiResult<PaymentState>> {

@@ -8,7 +8,7 @@ import { useBookingDraft } from "@/context/BookingDraftContext"
 import { apiService } from "@/services/api"
 import { isBlocked } from "@/services/bookingDraft"
 import { isQuoteExpired } from "@/services/orders"
-import { POLL_INTERVAL_MS, pollDecision, type Invoice } from "@/services/payment"
+import { POLL_INTERVAL_MS, inProgressPaymentId, pollDecision, type Invoice } from "@/services/payment"
 import { createIdempotencyKey } from "@/utils/id"
 import { formatMnt } from "@/utils/money"
 
@@ -17,6 +17,7 @@ type Phase =
   | { kind: "unavailable"; message: string }
   | { kind: "error"; message: string }
   | { kind: "pending"; invoice: Invoice; checkError: string | null }
+  | { kind: "resumable"; paymentId: string }
   | { kind: "paid"; invoice: Invoice; paidAt: string }
   | { kind: "expired"; invoice: Invoice | null }
   | { kind: "failed"; invoice: Invoice }
@@ -45,6 +46,14 @@ export default function PaymentScreen() {
     dispatch({ type: "paymentKey", quoteId: quote.id, key: paymentKey })
     const result = await apiService.createInvoice(orderId, quote.id, paymentKey)
     if (!result.ok) {
+      const existing = inProgressPaymentId(result)
+      if (existing) return { kind: "resumable", paymentId: existing }
+      if (result.code === "QUOTE_MISMATCH" || result.code === "QUOTE_EXPIRED") return { kind: "expired", invoice: null }
+      if (result.code === "ORDER_NOT_EDITABLE") {
+        // Backend 76b7e9e answers this (not PAYMENT_IN_PROGRESS) when another
+        // invoice for the order is already pending: never create a second one.
+        return { kind: "error", message: "Энэ захиалгад төлбөр аль хэдийн эхэлсэн байна. Шинэ нэхэмжлэх үүсгэхгүй." }
+      }
       return result.kind === "not_implemented"
         ? { kind: "unavailable", message: result.message }
         : { kind: "error", message: result.message }
@@ -70,7 +79,12 @@ export default function PaymentScreen() {
       if (decision === "paid" && result.data.paidAt) setPhase({ kind: "paid", invoice, paidAt: result.data.paidAt })
       else if (decision === "expired") setPhase({ kind: "expired", invoice })
       else if (decision === "stop_failed") setPhase({ kind: "failed", invoice })
-      else setPhase((p) => (p.kind === "pending" ? { ...p, checkError: null } : p))
+      else {
+        const note = result.data.failureCode === "AMOUNT_MISMATCH"
+          ? "Төлсөн дүн таарахгүй байна. Сервер төлбөрийг баталгаажуулаагүй."
+          : null
+        setPhase((p) => (p.kind === "pending" ? { ...p, checkError: note } : p))
+      }
     },
     [orderId],
   )
@@ -142,6 +156,25 @@ export default function PaymentScreen() {
           </View>
         )}
 
+        {phase.kind === "resumable" && (
+          <View style={styles.centered}>
+            <Text style={styles.muted}>Энэ захиалгад өмнө үүссэн нэхэмжлэх хүлээгдэж байна. Шинэ нэхэмжлэх үүсгэхгүй.</Text>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                if (!orderId) return
+                void apiService.getPaymentState(orderId, phase.paymentId).then((r) => {
+                  if (!r.ok) setPhase({ kind: "error", message: r.message })
+                  else if (r.data.status === "PAID" && r.data.paidAt) setPhase({ kind: "error", message: "Төлбөр аль хэдийн төлөгдсөн (сервер)." })
+                  else setPhase({ kind: "error", message: `Өмнөх нэхэмжлэхийн төлөв: ${r.data.status}. Банкны аппаар төлбөрөө шалгана уу.` })
+                })
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>Өмнөх нэхэмжлэхийн төлөв шалгах</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {phase.kind === "unavailable" && (
           <View style={styles.centered}>
             <Ionicons name="card-outline" size={48} color="#999" />
@@ -161,6 +194,13 @@ export default function PaymentScreen() {
 
         {phase.kind === "pending" && (
           <>
+            {phase.invoice.isMock ? (
+              <View style={styles.mockBanner}>
+                <Text style={styles.mockBannerText}>
+                  Серверийн MOCK нэхэмжлэх (QPAY_MODE=mock): QPay биш, төлөх боломжгүй.
+                </Text>
+              </View>
+            ) : null}
             {phase.invoice.qrImageBase64 ? (
               <Image
                 source={{ uri: `data:image/png;base64,${phase.invoice.qrImageBase64}` }}
@@ -186,8 +226,14 @@ export default function PaymentScreen() {
         {phase.kind === "paid" && (
           <View style={styles.centered}>
             <Ionicons name="checkmark-circle" size={64} color="#2e7d32" />
-            <Text style={styles.paid}>Төлбөрийг сервер баталгаажууллаа</Text>
-            <Text style={styles.muted}>{source === "mock" ? "(MOCK, бодит гүйлгээ биш)" : `Төлсөн: ${phase.paidAt}`}</Text>
+            <Text style={styles.paid}>
+              {source === "mock" || phase.invoice.isMock ? "MOCK төлбөр төлөгдсөн гэж тэмдэглэгдсэн" : "Төлбөрийг сервер баталгаажууллаа"}
+            </Text>
+            <Text style={styles.muted}>
+              {source === "mock" || phase.invoice.isMock
+                ? "Бодит QPay эсвэл sandbox гүйлгээ биш. Мөнгө шилжээгүй."
+                : `Төлсөн: ${phase.paidAt}`}
+            </Text>
           </View>
         )}
 

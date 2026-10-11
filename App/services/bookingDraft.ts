@@ -82,6 +82,7 @@ export interface LocalAttachment {
   progress: number
   serverId: string | null
   error: string | null
+  storage?: string | null
 }
 
 export interface BookingDraftState {

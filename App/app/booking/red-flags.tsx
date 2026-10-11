@@ -85,9 +85,10 @@ export default function RedFlagsScreen() {
       // so far (including this "yes") are then reported to the server; until the
       // server confirms, the block is "pending" and is retried, never CLEAR.
       if (load.status !== "ready" || !orderId) return
+      // Backend 76b7e9e blocks on a single "yes" answer (docs/l1-1-api.md §4.2).
       const report = {
         questionnaires: load.questionnaire.questionnaires,
-        answers: answersPayload(load.questionnaire, { ...answers, [questionId]: true }),
+        answers: [{ questionId, value: true }],
       }
       dispatch({ type: "redFlagBlocked", advice: null, server: "pending", report })
       router.replace("/booking/emergency")

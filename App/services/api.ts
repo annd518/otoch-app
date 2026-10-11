@@ -172,8 +172,8 @@ export const apiService = {
     return reportRedFlagBlock(client, orderId, answers, questionnaires)
   },
 
-  requestQuote(orderId: string): Promise<ApiResult<Quote>> {
-    return requestQuote(client, orderId)
+  requestQuote(orderId: string, orderVersion: number): Promise<ApiResult<Quote>> {
+    return requestQuote(client, orderId, orderVersion)
   },
 
   createInvoice(orderId: string, quoteId: string, idempotencyKey: string): Promise<ApiResult<Invoice>> {

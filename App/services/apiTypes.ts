@@ -93,13 +93,18 @@ export interface Quote {
   currency: 'MNT'
   lines: QuoteLine[]
   subtotalMnt: number
-  travelFeeMnt: number
-  discountMnt: number
+  // null when the server does not price them (listed in `excludes`)
+  travelFeeMnt: number | null
+  discountMnt: number | null
   totalMnt: number
   pricingVersion: string
   expiresAt: string
   // true when prices come from fixture catalog rows
   isFixture: boolean
+  // order version the quote was made for; a newer order version makes it stale
+  orderVersion: number | null
+  // price components not included (e.g. TRAVEL_FEE, DISCOUNT, VAT)
+  excludes: string[]
 }
 
 // ---- Orders, red flags, attachments: docs/l1-1-api.md §3-§5 (proposal, not
@@ -188,4 +193,6 @@ export interface Attachment {
   kind: string
   mimeType: string
   sizeBytes: number
+  // server storage adapter, e.g. "local-dev" (development only) or null when not reported
+  storage: string | null
 }

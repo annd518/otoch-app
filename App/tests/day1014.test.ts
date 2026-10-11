@@ -19,10 +19,19 @@ import {
   getPaymentState,
   parseInvoice,
   parsePaymentState,
+  inProgressPaymentId,
   pollDecision,
   safeDeeplinks,
 } from '../services/payment'
 import { makeClient, makeMockClient } from './helpers'
+import { getOrder } from '../services/orders'
+
+// The implemented server needs the current order version for a quote.
+async function quoteFor(client: ReturnType<typeof makeMockClient>['client'], orderId: string) {
+  const order = await getOrder(client, orderId)
+  if (!order.ok) throw new Error('order')
+  return requestQuote(client, orderId, order.data.version)
+}
 
 const service = (code: string, requiresReferral = false): CatalogService => ({
   id: `id_${code}`,
@@ -93,7 +102,7 @@ describe('Idempotency-Key lifecycle for draft create', () => {
     const b = await createDraftOrder(client, input, 'same-key')
     assert.ok(a.ok && b.ok && a.data.id === b.data.id)
     const other = await createDraftOrder(client, { ...input, timeSlot: '13:00-15:00' }, 'same-key')
-    assert.equal(other.ok ? '' : other.code, 'IDEMPOTENCY_KEY_REUSED')
+    assert.ok(!other.ok && other.status === 409 && other.code === 'IDEMPOTENCY_KEY_REUSED')
   })
 
   it('a server that ignores the key (current backend) creates duplicates: client tap protection is not a substitute', async () => {
@@ -117,23 +126,23 @@ describe('early "yes" block reporting', () => {
   }
   const partial = [{ questionId: DEV_FIXTURE_QUESTIONS[0].id, value: true }]
 
-  it('current server contract rejects partial answers -> not_supported, never CLEAR', async () => {
-    const { client, id } = await draft()
+  it('an older server that rejects partial answers -> not_supported, never CLEAR', async () => {
+    const { client, id } = await draft('no-partial-block')
     const r = await reportRedFlagBlock(client, id, partial, ['GENERAL_V1'])
     assert.equal(r.kind, 'not_supported')
   })
 
-  it('with the GAP-13 proposal the server records the block', async () => {
-    const { client, id } = await draft('gap13-partial-block')
+  it('backend 76b7e9e records a single "yes" as a block (GAP-13 fixed)', async () => {
+    const { client, id } = await draft()
     const r = await reportRedFlagBlock(client, id, partial, ['GENERAL_V1'])
     assert.equal(r.kind, 'recorded')
     const again = await reportRedFlagBlock(client, id, partial, ['GENERAL_V1'])
     assert.equal(again.kind, 'recorded') // already blocked -> RED_FLAG_BLOCKED counts as recorded
   })
 
-  it('outdated questionnaire or a server error -> retry, never CLEAR', async () => {
-    const { client, id } = await draft('gap13-partial-block')
-    assert.equal((await reportRedFlagBlock(client, id, partial, ['GENERAL_V0'])).kind, 'retry')
+  it('a "yes" blocks even with an outdated questionnaire code; a server error -> retry, never CLEAR', async () => {
+    const { client, id } = await draft()
+    assert.equal((await reportRedFlagBlock(client, id, partial, ['GENERAL_V0'])).kind, 'recorded')
     const failing = await draft('redflag-submit-error')
     assert.equal((await reportRedFlagBlock(failing.client, failing.id, partial, ['GENERAL_V1'])).kind, 'retry')
   })
@@ -168,7 +177,7 @@ describe('quote', () => {
       [{ status: 501, body: { success: false, message: 'x', error: { code: 'NOT_IMPLEMENTED' } } }],
       { token: 't' },
     )
-    const r = await requestQuote(client, 'o')
+    const r = await requestQuote(client, 'o', 1)
     assert.equal(r.ok ? '' : r.kind, 'not_implemented')
     assert.equal(r.ok ? '' : r.message, QUOTE_NOT_IMPLEMENTED_MESSAGE)
   })
@@ -179,18 +188,18 @@ describe('quote', () => {
     assert.ok(input)
     const created = await createDraftOrder(client, input, 'q1')
     if (!created.ok) return assert.fail('create')
-    assert.equal((await requestQuote(client, created.data.id)).ok ? '' : 'x', 'x')
+    assert.equal((await quoteFor(client, created.data.id)).ok ? '' : 'x', 'x')
     const ivId = await clearedDraft(client, 'MOCK_HOME_IV')
-    const noReferral = await requestQuote(client, ivId)
+    const noReferral = await quoteFor(client, ivId)
     assert.equal(noReferral.ok ? '' : noReferral.code, 'REFERRAL_REQUIRED')
     await uploadReferral(client, ivId, { uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' })
-    assert.equal((await requestQuote(client, ivId)).ok, true)
+    assert.equal((await quoteFor(client, ivId)).ok, true)
   })
 
   it('a quote has lines, totalMnt and a fixture flag; it goes stale on expiry and on draft edits', async () => {
     const { client } = makeMockClient()
     const id = await clearedDraft(client)
-    const r = await requestQuote(client, id)
+    const r = await quoteFor(client, id)
     assert.ok(r.ok)
     if (!r.ok) return
     assert.equal(r.data.totalMnt, r.data.lines.reduce((s, l) => s + l.amountMnt, 0))
@@ -200,7 +209,7 @@ describe('quote', () => {
     assert.equal(bookingDraftReducer(withQuote, { type: 'updateDetails', patch: { notes: 'x' } }).quote, null)
     const exp = makeMockClient('quote-expired')
     const eid = await clearedDraft(exp.client)
-    const eq = await requestQuote(exp.client, eid)
+    const eq = await quoteFor(exp.client, eid)
     assert.ok(eq.ok && isQuoteExpired(eq.data, Date.now()))
   })
 })
@@ -263,7 +272,7 @@ describe('QPay payment', () => {
   it('mock: invoice is idempotent per key, pending then PAID only after server polls', async () => {
     const { client } = makeMockClient()
     const id = await clearedDraft(client)
-    const q = await requestQuote(client, id)
+    const q = await quoteFor(client, id)
     if (!q.ok) return assert.fail('quote')
     const inv = await createInvoice(client, id, q.data.id, 'pay-key')
     const again = await createInvoice(client, id, q.data.id, 'pay-key')
@@ -281,7 +290,7 @@ describe('QPay payment', () => {
     for (const [scenario, expected] of [['payment-expire', 'EXPIRED'], ['payment-fail', 'FAILED']] as const) {
       const { client } = makeMockClient(scenario)
       const id = await clearedDraft(client)
-      const q = await requestQuote(client, id)
+      const q = await quoteFor(client, id)
       if (!q.ok) return assert.fail('quote')
       const inv = await createInvoice(client, id, q.data.id, `k-${scenario}`)
       if (!inv.ok) return assert.fail('invoice')
@@ -297,7 +306,7 @@ describe('QPay payment', () => {
   it('an expired quote cannot be paid', async () => {
     const exp = makeMockClient('quote-expired')
     const id = await clearedDraft(exp.client)
-    const q = await requestQuote(exp.client, id)
+    const q = await quoteFor(exp.client, id)
     if (!q.ok) return assert.fail('quote')
     const inv = await createInvoice(exp.client, id, q.data.id, 'k')
     assert.equal(inv.ok ? '' : inv.code, 'QUOTE_EXPIRED')
@@ -313,5 +322,57 @@ describe('QPay payment', () => {
 
   it('invoice parser rejects malformed data', () => {
     assert.equal(parseInvoice({ payment: { id: 'p', status: 'PENDING', amountMnt: 1, qrText: '', expiresAt: 'x' } }), null)
+  })
+})
+
+describe('backend 76b7e9e contract details', () => {
+  async function cleared(scenario = '') {
+    const h = makeMockClient(scenario)
+    const input = buildDraftInput(filled())
+    if (!input) throw new Error('input')
+    const created = await createDraftOrder(h.client, input, `k-${Math.random()}`)
+    if (!created.ok) throw new Error('create')
+    await submitRedFlagAnswers(h.client, created.data.id, allAnswers(() => false), ['GENERAL_V1'])
+    return { ...h, id: created.data.id }
+  }
+
+  it('quote carries orderVersion, excludes and is not a payment; a stale orderVersion is refused', async () => {
+    const { client, id } = await cleared()
+    const q = await quoteFor(client, id)
+    assert.ok(q.ok)
+    if (!q.ok) return
+    assert.deepEqual(q.data.excludes, ['TRAVEL_FEE', 'DISCOUNT', 'VAT'])
+    assert.equal(q.data.travelFeeMnt, null)
+    assert.equal(typeof q.data.orderVersion, 'number')
+    const stale = await requestQuote(client, id, 1)
+    assert.equal(stale.ok ? '' : stale.code, 'VERSION_CONFLICT')
+  })
+
+  it('a quote with isPayment true is rejected by the parser', () => {
+    const { client } = makeClient(
+      [{ status: 201, body: { success: true, data: { quote: { id: 'q', currency: 'MNT', lines: [], subtotalMnt: 0, totalMnt: 0, pricingVersion: 'x', expiresAt: 'x', isPayment: true } } } }],
+      { token: 't' },
+    )
+    return requestQuote(client, 'o', 1).then((r) => assert.equal(r.ok ? '' : r.kind, 'contract'))
+  })
+
+  it('an upload bumps the order version so the earlier quote becomes stale (QUOTE_MISMATCH)', async () => {
+    const { client, id } = await cleared()
+    const q = await quoteFor(client, id)
+    if (!q.ok) return assert.fail('quote')
+    const up = await uploadReferral(client, id, { uri: 'f', name: 'a.jpg', type: 'image/jpeg' }, undefined, 'u-1')
+    assert.ok(up.ok)
+    const inv = await createInvoice(client, id, q.data.id, 'pk')
+    assert.equal(inv.ok ? '' : inv.code, 'QUOTE_MISMATCH')
+  })
+
+  it('payment: key required, mock flagged as isMock, second key while pending -> PAYMENT_IN_PROGRESS with paymentId', async () => {
+    const { client, id } = await cleared()
+    const q = await quoteFor(client, id)
+    if (!q.ok) return assert.fail('quote')
+    const inv = await createInvoice(client, id, q.data.id, 'key-a')
+    assert.ok(inv.ok && inv.data.isMock)
+    const second = await createInvoice(client, id, q.data.id, 'key-b')
+    assert.equal(inProgressPaymentId(second), inv.ok ? inv.data.id : '')
   })
 })

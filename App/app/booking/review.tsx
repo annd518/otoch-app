@@ -10,12 +10,14 @@ import { useSingleFlight } from "@/components/useSingleFlight"
 import { useBookingDraft } from "@/context/BookingDraftContext"
 import { apiService } from "@/services/api"
 import { isBlocked, needsReferral, uploadedReferralCount } from "@/services/bookingDraft"
-import { isQuoteExpired } from "@/services/orders"
+import { isQuoteStale } from "@/services/orders"
 
 const QUOTE_ERRORS: Record<string, string> = {
   RED_FLAG_REQUIRED: "Эхлээд аюулын шинжийн асуулгад хариулна уу.",
   REFERRAL_REQUIRED: "Эмчийн заалтын зураг серверт хадгалагдаагүй байна. Үнийн санал авах боломжгүй.",
   ORDER_INCOMPLETE: "Захиалгын мэдээлэл дутуу байна. Алхам 1-ийг шалгана уу.",
+  VERSION_CONFLICT: "Захиалга өөрчлөгдсөн байна. Үнийн саналыг дахин авна уу.",
+  CATALOG_OUTDATED: "Каталог шинэчлэгдсэн байна. Үйлчилгээгээ дахин сонгоно уу.",
 }
 
 // Summary + server quote. A quote is a price offer only: the order is not
@@ -32,7 +34,19 @@ export default function ReviewScreen() {
       const orderId = state.server?.orderId
       if (!orderId) return
       setError(null)
-      const result = await apiService.requestQuote(orderId)
+      // Uploads and answers bump the order version on the server: read the
+      // current version first so the quote is made for exactly this order state.
+      const current = await apiService.getOrder(orderId)
+      if (!current.ok) {
+        setError(current.message)
+        return
+      }
+      dispatch({ type: "draftSaved", order: current.data, source: apiService.sourceOf("orders") })
+      if (current.data.status === "BLOCKED_RED_FLAG") {
+        router.replace("/booking/emergency")
+        return
+      }
+      const result = await apiService.requestQuote(orderId, current.data.version)
       if (!result.ok) {
         if (result.code === "RED_FLAG_BLOCKED") {
           dispatch({ type: "redFlagBlocked", advice: null, server: "recorded" })
@@ -52,7 +66,7 @@ export default function ReviewScreen() {
 
   const { service, details, server, quote } = state
   const referralMissing = needsReferral(state) && uploadedReferralCount(state) === 0
-  const expired = quote ? isQuoteExpired(quote, now) : false
+  const expired = quote ? isQuoteStale(quote, server.version, now) : false
   const canPay = Boolean(quote) && !expired && !referralMissing && !state.dirty
 
   const rows: [string, string][] = [
@@ -100,7 +114,7 @@ export default function ReviewScreen() {
             Үнийн санал нь захиалга баталгаажсан гэсэн үг биш.
           </Text>
         ) : null}
-        {expired ? <Text style={styles.error}>Үнийн саналын хугацаа дууссан. Дахин авна уу.</Text> : null}
+        {expired ? <Text style={styles.error}>Үнийн санал хүчингүй болсон (хугацаа дууссан эсвэл захиалга өөрчлөгдсөн). Дахин авна уу.</Text> : null}
         {referralMissing ? (
           <Text style={styles.error}>Заалтын зураг серверт хадгалагдаагүй тул үргэлжлэх боломжгүй.</Text>
         ) : null}

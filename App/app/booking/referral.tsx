@@ -61,7 +61,7 @@ export default function ReferralScreen() {
       type: "attachmentUpdated",
       localId: attachment.localId,
       patch: result.ok
-        ? { status: "uploaded", progress: 1, serverId: result.data.id, error: null }
+        ? { status: "uploaded", progress: 1, serverId: result.data.id, error: null, storage: result.data.storage }
         : { status: "failed", error: (result.code && UPLOAD_ERRORS[result.code]) || result.message },
     })
   }
@@ -203,7 +203,13 @@ export default function ReferralScreen() {
                 </View>
               )}
               {attachment.status === "uploaded" && (
-                <Text style={styles.okText}>{source === "mock" ? "Mock-д илгээгдсэн (серверт биш)" : "Серверт хадгалагдсан"}</Text>
+                <Text style={styles.okText}>
+                  {source === "mock"
+                    ? "Mock-д илгээгдсэн (серверт биш)"
+                    : attachment.storage && attachment.storage !== "s3"
+                      ? `Серверт хадгалагдсан (${attachment.storage}, хөгжүүлэлтийн storage)`
+                      : "Серверт хадгалагдсан"}
+                </Text>
               )}
               {attachment.status === "failed" && <Text style={styles.errorTextSmall}>{attachment.error}</Text>}
               <View style={styles.itemActions}>
