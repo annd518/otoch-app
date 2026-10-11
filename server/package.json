@@ -9,7 +9,14 @@
   "scripts": {
     "start": "node ./dist/index.js",
     "dev": "nodemon",
+    "dev:local": "node scripts/dev-local.mjs",
+    "dev:docker": "docker compose -f ../docker-compose.yml up -d && node scripts/dev-local.mjs --external-db",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
     "build": "npm install && npx prisma generate && npx tsc"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
@@ -36,6 +43,7 @@
     "@types/express": "^5.0.3",
     "@types/express-fileupload": "^1.5.1",
     "@types/node": "^24.2.1",
+    "embedded-postgres": "latest",
     "nodemon": "^3.1.10",
     "prisma": "^6.18.0",
     "ts-node": "^10.9.2",

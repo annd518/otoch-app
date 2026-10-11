@@ -30,7 +30,8 @@ app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
 app.use(fileupload())
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' ? 'your-frontend-url' : 'http://localhost:3000',
+    // In development reflect any origin (web client, Expo web, LAN devices)
+    origin: process.env.NODE_ENV === 'production' ? 'your-frontend-url' : true,
     credentials: true
 }))
 
@@ -67,6 +68,7 @@ app.use('/api/analytics', analyticsRoutes)
 app.use('/api/review', reviewRoutes)
 
 
-app.listen(PORT, () => {
+// Bind to all interfaces so devices on the LAN (Expo Go) can reach the API
+app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(` Server running on http://localhost:${PORT}`)
 })

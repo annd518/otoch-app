@@ -7,3 +7,5 @@ node_modules
 /src/uploads
 /prisma/migrations
 /dist
+/.local-pg
+.dev-local.log
