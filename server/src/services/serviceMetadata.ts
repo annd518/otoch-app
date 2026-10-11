@@ -6,6 +6,7 @@ export const formConfigSchema = z
     windowMin: z.union([z.literal(60), z.literal(120)]),
     referral: z.enum(["required", "partial", "discharge", "none"]),
     medicationRequired: z.boolean(),
+    medicationFieldsVisible: z.boolean().optional(),
     firstDoseCheck: z.boolean(),
     familyPresence: z.enum(["optional", "recommended", "required"]),
     attachmentLimit: z.number().int().min(1).max(3),

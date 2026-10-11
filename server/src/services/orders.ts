@@ -408,7 +408,10 @@ function assertV2Form(order: OrderWithItems, now: Date) {
       "Гэр бүлийн гишүүн байлцах шаардлагатай",
     );
   const medication = form?.medication as Record<string, unknown> | undefined;
-  if (order.items.some((i) => serviceConfig(i.service).medicationRequired)) {
+  if (
+    medication ||
+    order.items.some((i) => serviceConfig(i.service).medicationRequired)
+  ) {
     if (
       !medication ||
       !["name", "dose", "route", "expiresAt"].every(

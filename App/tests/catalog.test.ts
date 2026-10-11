@@ -30,6 +30,19 @@ const CONTRACT_CATALOG = {
   },
 }
 
+it('keeps optional medication fields visible without making them required', () => {
+  const catalog = parseCatalog({
+    ...CONTRACT_CATALOG.data,
+    services: [{ ...CONTRACT_CATALOG.data.services[0], formConfig: {
+      windowMin: 60, attachmentLimit: 3, referral: 'partial',
+      medicationRequired: false, medicationFieldsVisible: true,
+      firstDoseCheck: false, familyPresence: 'optional', approved: true,
+    } }],
+  })
+  assert.equal(catalog?.services[0].formConfig?.medicationFieldsVisible, true)
+  assert.equal(catalog?.services[0].formConfig?.medicationRequired, false)
+})
+
 describe('catalog in mock mode', () => {
   it('returns contract-shaped fabricated data from the development mock', async () => {
     const { client } = makeMockClient()

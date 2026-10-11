@@ -87,6 +87,26 @@ const form = {
   postoperative: false,
   medication: null,
 };
+it("optional medication is validated when supplied; expired medicine cannot bypass guards", async () => {
+  const r = await draft({
+    ...form,
+    medication: {
+      name: "Тест эм",
+      dose: "Тест тун",
+      route: "Тест арга",
+      expiresAt: new Date(Date.now() - 86400000).toISOString(),
+      doseNumber: 2,
+    },
+  });
+  const id = r.json.data.order.id;
+  await clear(id);
+  const quote = await api(srv.baseUrl, "POST", `/api/orders/${id}/quote`, {
+    token,
+    body: {},
+  });
+  assert.equal(quote.status, 422);
+  assert.equal(quote.json.error.code, "MED_EXPIRED");
+});
 async function draft(bookingForm?: Record<string, unknown>) {
   return api(srv.baseUrl, "POST", "/api/orders", {
     token,

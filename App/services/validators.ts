@@ -212,6 +212,10 @@ function parseCatalogService(value: unknown): CatalogService | null {
                 ? value.formConfig.referral
                 : "none",
             medicationRequired: value.formConfig.medicationRequired === true,
+            medicationFieldsVisible:
+              typeof value.formConfig.medicationFieldsVisible === "boolean"
+                ? value.formConfig.medicationFieldsVisible
+                : undefined,
             firstDoseCheck: value.formConfig.firstDoseCheck === true,
             familyPresence:
               typeof value.formConfig.familyPresence === "string"

@@ -1,0 +1,347 @@
+{
+  "source": "OTOCH_App_Dev_Spec_v2.0.pdf",
+  "sha256": "939789c62d86958714168f3fa5364009619ec3e5f835e81398dd36934f92ef32",
+  "pageCount": 129,
+  "approvalEvidence": "Project owner approved all v2.0 content in this chat. This is not a clinician signature or a change to the original PDF.",
+  "serviceConfigs": [
+    {
+      "sourcePage": 44,
+      "code": "S02",
+      "group": "A",
+      "a41_refs": [
+        "18.1",
+        "18.2",
+        "18.5",
+        "18.3"
+      ],
+      "duration_min": 30,
+      "window_min": 60,
+      "price": 25000,
+      "payout_pct": 70,
+      "doctor_order": "required",
+      "meds_by": "client",
+      "consumables_by": "nurse",
+      "first_dose_check": true,
+      "family_presence": "optional",
+      "skills": [
+        "INJ"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S02_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 45,
+      "code": "S03",
+      "group": "A",
+      "a41_refs": [
+        "18.4",
+        "18.3",
+        "18.19"
+      ],
+      "duration_min": 75,
+      "window_min": 120,
+      "price": 40000,
+      "payout_pct": 70,
+      "doctor_order": "required",
+      "meds_by": "client",
+      "consumables_by": "nurse",
+      "first_dose_check": true,
+      "family_presence": "recommended",
+      "skills": [
+        "IV"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S03_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 46,
+      "code": "S08",
+      "group": "A",
+      "a41_refs": [
+        "18.3\u201318.4-\u0438\u0439\u043d",
+        "18.20"
+      ],
+      "duration_min": 30,
+      "window_min": 60,
+      "price": 30000,
+      "payout_pct": 70,
+      "doctor_order": "required",
+      "meds_by": "client",
+      "consumables_by": "client",
+      "first_dose_check": false,
+      "family_presence": "optional",
+      "skills": [
+        "IV"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S08_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 47,
+      "code": "S04",
+      "group": "B",
+      "a41_refs": [
+        "17.2",
+        "17.1",
+        "13.3",
+        "14.19"
+      ],
+      "duration_min": 45,
+      "window_min": 60,
+      "price": 35000,
+      "payout_pct": 70,
+      "doctor_order": "partial",
+      "meds_by": "client",
+      "consumables_by": "nurse",
+      "first_dose_check": false,
+      "family_presence": "optional",
+      "skills": [
+        "WOUND"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S04_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 48,
+      "code": "S09",
+      "group": "B",
+      "a41_refs": [
+        "18.13",
+        "15.5",
+        "18.16",
+        "14.21"
+      ],
+      "duration_min": 45,
+      "window_min": 60,
+      "price": 40000,
+      "payout_pct": 70,
+      "doctor_order": "required",
+      "meds_by": "client",
+      "consumables_by": "client",
+      "first_dose_check": false,
+      "family_presence": "recommended",
+      "skills": [
+        "CATH"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S09_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 49,
+      "code": "S10",
+      "group": "B",
+      "a41_refs": [
+        "18.14",
+        "15.9",
+        "14.24",
+        "18.17"
+      ],
+      "duration_min": 45,
+      "window_min": 60,
+      "price": 40000,
+      "payout_pct": 70,
+      "doctor_order": "required",
+      "meds_by": "client",
+      "consumables_by": "client",
+      "first_dose_check": false,
+      "family_presence": "recommended",
+      "skills": [
+        "NG"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S10_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 50,
+      "code": "S01",
+      "group": "C",
+      "a41_refs": [
+        "11.1\u201311.5",
+        "16.1",
+        "12.7",
+        "13.1"
+      ],
+      "duration_min": 30,
+      "window_min": 60,
+      "price": 25000,
+      "payout_pct": 70,
+      "doctor_order": "none",
+      "meds_by": "none",
+      "consumables_by": "nurse",
+      "first_dose_check": false,
+      "family_presence": "optional",
+      "skills": [],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S01_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 51,
+      "code": "S05",
+      "group": "C",
+      "a41_refs": [
+        "2.3",
+        "14.13",
+        "17.2",
+        "14.12"
+      ],
+      "duration_min": 45,
+      "window_min": 60,
+      "price": 45000,
+      "payout_pct": 70,
+      "doctor_order": "discharge",
+      "meds_by": "client",
+      "consumables_by": "nurse",
+      "first_dose_check": false,
+      "family_presence": "recommended",
+      "skills": [
+        "WOUND"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S05_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    },
+    {
+      "sourcePage": 52,
+      "code": "S06",
+      "group": "D",
+      "a41_refs": [
+        "13.1\u201313.8",
+        "15.1\u201315.9",
+        "16.2",
+        "14.20\u201314.23"
+      ],
+      "duration_min": 120,
+      "window_min": 120,
+      "price": 50000,
+      "payout_pct": 70,
+      "doctor_order": "none",
+      "meds_by": "client",
+      "consumables_by": "client",
+      "first_dose_check": false,
+      "family_presence": "recommended",
+      "skills": [
+        "CARE"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S06_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": false
+    },
+    {
+      "sourcePage": 53,
+      "code": "S07",
+      "group": "D",
+      "a41_refs": [
+        "6.1",
+        "16.1\u201316.4",
+        "11.1\u201311.5",
+        "13.5"
+      ],
+      "duration_min": 60,
+      "window_min": 60,
+      "price": 40000,
+      "payout_pct": 70,
+      "doctor_order": "none",
+      "meds_by": "client",
+      "consumables_by": "nurse",
+      "first_dose_check": false,
+      "family_presence": "optional",
+      "skills": [
+        "CARE"
+      ],
+      "contra_set": "RF6_A41",
+      "checklist_tpl": "CL_S07_v1",
+      "record_tpl": "REC_A41_v1",
+      "addon_allowed": true
+    }
+  ],
+  "businessRules": {
+    "sourcePages": [
+      24,
+      25,
+      27,
+      42,
+      43,
+      65,
+      118,
+      123
+    ],
+    "currency": "MNT",
+    "nurseSharePercent": 70,
+    "companySharePercent": 30,
+    "zoneFeesMnt": [
+      0,
+      5000,
+      10000
+    ],
+    "zonePolygonsAvailable": false,
+    "eveningWeekendSurchargePercent": 0,
+    "secondProcedureDiscountPercent": 30,
+    "minimumLeadHours": 2,
+    "maximumBookingDays": 14,
+    "launchServiceHours": "08:00-21:00",
+    "cancelBeforeAssignmentRefundPercent": 100,
+    "cancelAtLeastTwoHoursBeforeRefundPercent": 100,
+    "cancelLessThanTwoHoursFeePercent": 30,
+    "noShowServiceRefundPercent": 0,
+    "noShowZoneFeeRefundPercent": 100,
+    "legalUrlsAvailable": false,
+    "zoneDefinitionPages": [
+      24,
+      43
+    ],
+    "zoneDescriptions": [
+      "Central districts: up to 7 km",
+      "7-15 km, outskirts",
+      "Over 15 km; Nalaikh, Baganuur"
+    ]
+  },
+  "sourceConflicts": [
+    {
+      "pages": [
+        27,
+        33
+      ],
+      "field": "RF6.text",
+      "decision": "Use exact table wording on page 27; do not reinterpret the source typo."
+    },
+    {
+      "pages": [
+        42,
+        45,
+        65
+      ],
+      "field": "S03.familyPresence",
+      "decision": "JSON and matrix say recommended; preparation prose on p45 says family present. Keep matrix mapping and record discrepancy."
+    },
+    {
+      "pages": [
+        34
+      ],
+      "field": "attachment.maxBytes",
+      "decision": "PDF says JPEG <=5MB and EXIF stripping. Earlier user implementation plan specifies JPEG/PNG <=10MB. This content import change does not alter the upload API; implementation discrepancy remains."
+    }
+  ],
+  "notSupplied": [
+    "Actual geographical polygons/reference coordinates",
+    "Actual slots and capacity",
+    "Published terms/privacy URLs",
+    "Extension price: page 24 leaves amount blank",
+    "VAT tax-base decision/rate is not specified as an executable rule"
+  ]
+}
