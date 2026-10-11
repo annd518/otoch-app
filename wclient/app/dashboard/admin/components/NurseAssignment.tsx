@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { label } from "@/lib/labels"
 import { visitAPI } from "@/lib/api/client"
 
 type Nurse = {
@@ -149,17 +150,17 @@ export const NurseAssignment = () => {
           onChange={(e) => setSelectedRegion(e.target.value)}
           className="px-4 py-2 bg-white/80 backdrop-blur-sm border border-gray-300 rounded-lg shadow-sm hover:border-gray-400 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="All">All Regions</option>
-          <option value="North">North</option>
-          <option value="South">South</option>
-          <option value="East">East</option>
-          <option value="West">West</option>
+          <option value="All">Бүх бүс</option>
+          <option value="North">Хойд</option>
+          <option value="South">Өмнөд</option>
+          <option value="East">Зүүн</option>
+          <option value="West">Баруун</option>
         </select>
         <button
           onClick={handleAutoAssign}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg transition-all duration-200 font-medium"
         >
-          Auto-Assign Available Nurses
+          Боломжтой сувилагчдыг автоматаар томилох
         </button>
       </div>
 
@@ -182,7 +183,7 @@ export const NurseAssignment = () => {
               />
             </svg>
             <h3 className="text-lg font-semibold text-gray-800">
-              Available Nurses
+              Боломжтой сувилагчид
             </h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -221,7 +222,7 @@ export const NurseAssignment = () => {
                           : "bg-gray-100 text-gray-800 ring-1 ring-gray-200"
                       }`}
                     >
-                      {nurse.status}
+                      {label(nurse.status)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
@@ -246,7 +247,7 @@ export const NurseAssignment = () => {
                         />
                       </svg>
                       <span className="text-sm font-medium">
-                        Region: {nurse.region}
+                        Бүс: {label(nurse.region)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 rounded-full">
@@ -266,7 +267,7 @@ export const NurseAssignment = () => {
                       <span className="text-sm font-semibold text-blue-700">
                         {nurse.activeVisits}
                       </span>
-                      <span className="text-xs text-blue-600">active</span>
+                      <span className="text-xs text-blue-600">идэвхтэй</span>
                     </div>
                   </div>
                 </div>
@@ -296,7 +297,7 @@ export const NurseAssignment = () => {
                 />
               </svg>
               <h3 className="text-lg font-semibold text-gray-800">
-                Upcoming Visits
+                Удахгүй болох үзлэгүүд
               </h3>
               <span className="ml-auto px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
                 {filteredVisits.length} visits
@@ -322,7 +323,7 @@ export const NurseAssignment = () => {
                           d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                         />
                       </svg>
-                      Patient
+                      Өвчтөн
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
@@ -340,7 +341,7 @@ export const NurseAssignment = () => {
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      Date & Time
+                      Огноо ба цаг
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
@@ -364,14 +365,14 @@ export const NurseAssignment = () => {
                           d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                         />
                       </svg>
-                      Region
+                      Бүс
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                    Status
+                    Төлөв
                   </th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                    Assign Nurse
+                    Сувилагч томилох
                   </th>
                 </tr>
               </thead>
@@ -389,7 +390,7 @@ export const NurseAssignment = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-gray-700">
                         <span className="font-medium">{visit.date}</span>
-                        <span className="text-gray-500">at</span>
+                        <span className="text-gray-500">цагт</span>
                         <span className="font-medium">{visit.time}</span>
                       </div>
                     </td>
@@ -409,7 +410,7 @@ export const NurseAssignment = () => {
                           />
                         </svg>
                         <span className="text-sm font-medium text-gray-700">
-                          {visit.region}
+                          {label(visit.region)}
                         </span>
                       </div>
                     </td>
@@ -423,7 +424,7 @@ export const NurseAssignment = () => {
                             : "bg-blue-100 text-blue-800 ring-1 ring-blue-200"
                         }`}
                       >
-                        {visit.status}
+                        {label(visit.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -436,7 +437,7 @@ export const NurseAssignment = () => {
                           defaultValue=""
                         >
                           <option value="" disabled>
-                            Select nurse
+                            Сувилагч сонгох
                           </option>
                           {mockNurses
                             .filter(

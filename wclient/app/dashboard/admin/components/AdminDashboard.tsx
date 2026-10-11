@@ -16,8 +16,8 @@ export default function AdminDashboard() {
         <div className="mb-8 relative">
           <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-2xl" />
           <div className="relative p-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
-            <p className="text-gray-600">Manage your platform and monitor key metrics</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Админы хянах самбар</h1>
+            <p className="text-gray-600">Платформоо удирдаж, гол үзүүлэлтүүдийг хянах</p>
           </div>
         </div>
 
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
           <div className="mb-4 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-white/80 backdrop-blur-sm rounded-xl" />
             <div className="relative px-6 py-3">
-              <h2 className="text-xl font-semibold text-gray-800">User Management</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Хэрэглэгчийн удирдлага</h2>
             </div>
           </div>
           <div className="relative">
@@ -50,7 +50,7 @@ export default function AdminDashboard() {
           <div className="mb-4 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-white/80 backdrop-blur-sm rounded-xl" />
             <div className="relative px-6 py-3">
-              <h2 className="text-xl font-semibold text-gray-800">Nurse Assignment</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Сувилагч томилох</h2>
             </div>
           </div>
           <div className="relative">

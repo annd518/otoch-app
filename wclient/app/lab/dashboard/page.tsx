@@ -1,5 +1,6 @@
 "use client"
 import React from "react"
+import { label } from "@/lib/labels"
 import Link from "next/link"
 import {
   BarChart,
@@ -68,27 +69,27 @@ function StatusPill({ status }: { status: TestItem["status"] }) {
     <span
       className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status]}`}
     >
-      {status.replace("_", " ")}
+      {label(status)}
     </span>
   )
 }
 
 // Dummy data for charts
 const barData = [
-  { name: "Mon", tests: 12 },
-  { name: "Tue", tests: 18 },
-  { name: "Wed", tests: 14 },
-  { name: "Thu", tests: 20 },
-  { name: "Fri", tests: 10 },
-  { name: "Sat", tests: 15 },
-  { name: "Sun", tests: 8 },
+  { name: "Да", tests: 12 },
+  { name: "Мя", tests: 18 },
+  { name: "Лх", tests: 14 },
+  { name: "Пү", tests: 20 },
+  { name: "Ба", tests: 10 },
+  { name: "Бя", tests: 15 },
+  { name: "Ня", tests: 8 },
 ]
 
 const pieData = [
-  { name: "Pending", value: 4, color: "#FACC15" },
-  { name: "In Progress", value: 3, color: "#6366F1" },
-  { name: "Completed", value: 5, color: "#22C55E" },
-  { name: "Reported", value: 6, color: "#3B82F6" },
+  { name: "Хүлээгдэж буй", value: 4, color: "#FACC15" },
+  { name: "Явагдаж буй", value: 3, color: "#6366F1" },
+  { name: "Дууссан", value: 5, color: "#22C55E" },
+  { name: "Тайлагнасан", value: 6, color: "#3B82F6" },
 ]
 
 export default function LabDashboardPage() {
@@ -104,9 +105,9 @@ export default function LabDashboardPage() {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-600">Lab Dashboard</h1>
+          <h1 className="text-3xl font-bold text-blue-600">Лабораторийн самбар</h1>
           <p className="text-gray-500 mt-1 text-sm">
-            Manage appointments, reports, and lab activities efficiently.
+            Захиалга, тайлан болон лабораторийн үйл ажиллагааг үр дүнтэй удирдах.
           </p>
         </div>
 
@@ -115,7 +116,7 @@ export default function LabDashboardPage() {
             href="/lab/appointments"
             className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white shadow-md hover:bg-blue-700 transition"
           >
-            New Appointments
+            Шинэ захиалгууд
           </Link>
         </div>
       </header>
@@ -124,22 +125,22 @@ export default function LabDashboardPage() {
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         {[
           {
-            label: "Pending",
+            label: "Хүлээгдэж буй",
             count: pending,
             color: "border-yellow-300 bg-yellow-50",
           },
           {
-            label: "In Progress",
+            label: "Явагдаж буй",
             count: inProgress,
             color: "border-indigo-300 bg-indigo-50",
           },
           {
-            label: "Completed",
+            label: "Дууссан",
             count: completed,
             color: "border-green-300 bg-green-50",
           },
           {
-            label: "Reports Ready",
+            label: "Бэлэн тайлан",
             count: reported,
             color: "border-blue-300 bg-blue-50",
           },
@@ -159,7 +160,7 @@ export default function LabDashboardPage() {
         {/* Bar Chart */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-blue-600 mb-4">
-            Weekly Test Overview
+            Долоо хоногийн шинжилгээний тойм
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={barData}>
@@ -174,7 +175,7 @@ export default function LabDashboardPage() {
         {/* Pie Chart */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-blue-600 mb-4">
-            Report Status Summary
+            Тайлангийн төлөвийн хураангуй
           </h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
@@ -199,13 +200,13 @@ export default function LabDashboardPage() {
         <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm p-6 w-3/4 mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-blue-600">
-              View Clients
+              Үйлчлүүлэгчид харах
             </h2>
             <Link
               href="/lab/clients"
               className="text-sm text-blue-600 hover:underline"
             >
-              View all
+              Бүгдийг харах
             </Link>
           </div>
 
@@ -225,7 +226,7 @@ export default function LabDashboardPage() {
                     <div className="font-medium text-gray-800">
                       {t.patient}{" "}
                       <span className="text-gray-500 text-sm">
-                        — {t.testType}
+                        — {label(t.testType)}
                       </span>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -240,7 +241,7 @@ export default function LabDashboardPage() {
                     href={`/lab/tests/${t.id}`}
                     className="text-sm text-blue-600 hover:underline"
                   >
-                    Open
+                    Нээх
                   </Link>
                 </div>
               </li>

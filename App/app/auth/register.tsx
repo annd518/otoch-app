@@ -28,17 +28,17 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     // Validation
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert("Error", "Please fill in all required fields")
+      Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү")
       return
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Error", "Passwords do not match")
+      Alert.alert("Алдаа", "Нууц үг таарахгүй байна")
       return
     }
 
     if (password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters long")
+      Alert.alert("Алдаа", "Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой")
       return
     }
 
@@ -63,7 +63,7 @@ export default function RegisterScreen() {
           await storage.setUserData(data.data.user)
         }
 
-        Alert.alert("Success", "Account created successfully!", [
+        Alert.alert("Амжилттай", "Бүртгэл амжилттай үүслээ!", [
           {
             text: "OK",
             onPress: () => router.replace("/(tabs)")
@@ -72,7 +72,7 @@ export default function RegisterScreen() {
       }
     } catch (error: any) {
       console.error("Signup Error:", error)
-      const errorMessage = error.response?.data?.message || "Registration failed. Please try again."
+      const errorMessage = error.response?.data?.message || "Бүртгүүлэхэд алдаа гарлаа. Дахин оролдоно уу."
       Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
@@ -90,16 +90,16 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join PariwarCare to get started</Text>
+            <Text style={styles.title}>Бүртгэл үүсгэх</Text>
+            <Text style={styles.subtitle}>Эхлэхийн тулд PariwarCare-д нэгдээрэй</Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>Овог нэр</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your full name"
+                placeholder="Овог нэрээ оруулна уу"
                 placeholderTextColor="#999"
                 value={name}
                 onChangeText={setName}
@@ -108,10 +108,10 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>Имэйл хаяг</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder="Имэйлээ оруулна уу"
                 placeholderTextColor="#999"
                 value={email}
                 onChangeText={setEmail}
@@ -122,10 +122,10 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
+              <Text style={styles.label}>Утасны дугаар</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your phone number"
+                placeholder="Утасны дугаараа оруулна уу"
                 placeholderTextColor="#999"
                 value={phone}
                 onChangeText={setPhone}
@@ -134,10 +134,10 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>Нууц үг</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Create a password"
+                placeholder="Нууц үг үүсгэнэ үү"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
@@ -147,10 +147,10 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={styles.label}>Нууц үг баталгаажуулах</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Confirm your password"
+                placeholder="Нууц үгээ дахин оруулна уу"
                 placeholderTextColor="#999"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -168,29 +168,29 @@ export default function RegisterScreen() {
               disabled={loading}
             >
               <Text style={styles.primaryButtonText}>
-                {loading ? "Creating Account..." : "Create Account"}
+                {loading ? "Бүртгэл үүсгэж байна..." : "Бүртгэл үүсгэх"}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.termsSection}>
               <Text style={styles.termsText}>
-                By signing up, you agree to our{" "}
-                <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
+                Бүртгүүлснээр та манай{" "}
+                <Text style={styles.termsLink}>Үйлчилгээний нөхцөл</Text> болон{" "}
+                <Text style={styles.termsLink}>Нууцлалын бодлого</Text>-ыг зөвшөөрч байна
               </Text>
             </View>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
+              <Text style={styles.dividerText}>ЭСВЭЛ</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <View style={styles.loginSection}>
-              <Text style={styles.loginText}>Already have an account? </Text>
+              <Text style={styles.loginText}>Бүртгэлтэй юу? </Text>
               <Link href="/" asChild>
                 <TouchableOpacity>
-                  <Text style={styles.loginLink}>Sign In</Text>
+                  <Text style={styles.loginLink}>Нэвтрэх</Text>
                 </TouchableOpacity>
               </Link>
             </View>

@@ -33,13 +33,13 @@ export default function RegisterPage() {
 
     // Validate password match
     if (form.password !== form.confirmPassword) {
-      toast.error("Passwords do not match!");
+      toast.error("Нууц үг таарахгүй байна!");
       return;
     }
 
     // Validate password length
     if (form.password.length < 6) {
-      toast.error("Password must be at least 6 characters long!");
+      toast.error("Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой!");
       return;
     }
 
@@ -57,10 +57,10 @@ export default function RegisterPage() {
       <Card className="max-w-md w-full rounded-2xl shadow-xl border border-gray-200">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-blue-600">
-            Create Your Account
+            Бүртгэл үүсгэх
           </CardTitle>
           <CardDescription className="text-gray-600 mt-2">
-            Join PariwarCare to monitor your loved ones’ health easily
+            Хайртай хүмүүсийнхээ эрүүл мэндийг хялбархан хянахын тулд PariwarCare-д нэгдээрэй
           </CardDescription>
         </CardHeader>
 
@@ -68,12 +68,12 @@ export default function RegisterPage() {
           <form onSubmit={handleRegister} className="flex flex-col gap-4">
             <div>
               <label className="text-gray-700 text-sm font-semibold">
-                Full Name
+                Овог нэр
               </label>
               <Input
                 name="name"
                 type="text"
-                placeholder="John Doe"
+                placeholder="Бат-Эрдэнэ Дорж"
                 value={form.name}
                 onChange={handleChange}
                 className="mt-1"
@@ -83,7 +83,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="text-gray-700 text-sm font-semibold">
-                Email
+                Имэйл
               </label>
               <Input
                 name="email"
@@ -98,7 +98,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="text-gray-700 text-sm font-semibold">
-                Role
+                Үүрэг
               </label>
               <select
                 name="role"
@@ -107,16 +107,16 @@ export default function RegisterPage() {
                 className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                 required
               >
-                <option value="CHILD">Child (Patient)</option>
-                <option value="NURSE">Nurse (Caregiver)</option>
-                <option value="ADMIN">Admin</option>
-                <option value="MEDICAL_ADMIN">MEDICAL-ADMIN</option>
+                <option value="CHILD">Хүүхэд (өвчтөний ар гэр)</option>
+                <option value="NURSE">Сувилагч (асран хамгаалагч)</option>
+                <option value="ADMIN">Админ</option>
+                <option value="MEDICAL_ADMIN">Эмнэлгийн админ</option>
               </select>
             </div>
 
             <div>
               <label className="text-gray-700 text-sm font-semibold">
-                Password
+                Нууц үг
               </label>
               <Input
                 name="password"
@@ -131,7 +131,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="text-gray-700 text-sm font-semibold">
-                Confirm Password
+                Нууц үг баталгаажуулах
               </label>
               <Input
                 name="confirmPassword"
@@ -145,17 +145,17 @@ export default function RegisterPage() {
             </div>
 
             <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-              {isLoading ? "Creating Account..." : "Sign Up"}
+              {isLoading ? "Бүртгэл үүсгэж байна..." : "Бүртгүүлэх"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-gray-600 text-sm">
-            Already have an account?{" "}
+            Бүртгэлтэй юу?{" "}
             <a
               href="/auth/login"
               className="text-blue-600 hover:underline font-medium"
             >
-              Log In
+              Нэвтрэх
             </a>
           </p>
         </CardContent>

@@ -26,14 +26,14 @@ export const listVisitsWaitingApproval = async (req: AuthenticatedRequest, res: 
 
     return res.status(200).json({
       success: true,
-      message: 'Visits for review',
+      message: 'Хянах үзлэгүүд',
       data: { visits }
     })
   } catch (error: any) {
     console.error(error)
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to list visits'
+      message: error.message || 'Үзлэгийн жагсаалтыг авч чадсангүй'
     })
   }
 }
@@ -54,20 +54,20 @@ export const getVisitForReview = async (req: AuthenticatedRequest, res: Response
     if (!visit) {
       return res.status(404).json({
         success: false,
-        message: 'Visit not found'
+        message: 'Үзлэг олдсонгүй'
       })
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Visit found',
+      message: 'Үзлэг олдлоо',
       data: { visit }
     })
   } catch (error: any) {
     console.error(error)
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to fetch visit'
+      message: error.message || 'Үзлэгийн мэдээллийг авч чадсангүй'
     })
   }
 }
@@ -81,7 +81,7 @@ export const approveVisit = async (req: AuthenticatedRequest, res: Response) => 
     if (!validatedData.success) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid payload',
+        message: 'Өгөгдөл буруу байна',
         errors: validatedData.error.format()
       })
     }
@@ -94,14 +94,14 @@ export const approveVisit = async (req: AuthenticatedRequest, res: Response) => 
     if (!visit) {
       return res.status(404).json({
         success: false,
-        message: 'Visit not found'
+        message: 'Үзлэг олдсонгүй'
       })
     }
 
     if (visit.status !== 'WAITING_APPROVAL' && visit.status !== 'REVISION_REQUIRED') {
       return res.status(400).json({
         success: false,
-        message: `Visit status must be WAITING_APPROVAL or REVISION_REQUIRED. Current: ${visit.status}`
+        message: `Үзлэгийн төлөв WAITING_APPROVAL эсвэл REVISION_REQUIRED байх ёстой. Одоогийн төлөв: ${visit.status}`
       })
     }
 
@@ -123,14 +123,14 @@ export const approveVisit = async (req: AuthenticatedRequest, res: Response) => 
 
     return res.status(200).json({
       success: true,
-      message: 'Visit approved',
+      message: 'Үзлэг батлагдлаа',
       data: { visit: approved }
     })
   } catch (error: any) {
     console.error(error)
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to approve visit'
+      message: error.message || 'Үзлэгийг баталж чадсангүй'
     })
   }
 }
@@ -144,7 +144,7 @@ export const rejectVisit = async (req: AuthenticatedRequest, res: Response) => {
     if (!validatedData.success) {
       return res.status(400).json({
         success: false,
-        message: 'Rejection note required',
+        message: 'Татгалзсан шалтгаанаа бичнэ үү',
         errors: validatedData.error.format()
       })
     }
@@ -154,14 +154,14 @@ export const rejectVisit = async (req: AuthenticatedRequest, res: Response) => {
     if (!visit) {
       return res.status(404).json({
         success: false,
-        message: 'Visit not found'
+        message: 'Үзлэг олдсонгүй'
       })
     }
 
     if (visit.status !== 'WAITING_APPROVAL') {
       return res.status(400).json({
         success: false,
-        message: `Visit must be WAITING_APPROVAL to reject. Current: ${visit.status}`
+        message: `Татгалзахын тулд үзлэг WAITING_APPROVAL төлөвтэй байх ёстой. Одоогийн төлөв: ${visit.status}`
       })
     }
 
@@ -182,14 +182,14 @@ export const rejectVisit = async (req: AuthenticatedRequest, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Visit rejected and sent back for revision',
+      message: 'Үзлэг татгалзагдаж, засварт буцаагдлаа',
       data: { visit: rejected }
     })
   } catch (error: any) {
     console.error(error)
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to reject visit'
+      message: error.message || 'Үзлэгийг татгалзаж чадсангүй'
     })
   }
 }

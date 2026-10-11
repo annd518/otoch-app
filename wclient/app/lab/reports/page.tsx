@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { label } from "@/lib/labels";
 import Link from "next/link";
 import {
   BarChart,
@@ -16,16 +17,16 @@ import {
 
 // Dummy analytics data
 const reportStats = [
-  { week: "Week 1", reports: 14 },
-  { week: "Week 2", reports: 22 },
-  { week: "Week 3", reports: 19 },
-  { week: "Week 4", reports: 25 },
+  { week: "1-р долоо хоног", reports: 14 },
+  { week: "2-р долоо хоног", reports: 22 },
+  { week: "3-р долоо хоног", reports: 19 },
+  { week: "4-р долоо хоног", reports: 25 },
 ];
 
 const testTypeData = [
-  { name: "Blood Test", value: 40 },
-  { name: "Urine Test", value: 25 },
-  { name: "X-Ray", value: 20 },
+  { name: "Цусны шинжилгээ", value: 40 },
+  { name: "Шээсний шинжилгээ", value: 25 },
+  { name: "Рентген", value: 20 },
   { name: "MRI", value: 15 },
 ];
 
@@ -48,7 +49,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`px-2 py-0.5 text-xs font-medium rounded-full ${colorMap[status] || "bg-gray-100 text-gray-700"}`}
     >
-      {status}
+      {label(status)}
     </span>
   );
 }
@@ -59,9 +60,9 @@ export default function ReportsPage() {
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-blue-600">Lab Reports</h1>
+          <h1 className="text-3xl font-bold text-blue-600">Лабораторийн тайлан</h1>
           <p className="text-gray-500 mt-1 text-sm">
-            View and analyze all patient reports efficiently.
+            Өвчтөний бүх тайланг харж, шинжлэх.
           </p>
         </div>
 
@@ -73,7 +74,7 @@ export default function ReportsPage() {
             + New Report
           </Link>
           <button className="px-4 py-2 rounded-md bg-white border border-[#5B9BD5] text-[#5B9BD5] hover:bg-[#EDEFF2] transition">
-            Export Data
+            Өгөгдөл экспортлох
           </button>
         </div>
       </header>
@@ -81,10 +82,10 @@ export default function ReportsPage() {
       {/* Summary Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         {[
-          { label: "Total Reports", value: 120 },
-          { label: "Completed", value: 85 },
-          { label: "Pending Verification", value: 25 },
-          { label: "This Month", value: 35 },
+          { label: "Нийт тайлан", value: 120 },
+          { label: "Дууссан", value: 85 },
+          { label: "Баталгаажуулалт хүлээж буй", value: 25 },
+          { label: "Энэ сард", value: 35 },
         ].map((card) => (
           <div
             key={card.label}
@@ -99,7 +100,7 @@ export default function ReportsPage() {
       {/* Charts Section */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Reports per Week</h2>
+          <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Долоо хоног тутмын тайлан</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={reportStats}>
               <XAxis dataKey="week" stroke="#6B7280" />
@@ -111,7 +112,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Report Types Distribution</h2>
+          <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Тайлангийн төрлийн хуваарилалт</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -135,23 +136,23 @@ export default function ReportsPage() {
 
       {/* Recent Reports Table */}
       <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Recent Reports</h2>
+        <h2 className="text-lg font-semibold text-[#2E5C8A] mb-4">Сүүлийн тайлангууд</h2>
         <div className="overflow-x-auto">
           <table className="min-w-full border border-gray-100 text-sm">
             <thead>
               <tr className="bg-[#EDEFF2] text-gray-700">
-                <th className="py-3 px-4 text-left">Patient</th>
-                <th className="py-3 px-4 text-left">Test Type</th>
-                <th className="py-3 px-4 text-left">Date</th>
-                <th className="py-3 px-4 text-left">Status</th>
-                <th className="py-3 px-4 text-left">Action</th>
+                <th className="py-3 px-4 text-left">Өвчтөн</th>
+                <th className="py-3 px-4 text-left">Шинжилгээний төрөл</th>
+                <th className="py-3 px-4 text-left">Огноо</th>
+                <th className="py-3 px-4 text-left">Төлөв</th>
+                <th className="py-3 px-4 text-left">Үйлдэл</th>
               </tr>
             </thead>
             <tbody>
               {sampleReports.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-[#F5F6F8] transition">
                   <td className="py-3 px-4">{r.patient}</td>
-                  <td className="py-3 px-4">{r.testType}</td>
+                  <td className="py-3 px-4">{label(r.testType)}</td>
                   <td className="py-3 px-4">{r.date}</td>
                   <td className="py-3 px-4">
                     <StatusBadge status={r.status} />
@@ -161,7 +162,7 @@ export default function ReportsPage() {
                       href={`/lab/reports/${r.id}`}
                       className="text-blue-600 hover:underline"
                     >
-                      View
+                      Харах
                     </Link>
                   </td>
                 </tr>

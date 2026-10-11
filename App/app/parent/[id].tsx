@@ -12,31 +12,31 @@ export default function ParentProfile() {
     id,
     name: 'Anita Sharma',
     age: 78,
-    conditions: ['Hypertension', 'Arthritis'],
+    conditions: ['Даралт ихсэх', 'Үе мөчний үрэвсэл'],
     lastVisit: '2025-10-15'
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.back}><Text>{'< Back'}</Text></TouchableOpacity>
+      <TouchableOpacity onPress={() => router.back()} style={styles.back}><Text>{'< Буцах'}</Text></TouchableOpacity>
       <Text style={styles.h1}>{parent.name}</Text>
-      <Text style={styles.small}>Age: {parent.age}</Text>
-      <Text style={styles.small}>Last Visit: {parent.lastVisit}</Text>
+      <Text style={styles.small}>Нас: {parent.age}</Text>
+      <Text style={styles.small}>Сүүлийн үзлэг: {parent.lastVisit}</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Conditions</Text>
+        <Text style={styles.cardTitle}>Оношууд</Text>
         {parent.conditions.map((c, i) => (
           <Text key={i} style={styles.listItem}>• {c}</Text>
         ))}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>History</Text>
-        <Text style={styles.listItem}>2025-10-15 — Routine checkup, stable.</Text>
-        <Text style={styles.listItem}>2025-09-01 — Medication adjustment.</Text>
+        <Text style={styles.cardTitle}>Түүх</Text>
+        <Text style={styles.listItem}>2025-10-15 — Ердийн үзлэг, тогтвортой.</Text>
+        <Text style={styles.listItem}>2025-09-01 — Эмийн тун өөрчилсөн.</Text>
       </View>
 
-      <TouchableOpacity style={styles.primary}><Text style={styles.primaryText}>View Reports</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.primary}><Text style={styles.primaryText}>Тайлан харах</Text></TouchableOpacity>
     </ScrollView>
   )
 }

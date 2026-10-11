@@ -10,12 +10,12 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
 
     if (!token) {
-        return res.status(401).json({ error: 'Access token required' })
+        return res.status(401).json({ error: 'Нэвтрэх токен шаардлагатай' })
     }
 
     jwt.verify(token, process.env.JWT_SECRET!, (err: any, user: any) => {
         if (err) {
-            return res.status(403).json({ error: 'Invalid or expired token' })
+            return res.status(403).json({ error: 'Токен хүчингүй эсвэл хугацаа нь дууссан' })
         }
         req.user = user
         next()

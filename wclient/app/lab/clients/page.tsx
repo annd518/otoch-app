@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { label } from "@/lib/labels";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -44,9 +45,9 @@ export default function ClientProfilePage() {
       image: "https://randomuser.me/api/portraits/men/45.jpg",
       report: {
         reportId: "RPT001",
-        summary: "Slightly elevated glucose levels.",
+        summary: "Цусан дахь сахарын хэмжээ бага зэрэг өндөр.",
         findings:
-          "Patient may be pre-diabetic. Recommend dietary control and follow-up test after 3 months.",
+          "Өвчтөн чихрийн шижингийн өмнөх үе шатанд байж магадгүй. Хоол хүнсээ хянаж, 3 сарын дараа дахин шинжилгээ өгөхийг зөвлөж байна.",
         date: "2025-10-31",
       },
     },
@@ -69,7 +70,7 @@ export default function ClientProfilePage() {
   if (!client) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Client not found.
+        Үйлчлүүлэгч олдсонгүй.
       </div>
     );
   }
@@ -94,7 +95,7 @@ export default function ClientProfilePage() {
           />
           <div className="text-center sm:text-left">
             <h1 className="text-3xl font-semibold text-blue-700">{client.name}</h1>
-            <p className="text-sm text-gray-500 mt-1">{client.testType}</p>
+            <p className="text-sm text-gray-500 mt-1">{label(client.testType)}</p>
             <p className="text-xs text-gray-400 mt-1">Client ID: {client.id}</p>
           </div>
         </div>
@@ -107,12 +108,12 @@ export default function ClientProfilePage() {
           className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm mb-8"
         >
           {[
-            { label: "Age", value: client.age },
-            { label: "Gender", value: client.gender },
-            { label: "Blood Pressure", value: client.bloodPressure },
-            { label: "Weight", value: client.weight },
-            { label: "Height", value: client.height },
-            { label: "Location", value: client.location },
+            { label: "Нас", value: client.age },
+            { label: "Хүйс", value: label(client.gender) },
+            { label: "Цусны даралт", value: client.bloodPressure },
+            { label: "Жин", value: client.weight },
+            { label: "Өндөр", value: client.height },
+            { label: "Байршил", value: client.location },
           ].map((item, idx) => (
             <div
               key={idx}
@@ -131,7 +132,7 @@ export default function ClientProfilePage() {
             className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-all hover:scale-105"
           >
             <ClipboardPlus size={18} />
-            Make Report
+            Тайлан гаргах
           </Link>
 
           {client.report && (
@@ -140,7 +141,7 @@ export default function ClientProfilePage() {
               className="inline-flex items-center gap-2 px-5 py-2 rounded-md bg-white text-blue-600 border border-blue-500 hover:bg-blue-50 transition-all hover:scale-105"
             >
               <FileText size={18} />
-              {showReport ? "Hide Report" : "View Report"}
+              {showReport ? "Тайлан нуух" : "Тайлан харах"}
             </button>
           )}
         </div>
@@ -157,17 +158,17 @@ export default function ClientProfilePage() {
             >
               <h2 className="text-lg font-semibold text-blue-700 mb-2 flex items-center gap-2">
                 <FileText size={18} />
-                Report Summary
+                Тайлангийн хураангуй
               </h2>
               <div className="space-y-2 text-sm text-gray-700">
                 <p>
-                  <strong>Date:</strong> {client.report.date}
+                  <strong>Огноо:</strong> {client.report.date}
                 </p>
                 <p>
-                  <strong>Summary:</strong> {client.report.summary}
+                  <strong>Хураангуй:</strong> {client.report.summary}
                 </p>
                 <p>
-                  <strong>Findings:</strong> {client.report.findings}
+                  <strong>Дүгнэлт:</strong> {client.report.findings}
                 </p>
               </div>
             </motion.div>

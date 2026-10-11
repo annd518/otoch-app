@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
+import { label } from '@/lib/labels';
 
 type UserRole = 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN';
 
@@ -20,7 +21,7 @@ export function useRoleProtection(allowedRoles: UserRole[]) {
 
     if (!userToken) {
       // No user data, redirect to login
-      toast.error('Please login to access this page');
+      toast.error('Энэ хуудсыг үзэхийн тулд нэвтэрнэ үү');
       router.push('/auth/login');
       return;
     }
@@ -40,7 +41,7 @@ export function useRoleProtection(allowedRoles: UserRole[]) {
       userData = JSON.parse(jsonPayload);
     } catch (error) {
       console.error('Error decoding user token:', error);
-      toast.error('Invalid session');
+      toast.error('Сесс хүчингүй байна');
       router.push('/auth/login');
       return;
     }
@@ -58,7 +59,7 @@ export function useRoleProtection(allowedRoles: UserRole[]) {
     // Check if user's role is allowed
     if (!allowedRoles.includes(userRole)) {
       console.log('❌ Access denied:', userRole, 'not in', allowedRoles);
-      toast.error(`Access denied. This page is for ${allowedRoles.join(', ')} only.`);
+      toast.error(`Хандах эрхгүй. Энэ хуудас зөвхөн ${allowedRoles.map(label).join(', ')} хэрэглэгчдэд зориулагдсан.`);
       router.push('/dashboard');
     } else {
       console.log('✅ Access granted:', userRole, 'is in', allowedRoles);

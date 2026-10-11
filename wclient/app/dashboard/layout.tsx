@@ -47,7 +47,7 @@ export default function DashboardLayout({
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_token');
 
-    toast.success('Logged out successfully');
+    toast.success('Амжилттай гарлаа');
     router.push('/auth/login');
   };
 
@@ -87,7 +87,7 @@ export default function DashboardLayout({
                     : 'text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                Overview
+                Тойм
               </Link>
               <Link
                 href="/dashboard/nurse"
@@ -97,7 +97,7 @@ export default function DashboardLayout({
                     : 'text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                Paramedic Dashboard
+                Сувилагчийн самбар
               </Link>
               <Link
                 href="/dashboard/medical-admin"
@@ -107,7 +107,7 @@ export default function DashboardLayout({
                     : 'text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                Medical Admin
+                Эмнэлгийн админ
               </Link>
               <Link
                 href="/dashboard/admin"
@@ -117,7 +117,7 @@ export default function DashboardLayout({
                     : 'text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                Admin
+                Админ
               </Link>
             </nav>
 
@@ -140,7 +140,7 @@ export default function DashboardLayout({
                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                   />
                 </svg>
-                Logout
+                Гарах
               </button>
             </div>
           </div>

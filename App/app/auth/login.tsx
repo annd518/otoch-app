@@ -24,7 +24,7 @@ export default function login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields")
+      Alert.alert("Алдаа", "Бүх талбарыг бөглөнө үү")
       return
     }
 
@@ -48,7 +48,7 @@ export default function login() {
           await storage.setUserData(response.data.data.user)
         }
 
-        Alert.alert("Success", "Login successful!", [
+        Alert.alert("Амжилттай", "Амжилттай нэвтэрлээ!", [
           {
             text: "OK",
             onPress: () => router.replace("/(tabs)")
@@ -57,7 +57,7 @@ export default function login() {
       }
     } catch (error: any) {
       console.error("Login Error:", error)
-      const errorMessage = error.response?.data?.message || "Login failed. Please try again."
+      const errorMessage = error.response?.data?.message || "Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу."
       Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
@@ -75,18 +75,18 @@ export default function login() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.title}>Тавтай морил</Text>
             <Text style={styles.subtitle}>
-              Sign in to continue to PariwarCare
+              PariwarCare-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
             </Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>Имэйл хаяг</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your email"
+                placeholder="Имэйлээ оруулна уу"
                 placeholderTextColor="#999"
                 value={email}
                 onChangeText={setEmail}
@@ -97,10 +97,10 @@ export default function login() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
+              <Text style={styles.label}>Нууц үг</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter your password"
+                placeholder="Нууц үгээ оруулна уу"
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={setPassword}
@@ -110,7 +110,7 @@ export default function login() {
             </View>
 
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Text style={styles.forgotPasswordText}>Нууц үгээ мартсан уу?</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -122,21 +122,21 @@ export default function login() {
               disabled={loading}
             >
               <Text style={styles.primaryButtonText}>
-                {loading ? "Signing In..." : "Sign In"}
+                {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
+              <Text style={styles.dividerText}>ЭСВЭЛ</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <View style={styles.registerSection}>
-              <Text style={styles.registerText}>Don't have an account? </Text>
+              <Text style={styles.registerText}>Бүртгэл байхгүй юу? </Text>
               <Link href="/auth/register" asChild>
                 <TouchableOpacity>
-                  <Text style={styles.registerLink}>Sign Up</Text>
+                  <Text style={styles.registerLink}>Бүртгүүлэх</Text>
                 </TouchableOpacity>
               </Link>
             </View>

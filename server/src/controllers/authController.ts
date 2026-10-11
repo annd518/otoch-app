@@ -36,7 +36,7 @@ export const signupController = async (req: Request, res: Response) => {
         const validatedData = signupSchema.safeParse(req.body)
         if (!validatedData.success) {
             res.json({
-                message: "invalid data "
+                message: "Буруу өгөгдөл"
             })
             return
         }
@@ -53,7 +53,7 @@ export const signupController = async (req: Request, res: Response) => {
 
         if (existingUser) {
             res.json({
-                message: "user already exists "
+                message: "Энэ имэйлээр бүртгэл аль хэдийн үүссэн байна"
             })
             return
         }
@@ -81,21 +81,21 @@ export const signupController = async (req: Request, res: Response) => {
 
         res.status(201).json({
             success: true,
-            message: 'User created successfully',
+            message: 'Хэрэглэгч амжилттай бүртгэгдлээ',
             data: { user }
         })
     } catch (error: any) {
         if (error.name === 'ZodError') {
             return res.status(400).json({
                 success: false,
-                message: 'Validation error',
+                message: 'Өгөгдөл шалгахад алдаа гарлаа',
                 errors: error.errors
             })
         }
 
         res.status(400).json({
             success: false,
-            message: error.message || 'Signup failed'
+            message: error.message || 'Бүртгүүлэхэд алдаа гарлаа'
         })
     }
 }
@@ -105,7 +105,7 @@ export const loginController = async (req: Request, res: Response) => {
         const validatedData = loginSchema.safeParse(req.body)
         if (!validatedData.success) {
             res.json({
-                message: "data is invalid"
+                message: "Өгөгдөл буруу байна"
 
             })
             return
@@ -119,7 +119,7 @@ export const loginController = async (req: Request, res: Response) => {
 
         if (!user) {
             res.json({
-                message: "user not found"
+                message: "Хэрэглэгч олдсонгүй"
             })
             return
         }
@@ -129,7 +129,7 @@ export const loginController = async (req: Request, res: Response) => {
 
         if (!isValidPassword) {
             res.json({
-                message: "password not found"
+                message: "Нууц үг буруу байна"
             })
             return
         }
@@ -158,7 +158,7 @@ export const loginController = async (req: Request, res: Response) => {
 
         res.status(200).json({
             success: true,
-            message: 'Login successful',
+            message: 'Амжилттай нэвтэрлээ',
             data: {
                 token: token,
                 user: token
@@ -169,14 +169,14 @@ export const loginController = async (req: Request, res: Response) => {
         if (error.name === 'ZodError') {
             return res.status(400).json({
                 success: false,
-                message: 'Validation error',
+                message: 'Өгөгдөл шалгахад алдаа гарлаа',
                 errors: error.errors
             })
         }
 
         res.status(401).json({
             success: false,
-            message: error.message || 'Login failed'
+            message: error.message || 'Нэвтрэхэд алдаа гарлаа'
         })
         return
     }

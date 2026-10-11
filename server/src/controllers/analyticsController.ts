@@ -25,7 +25,7 @@ export const getParentTrends = async (req: AuthenticatedRequest, res: Response) 
 
         if (!parent) {
             res.json({
-                message: "parent not found or not authorized"
+                message: "Эцэг/эх олдсонгүй эсвэл хандах эрхгүй"
             })
             return
         }
@@ -44,7 +44,7 @@ export const getParentTrends = async (req: AuthenticatedRequest, res: Response) 
 
         res.status(200).json({
             success: true,
-            message: 'Health trends fetched successfully',
+            message: 'Эрүүл мэндийн хандлагыг амжилттай авлаа',
             data: {
                 parentId,
                 period,
@@ -54,7 +54,7 @@ export const getParentTrends = async (req: AuthenticatedRequest, res: Response) 
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to fetch health trends'
+            message: error.message || 'Эрүүл мэндийн хандлагыг авч чадсангүй'
         })
     }
 }

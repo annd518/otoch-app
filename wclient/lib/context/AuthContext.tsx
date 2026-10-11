@@ -83,14 +83,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Set user state (using token as placeholder, you could decode JWT here)
         setUser({ email });
 
-        toast.success(response.message || 'Login successful!');
+        toast.success(response.message || 'Амжилттай нэвтэрлээ!');
 
         // Redirect to dashboard
         router.push('/dashboard');
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Login failed. Please try again.');
+      toast.error(error.message || 'Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -111,14 +111,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await authService.signup({ name, email, password, role });
 
       if (response.success) {
-        toast.success(response.message || 'Account created successfully!');
+        toast.success(response.message || 'Бүртгэл амжилттай үүслээ!');
 
         // Redirect to login
         router.push('/auth/login');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || 'Signup failed. Please try again.');
+      toast.error(error.message || 'Бүртгүүлэхэд алдаа гарлаа. Дахин оролдоно уу.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     Cookies.remove('auth_token');
     Cookies.remove('user_token');
     setUser(null);
-    toast.success('Logged out successfully');
+    toast.success('Амжилттай гарлаа');
     router.push('/auth/login');
   };
 

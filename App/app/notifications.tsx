@@ -2,15 +2,15 @@ import React from 'react'
 import { StyleSheet, View, Text, FlatList } from 'react-native'
 
 const items = [
-  { id: 'n1', text: 'New report uploaded for Anita Sharma', time: '2h' },
-  { id: 'n2', text: 'Appointment assigned with Dr. Patel', time: '1d' },
-  { id: 'n3', text: 'Medication reminder missed', time: '3d' }
+  { id: 'n1', text: 'Анита Шармагийн шинэ тайлан орлоо', time: '2ц' },
+  { id: 'n2', text: 'Эмч Пателтэй цаг товлогдлоо', time: '1ө' },
+  { id: 'n3', text: 'Эм уух сануулга алгассан', time: '3ө' }
 ]
 
 export default function Notifications() {
   return (
     <View style={styles.container}>
-      <Text style={styles.h1}>Notifications</Text>
+      <Text style={styles.h1}>Мэдэгдлүүд</Text>
       <FlatList data={items} keyExtractor={i=>i.id} renderItem={({item})=> (
         <View style={styles.row}>
           <Text>{item.text}</Text>

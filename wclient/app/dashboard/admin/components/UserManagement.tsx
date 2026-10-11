@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { label } from "@/lib/labels"
 
 type User = {
   id: string
@@ -88,7 +89,7 @@ export const UserManagement = () => {
               </svg>
               <input
                 type="text"
-                placeholder="Search users..."
+                placeholder="Хэрэглэгч хайх..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -101,12 +102,12 @@ export const UserManagement = () => {
               }
               className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg shadow-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             >
-              <option value="All">All Roles</option>
-              <option value="Patient">Patient</option>
-              <option value="Nurse">Nurse</option>
-              <option value="Medical Admin">Medical Admin</option>
-              <option value="Child">Child</option>
-              <option value="Admin">Admin</option>
+              <option value="All">Бүх үүрэг</option>
+              <option value="Patient">Өвчтөн</option>
+              <option value="Nurse">Сувилагч</option>
+              <option value="Medical Admin">Эмнэлгийн админ</option>
+              <option value="Child">Хүүхэд</option>
+              <option value="Admin">Админ</option>
             </select>
           </div>
         </div>
@@ -117,22 +118,22 @@ export const UserManagement = () => {
             <thead>
               <tr className="bg-gray-50/50 backdrop-blur-sm">
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Name
+                  Нэр
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Email
+                  Имэйл
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Role
+                  Үүрэг
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Status
+                  Төлөв
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Last Active
+                  Сүүлд идэвхтэй
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                  Actions
+                  Үйлдэл
                 </th>
               </tr>
             </thead>
@@ -153,11 +154,11 @@ export const UserManagement = () => {
                       }
                       className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     >
-                      <option value="Patient">Patient</option>
-                      <option value="Nurse">Nurse</option>
-                      <option value="Medical Admin">Medical Admin</option>
-                      <option value="Child">Child</option>
-                      <option value="Admin">Admin</option>
+                      <option value="Patient">Өвчтөн</option>
+                      <option value="Nurse">Сувилагч</option>
+                      <option value="Medical Admin">Эмнэлгийн админ</option>
+                      <option value="Child">Хүүхэд</option>
+                      <option value="Admin">Админ</option>
                     </select>
                   </td>
                   <td className="px-6 py-4">
@@ -168,7 +169,7 @@ export const UserManagement = () => {
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {user.status}
+                      {label(user.status)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -183,7 +184,7 @@ export const UserManagement = () => {
                           : "bg-green-50 text-green-700 hover:bg-green-100 hover:shadow-sm"
                       }`}
                     >
-                      {user.status === "Active" ? "Suspend" : "Activate"}
+                      {user.status === "Active" ? "Түдгэлзүүлэх" : "Идэвхжүүлэх"}
                     </button>
                   </td>
                 </tr>

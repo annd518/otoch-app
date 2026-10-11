@@ -23,7 +23,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Нүүр",
           tabBarIcon: ({ color, size }) => (
             <Entypo name="home" size={size} color={color} />
           ),
@@ -35,7 +35,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="bookappointment"
         options={{
-          title: " Appointment",
+          title: "Захиалга",
           headerShown: false,
 
           tabBarIcon: ({ color, size }) => (
@@ -47,7 +47,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="add-parent"
         options={{
-          title: "Add Patient",
+          title: "Өвчтөн нэмэх",
           tabBarIcon: ({ color, size }) => (
             <Entypo name="add-user" size={size} color={ color} />
           ),
@@ -59,7 +59,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "Профайл",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-circle-outline" color={color} size={size} />
           ),

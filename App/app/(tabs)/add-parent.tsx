@@ -15,6 +15,10 @@ import axios from "axios"
 import { env } from "@/utils/env"
 import { storage } from "@/utils/storage"
 
+// Display labels only; stored values stay in English
+const GENDER_LABELS: Record<string, string> = { Female: "Эмэгтэй", Male: "Эрэгтэй", Other: "Бусад" }
+const RELATION_LABELS: Record<string, string> = { Mother: "Ээж", Father: "Аав", Self: "Өөрөө" }
+
 export default function AddParent() {
   const router = useRouter()
 
@@ -44,7 +48,7 @@ export default function AddParent() {
 
   const handleSubmit = async () => {
     if (!name || !age || !phone || !address) {
-      Alert.alert("Error", "Please fill in all required fields")
+      Alert.alert("Алдаа", "Заавал бөглөх талбаруудыг бөглөнө үү")
       return
     }
 
@@ -54,7 +58,7 @@ export default function AddParent() {
       const token = await storage.getAuthToken()
 
       if (!token) {
-        Alert.alert("Error", "You must be logged in to add a parent. Please login first.")
+        Alert.alert("Алдаа", "Эцэг/эх нэмэхийн тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү.")
         router.replace("/auth/login")
         return
       }
@@ -83,12 +87,12 @@ export default function AddParent() {
       console.log("Add Parent Response: sucess", response.data)
       console.log("Add Parent Response:", response)
 
-      Alert.alert("Success", "Parent profile added successfully!", [
+      Alert.alert("Амжилттай", "Эцэг/эхийн профайл амжилттай нэмэгдлээ!", [
         { text: "OK", onPress: () => router.back() }
       ])
     } catch (error: any) {
       console.error("Add Parent Error:", error)
-      const errorMessage = error.response?.data?.message || "Failed to add parent. Please try again."
+      const errorMessage = error.response?.data?.message || "Эцэг/эх нэмж чадсангүй. Дахин оролдоно уу."
       Alert.alert("Error", errorMessage)
     } finally {
       setLoading(false)
@@ -98,38 +102,38 @@ export default function AddParent() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Add Parent Profile</Text>
-        <Text style={styles.headerSubtitle}>Enter parent's information below</Text>
+        <Text style={styles.headerTitle}>Эцэг/эхийн профайл нэмэх</Text>
+        <Text style={styles.headerSubtitle}>Доор эцэг/эхийн мэдээллийг оруулна уу</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.sectionTitle}>Basic Information</Text>
+        <Text style={styles.sectionTitle}>Үндсэн мэдээлэл</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Parent's Full Name *</Text>
+          <Text style={styles.label}>Эцэг/эхийн овог нэр *</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Enter full name"
+            placeholder="Овог нэрийг оруулна уу"
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.row}>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Age *</Text>
+            <Text style={styles.label}>Нас *</Text>
             <TextInput
               style={styles.input}
               value={age}
               onChangeText={setAge}
               keyboardType="numeric"
-              placeholder="Age"
+              placeholder="Нас"
               placeholderTextColor="#999"
             />
           </View>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Relation</Text>
+            <Text style={styles.label}>Таны хэн болох</Text>
             <View style={styles.buttonRow}>
               {["Mother", "Father", "Self"].map((r) => (
                 <TouchableOpacity
@@ -147,7 +151,7 @@ export default function AddParent() {
                         : styles.selectText
                     }
                   >
-                    {r}
+                    {RELATION_LABELS[r]}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -156,7 +160,7 @@ export default function AddParent() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Gender</Text>
+          <Text style={styles.label}>Хүйс</Text>
           <View style={styles.buttonRow}>
             {["Female", "Male", "Other"].map((g) => (
               <TouchableOpacity
@@ -172,7 +176,7 @@ export default function AddParent() {
                     gender === g ? styles.selectTextActive : styles.selectText
                   }
                 >
-                  {g}
+                  {GENDER_LABELS[g]}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -180,7 +184,7 @@ export default function AddParent() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contact Number *</Text>
+          <Text style={styles.label}>Утасны дугаар *</Text>
           <TextInput
             style={styles.input}
             value={phone}
@@ -191,59 +195,59 @@ export default function AddParent() {
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Address Details</Text>
+        <Text style={styles.sectionTitle}>Хаягийн мэдээлэл</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Full Address *</Text>
+          <Text style={styles.label}>Бүтэн хаяг *</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={address}
             onChangeText={setAddress}
             multiline
-            placeholder="House no., Street, Area"
+            placeholder="Байр, тоот, гудамж, хороо"
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.row}>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>City</Text>
+            <Text style={styles.label}>Хот</Text>
             <TextInput
               style={styles.input}
               value={city}
               onChangeText={setCity}
-              placeholder="City"
+              placeholder="Хот"
               placeholderTextColor="#999"
             />
           </View>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Pincode</Text>
+            <Text style={styles.label}>Шуудангийн код</Text>
             <TextInput
               style={styles.input}
               value={pincode}
               onChangeText={setPincode}
               keyboardType="numeric"
-              placeholder="Pincode"
+              placeholder="Шуудангийн код"
               placeholderTextColor="#999"
             />
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Emergency Contact</Text>
+        <Text style={styles.sectionTitle}>Яаралтай үед холбогдох</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contact Person Name</Text>
+          <Text style={styles.label}>Холбогдох хүний нэр</Text>
           <TextInput
             style={styles.input}
             value={emergencyName}
             onChangeText={setEmergencyName}
-            placeholder="Full name"
+            placeholder="Овог нэр"
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Contact Person Phone</Text>
+          <Text style={styles.label}>Холбогдох хүний утас</Text>
           <TextInput
             style={styles.input}
             value={emergencyPhone}
@@ -254,10 +258,10 @@ export default function AddParent() {
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Medical Information</Text>
+        <Text style={styles.sectionTitle}>Эрүүл мэндийн мэдээлэл</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Blood Group</Text>
+          <Text style={styles.label}>Цусны бүлэг</Text>
           <View style={styles.buttonRow}>
             {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((bg) => (
               <TouchableOpacity
@@ -283,37 +287,37 @@ export default function AddParent() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Medical History</Text>
+          <Text style={styles.label}>Өвчний түүх</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={medicalHistory}
             onChangeText={setMedicalHistory}
             multiline
-            placeholder="e.g., Diabetes, Hypertension, etc."
+            placeholder="Жишээ нь: чихрийн шижин, даралт ихсэх гэх мэт"
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Current Medications</Text>
+          <Text style={styles.label}>Одоо хэрэглэж буй эм</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={currentMedications}
             onChangeText={setCurrentMedications}
             multiline
-            placeholder="List current medications and dosage"
+            placeholder="Хэрэглэж буй эм болон тунг бичнэ үү"
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Allergies</Text>
+          <Text style={styles.label}>Харшил</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={allergies}
             onChangeText={setAllergies}
             multiline
-            placeholder="Any known allergies"
+            placeholder="Мэдэгдэж буй харшил"
             placeholderTextColor="#999"
           />
         </View>
@@ -324,7 +328,7 @@ export default function AddParent() {
           disabled={loading}
         >
           <Text style={styles.submitButtonText}>
-            {loading ? "Saving..." : "Save Parent Profile"}
+            {loading ? "Хадгалж байна..." : "Эцэг/эхийн профайл хадгалах"}
           </Text>
         </TouchableOpacity>
 
@@ -332,7 +336,7 @@ export default function AddParent() {
           style={styles.cancelButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+          <Text style={styles.cancelButtonText}>Цуцлах</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

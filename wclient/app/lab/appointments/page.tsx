@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { label } from "@/lib/labels";
 import Link from "next/link";
 import { sampleClients, Client } from "@/lib/mockData";
 import { StatusBadge } from "@/components/ui/statusBadge";
@@ -14,7 +15,7 @@ export default function AppointmentsPage() {
   return (
     <main className="min-h-screen bg-[#F5F6F8] p-6">
       <header className="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
-        <h1 className="text-3xl px-45 font-bold text-blue-600">New Appointments</h1>
+        <h1 className="text-3xl px-45 font-bold text-blue-600">Шинэ захиалгууд</h1>
       </header>
 
       <ul className="space-y-4 w-3/4 mx-auto">
@@ -29,11 +30,11 @@ export default function AppointmentsPage() {
                   /> </div>
             <div>
               <div className="font-semibold text-[#2E5C8A]">{client.name}</div>
-              <div className="text-sm text-gray-500">{client.testType} — Age {client.age}</div>
+              <div className="text-sm text-gray-500">{label(client.testType)} — Нас {client.age}</div>
             </div></div>
             
               <Link href={`/lab/clients/${client.id}`} className="text-blue-600 hover:underline text-sm font-medium">
-                View
+                Харах
               </Link>
            
           </li>

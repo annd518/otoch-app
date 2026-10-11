@@ -17,22 +17,22 @@ const DashboardCard = ({ title, description, href }: {
 export default function DashboardPage() {
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-8">Welcome to Healthcare Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8">Эрүүл мэндийн хянах самбарт тавтай морил</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <DashboardCard
-          title="Paramedic Dashboard"
-          description="View assigned visits, submit vitals, and manage patient care activities."
+          title="Сувилагчийн самбар"
+          description="Томилогдсон үзлэгүүдээ харж, амин үзүүлэлт илгээн, өвчтөний асаргааг удирдах."
           href="/dashboard/nurse"
         />
         <DashboardCard
-          title="Medical Admin Dashboard"
-          description="Review and approve reports, manage medical records, and oversee care quality."
+          title="Эмнэлгийн админы самбар"
+          description="Тайлан хянаж батлах, эмнэлгийн бүртгэл удирдах, асаргааны чанарыг хянах."
           href="/dashboard/medical-admin"
         />
         <DashboardCard
-          title="Admin Dashboard"
-          description="Manage users, assign nurses, and view platform analytics."
+          title="Админы самбар"
+          description="Хэрэглэгч удирдах, сувилагч томилох, платформын статистик харах."
           href="/dashboard/admin"
         />
       </div>

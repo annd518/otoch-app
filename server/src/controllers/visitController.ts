@@ -36,7 +36,7 @@ export const scheduleVisit = async (req: AuthenticatedRequest, res: Response) =>
         const validatedData = visitSchema.safeParse(req.body)
         if (!validatedData.success) {
             res.json({
-                message: "invalid data"
+                message: "Буруу өгөгдөл"
             })
             return
         }
@@ -55,7 +55,7 @@ export const scheduleVisit = async (req: AuthenticatedRequest, res: Response) =>
 
         if (!parent) {
             res.json({
-                message: "parent not found or not authorized"
+                message: "Эцэг/эх олдсонгүй эсвэл хандах эрхгүй"
             })
             return
         }
@@ -79,13 +79,13 @@ export const scheduleVisit = async (req: AuthenticatedRequest, res: Response) =>
 
         res.status(201).json({
             success: true,
-            message: 'Visit scheduled successfully',
+            message: 'Үзлэг амжилттай товлогдлоо',
             data: { visit }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to schedule visit'
+            message: error.message || 'Үзлэг товлож чадсангүй'
         })
     }
 }
@@ -134,13 +134,13 @@ export const getChildVisits = async (req: AuthenticatedRequest, res: Response) =
 
         res.status(200).json({
             success: true,
-            message: 'Visits retrieved successfully',
+            message: 'Үзлэгүүдийг амжилттай авлаа',
             data: { visits }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to get visits'
+            message: error.message || 'Үзлэгүүдийг авч чадсангүй'
         })
     }
 }
@@ -161,13 +161,13 @@ export const getNurses = async (req: Request, res: Response) => {
 
         res.status(200).json({
             success: true,
-            message: 'Nurses retrieved successfully',
+            message: 'Сувилагчдын жагсаалтыг амжилттай авлаа',
             data: { nurses }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to get nurses'
+            message: error.message || 'Сувилагчдын жагсаалтыг авч чадсангүй'
         })
     }
 }
@@ -180,7 +180,7 @@ export const assignNurseToVisit = async (req: Request, res: Response) => {
         
         if (!validatedData.success) {
             res.json({
-                message: "invalid data"
+                message: "Буруу өгөгдөл"
             })
             return
         }
@@ -194,7 +194,7 @@ export const assignNurseToVisit = async (req: Request, res: Response) => {
 
         if (!visit) {
             res.json({
-                message: "visit not found"
+                message: "Үзлэг олдсонгүй"
             })
             return
         }
@@ -209,7 +209,7 @@ export const assignNurseToVisit = async (req: Request, res: Response) => {
 
         if (!nurse) {
             res.json({
-                message: "nurse not found"
+                message: "Сувилагч олдсонгүй"
             })
             return
         }
@@ -239,13 +239,13 @@ export const assignNurseToVisit = async (req: Request, res: Response) => {
 
         res.status(200).json({
             success: true,
-            message: 'Nurse assigned successfully',
+            message: 'Сувилагч амжилттай томилогдлоо',
             data: { visit: updatedVisit }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to assign nurse'
+            message: error.message || 'Сувилагч томилж чадсангүй'
         })
     }
 }
@@ -276,13 +276,13 @@ export const getNurseVisits = async (req: AuthenticatedRequest, res: Response) =
 
         res.status(200).json({
             success: true,
-            message: 'Nurse visits retrieved successfully',
+            message: 'Сувилагчийн үзлэгүүдийг амжилттай авлаа',
             data: { visits }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to get nurse visits'
+            message: error.message || 'Сувилагчийн үзлэгүүдийг авч чадсангүй'
         })
     }
 }
@@ -302,7 +302,7 @@ export const startVisit = async (req: AuthenticatedRequest, res: Response) => {
 
         if (!visit) {
             res.json({
-                message: "visit not found or not assigned to you"
+                message: "Үзлэг олдсонгүй эсвэл танд томилогдоогүй байна"
             })
             return
         }
@@ -314,13 +314,13 @@ export const startVisit = async (req: AuthenticatedRequest, res: Response) => {
 
         res.status(200).json({
             success: true,
-            message: 'Visit started successfully',
+            message: 'Үзлэг амжилттай эхэллээ',
             data: { visit: updatedVisit }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to start visit'
+            message: error.message || 'Үзлэг эхлүүлж чадсангүй'
         })
     }
 }
@@ -334,7 +334,7 @@ export const submitVitals = async (req: AuthenticatedRequest, res: Response) => 
         if (!validatedData.success) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid vitals payload',
+                message: 'Амин үзүүлэлтийн өгөгдөл буруу байна',
                 errors: validatedData.error.format()
             })
         }
@@ -350,14 +350,14 @@ export const submitVitals = async (req: AuthenticatedRequest, res: Response) => 
         if (!visit) {
             return res.status(404).json({
                 success: false,
-                message: 'Visit not found or not assigned to you'
+                message: 'Үзлэг олдсонгүй эсвэл танд томилогдоогүй байна'
             })
         }
 
         if (visit.status !== 'STARTED' && visit.status !== 'ASSIGNED') {
             return res.status(400).json({
                 success: false,
-                message: `Visit must be STARTED to submit vitals. Current status: ${visit.status}`
+                message: `Амин үзүүлэлт илгээхийн тулд үзлэг STARTED төлөвтэй байх ёстой. Одоогийн төлөв: ${visit.status}`
             })
         }
 
@@ -391,14 +391,14 @@ export const submitVitals = async (req: AuthenticatedRequest, res: Response) => 
 
         return res.status(200).json({
             success: true,
-            message: 'Vitals submitted and sent for medical review',
+            message: 'Амин үзүүлэлт илгээгдэж, эмнэлгийн хяналтад шилжлээ',
             data: { visit: updatedVisit, vitals }
         })
     } catch (error: any) {
         console.error(error)
         return res.status(500).json({
             success: false,
-            message: error.message || 'Failed to submit vitals'
+            message: error.message || 'Амин үзүүлэлт илгээж чадсангүй'
         })
     }
 }
@@ -418,7 +418,7 @@ export const completeVisit = async (req: AuthenticatedRequest, res: Response) =>
 
         if (!visit) {
             res.json({
-                message: "visit not found or not started"
+                message: "Үзлэг олдсонгүй эсвэл эхлээгүй байна"
             })
             return
         }
@@ -446,13 +446,13 @@ export const completeVisit = async (req: AuthenticatedRequest, res: Response) =>
 
         res.status(200).json({
             success: true,
-            message: 'Visit completed successfully',
+            message: 'Үзлэг амжилттай дууслаа',
             data: { visit: updatedVisit }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to complete visit'
+            message: error.message || 'Үзлэгийг дуусгаж чадсангүй'
         })
     }
 }

@@ -29,6 +29,9 @@ interface Parent {
   emergencyContact: string
 }
 
+// Display labels only; stored values stay in English
+const GENDER_LABELS: Record<string, string> = { Female: "Эмэгтэй", Male: "Эрэгтэй", Other: "Бусад" }
+
 export default function BookAppointment() {
   const router = useRouter()
 
@@ -47,19 +50,19 @@ export default function BookAppointment() {
   const [promoCode, setPromoCode] = useState("")
 
   const services = [
-    { id: "checkup", name: "Regular Health Checkup", icon: "medkit-outline", price: "रू 500" },
-    { id: "diagnostic", name: "Diagnostic Test", icon: "flask-outline", price: "रू 800" },
-    { id: "physio", name: "Physiotherapy Session", icon: "fitness-outline", price: "रू 1200" },
-    { id: "post-surgery", name: "Post-Surgery Care", icon: "bandage-outline", price: "रू 1500" },
-    { id: "chronic", name: "Chronic Care", icon: "pulse-outline", price: "रू 600" },
-    { id: "custom", name: "Custom / Other", icon: "add-circle-outline", price: "Contact" },
+    { id: "checkup", name: "Эрүүл мэндийн ердийн үзлэг", icon: "medkit-outline", price: "रू 500" },
+    { id: "diagnostic", name: "Оношилгооны шинжилгээ", icon: "flask-outline", price: "रू 800" },
+    { id: "physio", name: "Физик эмчилгээ", icon: "fitness-outline", price: "रू 1200" },
+    { id: "post-surgery", name: "Мэс заслын дараах асаргаа", icon: "bandage-outline", price: "रू 1500" },
+    { id: "chronic", name: "Архаг өвчний асаргаа", icon: "pulse-outline", price: "रू 600" },
+    { id: "custom", name: "Бусад", icon: "add-circle-outline", price: "Холбогдох" },
   ]
 
-  const timeSlots = ["9-11 AM", "11-1 PM", "1-3 PM", "3-5 PM", "5-7 PM"]
+  const timeSlots = ["09:00-11:00", "11:00-13:00", "13:00-15:00", "15:00-17:00", "17:00-19:00"]
   const repeatOptions = [
-    { value: "one-time", label: "One-time" },
-    { value: "weekly", label: "Weekly" },
-    { value: "monthly", label: "Monthly" },
+    { value: "one-time", label: "Нэг удаа" },
+    { value: "weekly", label: "Долоо хоног бүр" },
+    { value: "monthly", label: "Сар бүр" },
   ]
 
   // Fetch parents from API
@@ -70,7 +73,7 @@ export default function BookAppointment() {
       const token = await storage.getAuthToken()
 
       if (!token) {
-        Alert.alert("Error", "You must be logged in to book an appointment. Please login first.")
+        Alert.alert("Алдаа", "Цаг захиалахын тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү.")
         router.replace("/auth/login")
         return
       }
@@ -90,7 +93,7 @@ export default function BookAppointment() {
       }
     } catch (error: any) {
       console.error("Error while getting parents:", error)
-      const errorMessage = error.response?.data?.message || "Failed to fetch parents. Please try again."
+      const errorMessage = error.response?.data?.message || "Эцэг эхийн мэдээллийг авч чадсангүй. Дахин оролдоно уу."
       Alert.alert("Error", errorMessage)
     } finally {
       setLoadingParents(false)
@@ -111,8 +114,8 @@ export default function BookAppointment() {
 
       if (!token) {
         Alert.alert(
-          "Error",
-          "You must be logged in to book an appointment. Please login first."
+          "Алдаа",
+          "Цаг захиалахын тулд нэвтэрсэн байх шаардлагатай. Эхлээд нэвтэрнэ үү."
         )
         router.replace("/auth/login")
         return false
@@ -138,8 +141,8 @@ export default function BookAppointment() {
       // Show success message
       const selectedParent = parents.find((p) => p.id === parentId)
       Alert.alert(
-        "Appointment Confirmed! ✅",
-        `Appointment booked successfully!\n\nPatient: ${selectedParent?.name}\nDate: ${appointmentDate}\nTime: ${timeSlot}\n\nA nurse will be assigned shortly.`,
+        "Захиалга баталгаажлаа! ✅",
+        `Цаг амжилттай захиалагдлаа!\n\nӨвчтөн: ${selectedParent?.name}\nОгноо: ${appointmentDate}\nЦаг: ${timeSlot}\n\nСувилагч удахгүй томилогдоно.`,
         [
           {
             text: "OK",
@@ -156,7 +159,7 @@ export default function BookAppointment() {
       console.error("Error while creating book appointment:", error)
       const errorMessage =
         error.response?.data?.message ||
-        "Failed to book appointment. Please try again."
+        "Цаг захиалж чадсангүй. Дахин оролдоно уу."
       Alert.alert("Error", errorMessage)
       return false
     }
@@ -193,22 +196,22 @@ export default function BookAppointment() {
         console.log("Book appoinment button clicked ")
     // Validation
     if (!selectedPatient) {
-      Alert.alert("Missing Information", "Please select a patient")
+      Alert.alert("Мэдээлэл дутуу", "Өвчтөнөө сонгоно уу")
       return
     }
 
     if (!selectedService) {
-      Alert.alert("Missing Information", "Please select a service type")
+      Alert.alert("Мэдээлэл дутуу", "Үйлчилгээний төрлөө сонгоно уу")
       return
     }
 
     if (!appointmentDate) {
-      Alert.alert("Missing Information", "Please select an appointment date")
+      Alert.alert("Мэдээлэл дутуу", "Захиалгын огноогоо сонгоно уу")
       return
     }
 
     if (!timeSlot) {
-      Alert.alert("Missing Information", "Please select a time slot")
+      Alert.alert("Мэдээлэл дутуу", "Цагаа сонгоно уу")
       return
     }
 
@@ -216,8 +219,8 @@ export default function BookAppointment() {
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/
     if (!dateRegex.test(appointmentDate)) {
       Alert.alert(
-        "Invalid Date",
-        "Please enter date in YYYY-MM-DD format (e.g., 2024-01-15)"
+        "Огноо буруу",
+        "Огноог YYYY-MM-DD хэлбэрээр оруулна уу (жишээ нь: 2024-01-15)"
       )
       return
     }
@@ -228,7 +231,7 @@ export default function BookAppointment() {
     today.setHours(0, 0, 0, 0)
 
     if (selectedDate < today) {
-      Alert.alert("Invalid Date", "Please select a future date")
+      Alert.alert("Огноо буруу", "Ирээдүйн огноо сонгоно уу")
       return
     }
 
@@ -245,7 +248,7 @@ console.log("working on booking data")
         console.log("Appointment Booking Data:", data)
     } catch (error) {
       console.error("Error in handleSubmit:", error)
-      Alert.alert("Error", "An unexpected error occurred. Please try again.")
+      Alert.alert("Алдаа", "Гэнэтийн алдаа гарлаа. Дахин оролдоно уу.")
     } finally {
       setLoading(false)
     }
@@ -256,9 +259,9 @@ console.log("working on booking data")
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Book Appointment</Text>
+        <Text style={styles.headerTitle}>Цаг захиалах</Text>
         <Text style={styles.headerSubtitle}>
-          Schedule a home visit for your parents
+          Эцэг эхдээ гэрийн үзлэг захиалаарай
         </Text>
       </View>
 
@@ -268,25 +271,25 @@ console.log("working on booking data")
       >
         {/* 1. Select Patient */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Select Patient</Text>
+          <Text style={styles.sectionTitle}>1. Өвчтөн сонгох</Text>
 
           {loadingParents ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#2f80ed" />
-              <Text style={styles.loadingText}>Loading parents...</Text>
+              <Text style={styles.loadingText}>Эцэг эхийн мэдээллийг ачаалж байна...</Text>
             </View>
           ) : parents.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="people-outline" size={48} color="#999" />
-              <Text style={styles.emptyText}>No parents added yet</Text>
+              <Text style={styles.emptyText}>Одоогоор эцэг/эх нэмээгүй байна</Text>
               <Text style={styles.emptySubtext}>
-                Please add a parent profile first
+                Эхлээд эцэг/эхийн профайл нэмнэ үү
               </Text>
               <TouchableOpacity
                 style={styles.addParentBtn}
                 onPress={() => router.push("/(tabs)/add-parent")}
               >
-                <Text style={styles.addParentBtnText}>Add Parent</Text>
+                <Text style={styles.addParentBtnText}>Эцэг/эх нэмэх</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -308,7 +311,7 @@ console.log("working on booking data")
                   <View style={styles.patientDetails}>
                     <Text style={styles.patientName}>{patient.name}</Text>
                     <Text style={styles.patientAge}>
-                      {patient.age} yrs • {patient.gender}
+                      {patient.age} нас • {GENDER_LABELS[patient.gender] ?? patient.gender}
                     </Text>
                   </View>
                 </View>
@@ -322,7 +325,7 @@ console.log("working on booking data")
 
         {/* 2. Service Type */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Service Type</Text>
+          <Text style={styles.sectionTitle}>2. Үйлчилгээний төрөл</Text>
           <View style={styles.servicesGrid}>
             {services.map((service) => (
               <TouchableOpacity
@@ -347,10 +350,10 @@ console.log("working on booking data")
 
         {/* 3. Appointment Details */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. Appointment Details</Text>
+          <Text style={styles.sectionTitle}>3. Захиалгын дэлгэрэнгүй</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Preferred Date *</Text>
+            <Text style={styles.label}>Хүссэн огноо *</Text>
             <TextInput
               style={styles.input}
               value={appointmentDate}
@@ -361,7 +364,7 @@ console.log("working on booking data")
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Preferred Time Slot *</Text>
+            <Text style={styles.label}>Хүссэн цаг *</Text>
             <View style={styles.timeSlotContainer}>
               {timeSlots.map((slot) => (
                 <TouchableOpacity
@@ -387,7 +390,7 @@ console.log("working on booking data")
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Repeat Schedule</Text>
+            <Text style={styles.label}>Давтамж</Text>
             <View style={styles.repeatContainer}>
               {repeatOptions.map((option) => (
                 <TouchableOpacity
@@ -415,7 +418,7 @@ console.log("working on booking data")
 
         {/* 4. Location */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Location</Text>
+          <Text style={styles.sectionTitle}>4. Байршил</Text>
 
           <MapView style={styles.map} />
 
@@ -425,18 +428,18 @@ console.log("working on booking data")
           </View>
           <TouchableOpacity style={styles.editLocationBtn}>
             <Ionicons name="map-outline" size={16} color="#2f80ed" />
-            <Text style={styles.editLocationText}>Edit on Map</Text>
+            <Text style={styles.editLocationText}>Газрын зураг дээр засах</Text>
           </TouchableOpacity>
         </View>
 
         {/* 5. Special Instructions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Special Instructions</Text>
+          <Text style={styles.sectionTitle}>5. Нэмэлт заавар</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={specialInstructions}
             onChangeText={setSpecialInstructions}
-            placeholder="E.g., Parent has mobility issues, Call 10 mins before arrival"
+            placeholder="Жишээ нь: Хөдөлгөөний хязгаарлалттай, ирэхээс 10 минутын өмнө залгана уу"
             placeholderTextColor="#999"
             multiline
           />
@@ -445,13 +448,13 @@ console.log("working on booking data")
         {/* 6. Nurse Preference */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            6. Nurse Preference (Optional)
+            6. Сувилагчийн сонголт (заавал биш)
           </Text>
           <View style={styles.nursePreference}>
             {[
-              { value: "any", label: "Any" },
-              { value: "female", label: "Female" },
-              { value: "male", label: "Male" },
+              { value: "any", label: "Хамаагүй" },
+              { value: "female", label: "Эмэгтэй" },
+              { value: "male", label: "Эрэгтэй" },
             ].map((pref) => (
               <TouchableOpacity
                 key={pref.value}
@@ -477,47 +480,47 @@ console.log("working on booking data")
 
         {/* 7. Payment Summary */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Payment Summary</Text>
+          <Text style={styles.sectionTitle}>7. Төлбөрийн хураангуй</Text>
           <View style={styles.paymentCard}>
             <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Service Charge:</Text>
+              <Text style={styles.paymentLabel}>Үйлчилгээний төлбөр:</Text>
               <Text style={styles.paymentValue}>रू 800</Text>
             </View>
             <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Travel Fee:</Text>
+              <Text style={styles.paymentLabel}>Унааны зардал:</Text>
               <Text style={styles.paymentValue}>रू 150</Text>
             </View>
             <View style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>Discount:</Text>
+              <Text style={styles.paymentLabel}>Хөнгөлөлт:</Text>
               <Text style={[styles.paymentValue, { color: "#4caf50" }]}>
                 - रू 100
               </Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.paymentRow}>
-              <Text style={styles.paymentTotal}>Total:</Text>
+              <Text style={styles.paymentTotal}>Нийт:</Text>
               <Text style={styles.paymentTotal}>रू 850</Text>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Promo Code</Text>
+            <Text style={styles.label}>Промо код</Text>
             <View style={styles.promoContainer}>
               <TextInput
                 style={[styles.input, styles.promoInput]}
                 value={promoCode}
                 onChangeText={setPromoCode}
-                placeholder="Enter code"
+                placeholder="Код оруулах"
                 placeholderTextColor="#999"
               />
               <TouchableOpacity style={styles.applyBtn}>
-                <Text style={styles.applyBtnText}>Apply</Text>
+                <Text style={styles.applyBtnText}>Ашиглах</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.paymentMethods}>
-            <Text style={styles.label}>Payment Method</Text>
+            <Text style={styles.label}>Төлбөрийн хэрэгсэл</Text>
             <View style={styles.paymentMethodsRow}>
               <TouchableOpacity style={styles.paymentMethodBtn}>
                 <Text style={styles.paymentMethodText}>eSewa</Text>
@@ -526,7 +529,7 @@ console.log("working on booking data")
                 <Text style={styles.paymentMethodText}>Khalti</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.paymentMethodBtn}>
-                <Text style={styles.paymentMethodText}>Card</Text>
+                <Text style={styles.paymentMethodText}>Карт</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -539,7 +542,7 @@ console.log("working on booking data")
           disabled={loading}
         >
           <Text style={styles.submitButtonText}>
-            {loading ? "Booking Appointment..." : "Confirm Appointment"}
+            {loading ? "Захиалж байна..." : "Захиалга баталгаажуулах"}
           </Text>
         </TouchableOpacity>
       </ScrollView>

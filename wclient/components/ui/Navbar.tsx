@@ -8,7 +8,7 @@ const Navbar = () => {
         <ul>
             <li>
             <Button>
-                Login
+                Нэвтрэх
             </Button></li>
             
 

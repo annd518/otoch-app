@@ -48,34 +48,34 @@ export default function ProfileScreen() {
             <View style={styles.iconContainer}>
               <Ionicons name="people-outline" size={24} color="#2f80ed" />
             </View>
-            <Text style={styles.actionText}>My Parents</Text>
+            <Text style={styles.actionText}>Миний эцэг эх</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionCard}>
             <View style={styles.iconContainer}>
               <Ionicons name="calendar-outline" size={24} color="#2f80ed" />
             </View>
-            <Text style={styles.actionText}>Appointments</Text>
+            <Text style={styles.actionText}>Захиалгууд</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.actionCard}>
             <View style={styles.iconContainer}>
               <Ionicons name="document-text-outline" size={24} color="#2f80ed" />
             </View>
-            <Text style={styles.actionText}>Reports</Text>
+            <Text style={styles.actionText}>Тайлан</Text>
           </TouchableOpacity>
         </View>
 
         {/* Account Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account Settings</Text>
+          <Text style={styles.sectionTitle}>Бүртгэлийн тохиргоо</Text>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuLeft}>
               <View style={[styles.menuIcon, { backgroundColor: "#e3f2fd" }]}>
                 <Ionicons name="card-outline" size={20} color="#2f80ed" />
               </View>
-              <Text style={styles.menuText}>Payment Methods</Text>
+              <Text style={styles.menuText}>Төлбөрийн хэрэгсэл</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
               <View style={[styles.menuIcon, { backgroundColor: "#e8f5e9" }]}>
                 <Ionicons name="location-outline" size={20} color="#4caf50" />
               </View>
-              <Text style={styles.menuText}>Address</Text>
+              <Text style={styles.menuText}>Хаяг</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -95,7 +95,7 @@ export default function ProfileScreen() {
               <View style={[styles.menuIcon, { backgroundColor: "#fff3e0" }]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#ff9800" />
               </View>
-              <Text style={styles.menuText}>Security & Password</Text>
+              <Text style={styles.menuText}>Аюулгүй байдал ба нууц үг</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -103,14 +103,14 @@ export default function ProfileScreen() {
 
         {/* Help & Info */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Help & Info</Text>
+          <Text style={styles.sectionTitle}>Тусламж ба мэдээлэл</Text>
 
           <TouchableOpacity style={styles.menuItem}>
             <View style={styles.menuLeft}>
               <View style={[styles.menuIcon, { backgroundColor: "#f3e5f5" }]}>
                 <Ionicons name="help-circle-outline" size={20} color="#9c27b0" />
               </View>
-              <Text style={styles.menuText}>Help & Support</Text>
+              <Text style={styles.menuText}>Тусламж ба дэмжлэг</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -120,7 +120,7 @@ export default function ProfileScreen() {
               <View style={[styles.menuIcon, { backgroundColor: "#e0f2f1" }]}>
                 <Ionicons name="shield-checkmark-outline" size={20} color="#009688" />
               </View>
-              <Text style={styles.menuText}>Privacy Policy</Text>
+              <Text style={styles.menuText}>Нууцлалын бодлого</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -130,7 +130,7 @@ export default function ProfileScreen() {
               <View style={[styles.menuIcon, { backgroundColor: "#e3f2fd" }]}>
                 <Ionicons name="information-circle-outline" size={20} color="#2196f3" />
               </View>
-              <Text style={styles.menuText}>About App</Text>
+              <Text style={styles.menuText}>Аппын тухай</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -138,7 +138,7 @@ export default function ProfileScreen() {
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Log Out</Text>
+          <Text style={styles.logoutText}>Гарах</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

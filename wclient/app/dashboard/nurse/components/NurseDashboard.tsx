@@ -15,8 +15,8 @@ export default function NurseDashboard() {
         <div className="mb-8 relative">
           <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-2xl" />
           <div className="relative p-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Paramedic Dashboard</h1>
-            <p className="text-gray-600">Track your visits and daily tasks</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Сувилагчийн самбар</h1>
+            <p className="text-gray-600">Үзлэг болон өдөр тутмын ажлаа хянах</p>
           </div>
         </div>
 
@@ -33,7 +33,7 @@ export default function NurseDashboard() {
           <div className="mb-4 relative">
             <div className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-white/80 backdrop-blur-sm rounded-xl" />
             <div className="relative px-6 py-3">
-              <h2 className="text-xl font-semibold text-gray-800">Assigned Visits</h2>
+              <h2 className="text-xl font-semibold text-gray-800">Томилогдсон үзлэгүүд</h2>
             </div>
           </div>
           <div className="relative">

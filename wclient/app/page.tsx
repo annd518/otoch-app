@@ -84,19 +84,19 @@ export default function Home() {
                 href="#solution"
                 className="text-gray-700 hover:text-blue-600 transition"
               >
-                Solution
+                Шийдэл
               </a>
               <a
                 href="#impact"
                 className="text-gray-700 hover:text-blue-600 transition"
               >
-                Impact
+                Нөлөө
               </a>
               <a
                 href="#pricing"
                 className="text-gray-700 hover:text-blue-600 transition"
               >
-                Pricing
+                Үнэ
               </a>
             </div>
             <div className="flex items-center space-x-4">
@@ -104,13 +104,13 @@ export default function Home() {
                 href="/auth/login"
                 className="text-blue-600 hover:text-blue-700 font-medium transition"
               >
-                Sign In
+                Нэвтрэх
               </Link>
               <Link
                 href="/auth/register"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                Get Started
+                Эхлэх
               </Link>
             </div>
           </div>
@@ -138,15 +138,15 @@ export default function Home() {
               </div> */}
 
               <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                Care That Connects{" "}
+                Холбож өгөх асаргаа{" "}
                 <span className="block text-blue-600 mt-2">
-                  When Distance Grows
+                  Зай холдох тусам
                 </span>
               </h1>
 
               <p className="text-xl text-gray-600 mb-8">
-                Professional healthcare monitoring for parents in Nepal. Managed
-                from anywhere.
+                Эцэг эхийн эрүүл мэндийг мэргэжлийн түвшинд хянах үйлчилгээ.
+                Хаанаас ч удирдах боломжтой.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -154,22 +154,22 @@ export default function Home() {
                   href="/auth/register"
                   className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transform hover:scale-105 transition-all duration-300 text-center font-semibold shadow-xl hover:shadow-2xl"
                 >
-                  Start Caring Today
+                  Өнөөдөр асарч эхлээрэй
                 </Link>
                 <a
                   href="#solution"
                   className="border-2 border-blue-600 text-blue-600 px-8 py-4 rounded-lg hover:bg-blue-50 transform hover:scale-105 transition-all duration-300 text-center font-semibold"
                 >
-                  See How
+                  Хэрхэн ажилладаг вэ
                 </a>
               </div>
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { value: "₹5K", label: "per month" },
-                  { value: "45min", label: "home visits" },
-                  { value: "24/7", label: "monitoring" },
+                  { value: "₹5K", label: "сард" },
+                  { value: "45min", label: "гэрийн үзлэг" },
+                  { value: "24/7", label: "хяналт" },
                 ].map((stat, i) => (
                   <div
                     key={i}
@@ -208,26 +208,26 @@ export default function Home() {
                         </svg>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-500">Last Visit</div>
+                        <div className="text-sm text-gray-500">Сүүлийн үзлэг</div>
                         <div className="font-semibold text-gray-900">
-                          2 days ago
+                          2 өдрийн өмнө
                         </div>
                       </div>
                     </div>
                     <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                      Healthy
+                      Эрүүл
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     {[
                       {
-                        label: "Blood Pressure",
+                        label: "Цусны даралт",
                         value: "120/80",
                         status: "good",
                       },
-                      { label: "Blood Sugar", value: "Normal", status: "good" },
-                      { label: "Heart Rate", value: "72 bpm", status: "good" },
+                      { label: "Цусан дахь сахар", value: "Хэвийн", status: "good" },
+                      { label: "Зүрхний цохилт", value: "72 цохилт/мин", status: "good" },
                     ].map((item, i) => (
                       <div
                         key={i}
@@ -249,7 +249,7 @@ export default function Home() {
                   </div>
 
                   <div className="mt-6 p-4 bg-blue-600 text-white rounded-lg text-center font-semibold">
-                    Next Visit: In 5 days
+                    Дараагийн үзлэг: 5 өдрийн дараа
                   </div>
                 </div>
 
@@ -270,10 +270,10 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              The Crisis
+              Хямрал
             </h2>
             <p className="text-xl text-gray-600">
-              2M+ Nepalese abroad. 2.5M parents alone.
+              Гадаадад 2 сая гаруй иргэн. 2.5 сая эцэг эх ганцаараа.
             </p>
           </div>
 
@@ -282,32 +282,32 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition"></div>
               <div className="relative bg-white border-2 border-red-200 rounded-2xl p-8 hover:border-red-400 transition-all duration-300">
                 <h3 className="text-3xl font-bold text-red-900 mb-6">
-                  The Problem
+                  Асуудал
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">😔</div>
                     <p className="text-lg text-gray-700">
-                      "I'm fine" - 75% hide illness
+                      "Би зүгээр" - 75% нь өвчнөө нуудаг
                     </p>
                   </div>
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">⚠️</div>
                     <p className="text-lg text-gray-700">
-                      40% diseases found too late
+                      Өвчний 40% нь хэтэрхий оройтож илэрдэг
                     </p>
                   </div>
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">💔</div>
                     <p className="text-lg text-gray-700">
-                      Avoid hospitals until emergency
+                      Яаралтай байдал үүсэх хүртэл эмнэлэгт очдоггүй
                     </p>
                   </div>
                 </div>
                 <div className="mt-6 text-4xl font-bold text-red-600">
                   ₹800K
                 </div>
-                <div className="text-red-700">Emergency cost</div>
+                <div className="text-red-700">Яаралтай тусламжийн зардал</div>
               </div>
             </div>
 
@@ -315,26 +315,26 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition"></div>
               <div className="relative bg-white border-2 border-blue-200 rounded-2xl p-8 hover:border-blue-400 transition-all duration-300">
                 <h3 className="text-3xl font-bold text-blue-900 mb-6">
-                  The Solution
+                  Шийдэл
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">🏠</div>
-                    <p className="text-lg text-gray-700">Monthly home visits</p>
+                    <p className="text-lg text-gray-700">Сар бүрийн гэрийн үзлэг</p>
                   </div>
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">👩‍⚕️</div>
-                    <p className="text-lg text-gray-700">Same trusted nurse</p>
+                    <p className="text-lg text-gray-700">Итгэлтэй нэг сувилагч</p>
                   </div>
                   <div className="flex items-start space-x-3">
                     <div className="text-3xl">📱</div>
                     <p className="text-lg text-gray-700">
-                      Real-time alerts to you
+                      Танд бодит цагийн мэдэгдэл
                     </p>
                   </div>
                 </div>
                 <div className="mt-6 text-4xl font-bold text-blue-600">₹5K</div>
-                <div className="text-blue-700">Prevention /month</div>
+                <div className="text-blue-700">Урьдчилан сэргийлэлт /сар</div>
               </div>
             </div>
           </div>
@@ -349,10 +349,10 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              How It Works
+              Хэрхэн ажилладаг вэ
             </h2>
             <p className="text-xl text-gray-600">
-              Three perspectives. One solution.
+              Гурван өнцөг. Нэг шийдэл.
             </p>
           </div>
 
@@ -360,9 +360,9 @@ export default function Home() {
           <div className="flex justify-center mb-8 scroll-animate">
             <div className="inline-flex bg-white rounded-xl shadow-lg p-2">
               {[
-                { id: "children", label: "For You", icon: "📱" },
-                { id: "parents", label: "For Parents", icon: "👴" },
-                { id: "system", label: "For Nepal", icon: "🏥" },
+                { id: "children", label: "Танд", icon: "📱" },
+                { id: "parents", label: "Эцэг эхэд", icon: "👴" },
+                { id: "system", label: "Улс оронд", icon: "🏥" },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -385,29 +385,29 @@ export default function Home() {
             {activeTab === "children" && (
               <div className="animate-fadeInUp">
                 <h3 className="text-3xl font-bold text-blue-900 mb-6">
-                  Your Control Center
+                  Таны хяналтын төв
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   {[
                     {
                       icon: "📊",
-                      title: "Real-time Dashboard",
-                      desc: "Track health trends instantly",
+                      title: "Бодит цагийн самбар",
+                      desc: "Эрүүл мэндийн хандлагыг шууд хянах",
                     },
                     {
                       icon: "🚨",
-                      title: "Instant Alerts",
-                      desc: "Know when something's wrong",
+                      title: "Шуурхай мэдэгдэл",
+                      desc: "Ямар нэг зүйл буруу бол шууд мэдэх",
                     },
                     {
                       icon: "💬",
-                      title: "Video Calls",
-                      desc: "Talk with nurse + parents",
+                      title: "Видео дуудлага",
+                      desc: "Сувилагч болон эцэг эхтэйгээ ярих",
                     },
                     {
                       icon: "💳",
-                      title: "Easy Payments",
-                      desc: "Pay from anywhere",
+                      title: "Хялбар төлбөр",
+                      desc: "Хаанаас ч төлөх",
                     },
                   ].map((feature, i) => (
                     <div
@@ -430,29 +430,29 @@ export default function Home() {
             {activeTab === "parents" && (
               <div className="animate-fadeInUp">
                 <h3 className="text-3xl font-bold text-blue-900 mb-6">
-                  Comfort at Home
+                  Гэртээ тав тухтай
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   {[
                     {
                       icon: "🏠",
-                      title: "Home Visits",
-                      desc: "45-min monthly care session",
+                      title: "Гэрийн үзлэг",
+                      desc: "Сар бүр 45 минутын асаргаа",
                     },
                     {
                       icon: "🩺",
-                      title: "Full Tests",
-                      desc: "Blood, ECG, vitals - at home",
+                      title: "Бүрэн шинжилгээ",
+                      desc: "Цус, ЗЦБ, амин үзүүлэлт - гэртээ",
                     },
                     {
                       icon: "🗣️",
-                      title: "Nepali Reports",
-                      desc: "Voice explanations included",
+                      title: "Эх хэл дээрх тайлан",
+                      desc: "Дуут тайлбартай",
                     },
                     {
                       icon: "💊",
-                      title: "Medicine Delivery",
-                      desc: "Track adherence",
+                      title: "Эм хүргэлт",
+                      desc: "Эм уултыг хянах",
                     },
                   ].map((feature, i) => (
                     <div
@@ -475,29 +475,29 @@ export default function Home() {
             {activeTab === "system" && (
               <div className="animate-fadeInUp">
                 <h3 className="text-3xl font-bold text-blue-900 mb-6">
-                  National Impact
+                  Үндэсний хэмжээний нөлөө
                 </h3>
                 <div className="grid md:grid-cols-2 gap-6">
                   {[
                     {
                       icon: "👩‍⚕️",
-                      title: "1000+ Nurse Jobs",
-                      desc: "Stop brain drain",
+                      title: "1000+ сувилагчийн ажлын байр",
+                      desc: "Оюуны шилжилтийг зогсоох",
                     },
                     {
                       icon: "💰",
-                      title: "₹2B Saved",
-                      desc: "Reduce emergency burden",
+                      title: "₹2 тэрбум хэмнэлт",
+                      desc: "Яаралтай тусламжийн ачааллыг бууруулах",
                     },
                     {
                       icon: "📈",
-                      title: "40% Early Detection",
-                      desc: "Prevent complications",
+                      title: "40% эрт илрүүлэлт",
+                      desc: "Хүндрэлээс сэргийлэх",
                     },
                     {
                       icon: "🔄",
-                      title: "New Model",
-                      desc: "Diaspora-funded care",
+                      title: "Шинэ загвар",
+                      desc: "Гадаад дахь иргэдийн санхүүжүүлсэн асаргаа",
                     },
                   ].map((feature, i) => (
                     <div
@@ -529,28 +529,28 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Real Impact
+              Бодит нөлөө
             </h2>
-            <p className="text-xl text-gray-600">Numbers that matter</p>
+            <p className="text-xl text-gray-600">Чухал тоо баримт</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-16">
             {[
               {
                 value: counts.nurses,
-                label: "Nurses Employed",
+                label: "Ажилд орсон сувилагч",
                 icon: "👩‍⚕️",
                 color: "blue",
               },
               {
                 value: counts.families,
-                label: "Families Connected",
+                label: "Холбогдсон гэр бүл",
                 icon: "👨‍👩‍👧‍👦",
                 color: "purple",
               },
               {
                 value: `₹${counts.savings}`,
-                label: "Healthcare Saved",
+                label: "Хэмнэсэн эрүүл мэндийн зардал",
                 icon: "💰",
                 color: "green",
               },
@@ -572,12 +572,12 @@ export default function Home() {
           <div className="scroll-animate bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 rounded-2xl p-12 text-white text-center transform hover:scale-105 transition-all duration-500 shadow-2xl relative overflow-hidden">
             <div className="shimmer absolute inset-0"></div>
             <div className="relative z-10">
-              <h3 className="text-3xl font-bold mb-4">Prevention Math</h3>
+              <h3 className="text-3xl font-bold mb-4">Урьдчилан сэргийлэлтийн тооцоо</h3>
               <div className="text-7xl font-bold mb-4 animate-pulse-slow">
-                13 Years
+                13 жил
               </div>
               <p className="text-xl">
-                1 prevented emergency = 13 years of monitoring
+                Урьдчилан сэргийлсэн 1 яаралтай тохиолдол = 13 жилийн хяналт
               </p>
             </div>
           </div>
@@ -589,7 +589,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Real Stories
+              Бодит түүхүүд
             </h2>
           </div>
 
@@ -597,22 +597,22 @@ export default function Home() {
             {[
               {
                 quote:
-                  "The nurse caught my mother's high BP early. Saved her life.",
+                  "Сувилагч ээжийн маань даралт ихсэлтийг эрт илрүүлсэн. Түүний амийг аварсан.",
                 author: "Ramesh S.",
                 location: "Dubai",
                 emoji: "🙏",
               },
               {
-                quote: "Dad loves Sister Maya. Takes his medicine on time now!",
+                quote: "Аав маань Маяа эгчид их дуртай. Одоо эмээ цагтаа уудаг болсон!",
                 author: "Prajwal S.",
                 location: "Melbourne",
                 emoji: "❤️",
               },
               {
                 quote:
-                  "I'm the bridge between parents and children. Most meaningful work.",
+                  "Би эцэг эх, үр хүүхдийн хоорондын гүүр. Хамгийн утга учиртай ажил.",
                 author: "Maya T.",
-                location: "Nurse, Kathmandu",
+                location: "Сувилагч, Катманду",
                 emoji: "👩‍⚕️",
               },
             ].map((testimonial, i) => (
@@ -641,10 +641,10 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Simple Pricing
+              Энгийн үнэ
             </h2>
             <p className="text-xl text-gray-600">
-              Everything included. No surprises.
+              Бүгд багтсан. Гэнэтийн зардалгүй.
             </p>
           </div>
 
@@ -654,24 +654,24 @@ export default function Home() {
               <div className="relative bg-white border-2 border-blue-200 rounded-3xl p-8 shadow-xl hover:border-blue-400 transition-all duration-300">
                 <div className="text-center mb-8">
                   <div className="inline-block bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold mb-4">
-                    Complete Care
+                    Бүрэн асаргаа
                   </div>
                   <div className="flex items-baseline justify-center mb-4">
                     <span className="text-6xl font-bold text-blue-600">
                       ₹5,000
                     </span>
-                    <span className="text-gray-600 ml-2 text-xl">/month</span>
+                    <span className="text-gray-600 ml-2 text-xl">/сар</span>
                   </div>
                 </div>
 
                 <div className="space-y-3 mb-8">
                   {[
-                    "45-min monthly home visit",
-                    "Complete health tests",
-                    "Real-time dashboard",
-                    "Medicine delivery",
-                    "24/7 emergency response",
-                    "Video consultations",
+                    "Сар бүр 45 минутын гэрийн үзлэг",
+                    "Эрүүл мэндийн бүрэн шинжилгээ",
+                    "Бодит цагийн самбар",
+                    "Эм хүргэлт",
+                    "24/7 яаралтай тусламж",
+                    "Видео зөвлөгөө",
                   ].map((feature, i) => (
                     <div key={i} className="flex items-center space-x-3">
                       <svg
@@ -696,11 +696,11 @@ export default function Home() {
                   href="/auth/register"
                   className="block w-full bg-blue-600 text-white text-center px-8 py-4 rounded-xl hover:bg-blue-700 transform hover:scale-105 transition-all duration-300 font-bold text-lg shadow-lg hover:shadow-xl"
                 >
-                  Start Today
+                  Өнөөдөр эхлэх
                 </Link>
 
                 <p className="text-center text-sm text-gray-600 mt-4">
-                  International payments • Cancel anytime
+                  Олон улсын төлбөр • Хүссэн үедээ цуцлах
                 </p>
               </div>
             </div>
@@ -720,27 +720,27 @@ export default function Home() {
 
         <div className="max-w-4xl mx-auto text-center text-white relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 animate-fadeInUp">
-            Don't Wait for That Call
+            Тэр дуудлагыг бүү хүлээ
           </h2>
           <p className="text-xl mb-8 opacity-90 animate-fadeInUp delay-200">
-            Start monitoring your parents' health today.
+            Эцэг эхийнхээ эрүүл мэндийг өнөөдрөөс хянаж эхлээрэй.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fadeInUp delay-400">
             <Link
               href="/auth/register"
               className="bg-white text-blue-600 px-8 py-4 rounded-lg hover:bg-gray-100 transform hover:scale-110 transition-all duration-300 font-bold text-lg shadow-2xl"
             >
-              Get Started Now
+              Одоо эхлэх
             </Link>
             <a
               href="#solution"
               className="border-2 border-white text-white px-8 py-4 rounded-lg hover:bg-white/10 transform hover:scale-110 transition-all duration-300 font-bold text-lg"
             >
-              Learn More
+              Дэлгэрэнгүй
             </a>
           </div>
           <p className="text-sm mt-8 opacity-75 animate-fadeInUp delay-600">
-            Join 10,000+ families caring remotely
+            Алсаас асарч буй 10,000+ гэр бүлд нэгдээрэй
           </p>
         </div>
       </section>
@@ -753,67 +753,67 @@ export default function Home() {
               <h3 className="text-white text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
                 PariwarCare
               </h3>
-              <p className="text-sm">Connecting families through healthcare.</p>
+              <p className="text-sm">Эрүүл мэндээр дамжуулан гэр бүлүүдийг холбоно.</p>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
+              <h4 className="text-white font-semibold mb-4">Бүтээгдэхүүн</h4>
               <ul className="space-y-2 text-sm">
                 <li>
                   <a
                     href="#solution"
                     className="hover:text-blue-400 transition"
                   >
-                    How It Works
+                    Хэрхэн ажилладаг вэ
                   </a>
                 </li>
                 <li>
                   <a href="#pricing" className="hover:text-blue-400 transition">
-                    Pricing
+                    Үнэ
                   </a>
                 </li>
                 <li>
                   <a href="#impact" className="hover:text-blue-400 transition">
-                    Impact
+                    Нөлөө
                   </a>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
+              <h4 className="text-white font-semibold mb-4">Компани</h4>
               <ul className="space-y-2 text-sm">
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    About
+                    Бидний тухай
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    Careers
+                    Ажлын байр
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    For Nurses
+                    Сувилагчдад
                   </a>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
+              <h4 className="text-white font-semibold mb-4">Тусламж</h4>
               <ul className="space-y-2 text-sm">
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    Contact
+                    Холбоо барих
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    FAQs
+                    Түгээмэл асуулт
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:text-blue-400 transition">
-                    Privacy
+                    Нууцлал
                   </a>
                 </li>
               </ul>

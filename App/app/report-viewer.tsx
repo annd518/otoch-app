@@ -6,25 +6,25 @@ export default function ReportViewer() {
   const report = {
     date: '2025-10-31',
     vitals: { hr: 72, bp: '120/78', spo2: '98%', temp: '36.6°C' },
-    notes: 'Patient stable. Continue current medication. Recommend light exercise and hydration.'
+    notes: 'Өвчтөний биеийн байдал тогтвортой. Одоогийн эмчилгээг үргэлжлүүлнэ. Хөнгөн дасгал хийж, ус сайн уухыг зөвлөж байна.'
   }
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.h1}>Report — {report.date}</Text>
+      <Text style={styles.h1}>Тайлан — {report.date}</Text>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Vitals</Text>
+        <Text style={styles.cardTitle}>Амин үзүүлэлт</Text>
         <View style={styles.row}>
-          <View style={styles.stat}><Text style={styles.val}>{report.vitals.hr}</Text><Text style={styles.label}>HR</Text></View>
-          <View style={styles.stat}><Text style={styles.val}>{report.vitals.bp}</Text><Text style={styles.label}>BP</Text></View>
+          <View style={styles.stat}><Text style={styles.val}>{report.vitals.hr}</Text><Text style={styles.label}>Зүрх</Text></View>
+          <View style={styles.stat}><Text style={styles.val}>{report.vitals.bp}</Text><Text style={styles.label}>Даралт</Text></View>
           <View style={styles.stat}><Text style={styles.val}>{report.vitals.spo2}</Text><Text style={styles.label}>SpO2</Text></View>
-          <View style={styles.stat}><Text style={styles.val}>{report.vitals.temp}</Text><Text style={styles.label}>Temp</Text></View>
+          <View style={styles.stat}><Text style={styles.val}>{report.vitals.temp}</Text><Text style={styles.label}>Халуун</Text></View>
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Clinician notes</Text>
+        <Text style={styles.cardTitle}>Эмчийн тэмдэглэл</Text>
         <Text>{report.notes}</Text>
       </View>
 

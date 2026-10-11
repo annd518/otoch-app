@@ -17,7 +17,7 @@ function StatCard({ title, value, trend, className = '' }: StatCardProps) {
       <p className="text-3xl font-bold text-gray-800 mb-1">{value}</p>
       {trend && (
         <p className={`text-sm font-medium ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-          {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% vs last month
+          {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}% өмнөх сартай харьцуулахад
         </p>
       )}
     </div>
@@ -61,34 +61,34 @@ function BarChart({ data }: { data: ChartData[] }) {
 
 export const Analytics = () => {
   const visitTrend: ChartData[] = [
-    { label: 'Jun', value: 120 },
-    { label: 'Jul', value: 150 },
-    { label: 'Aug', value: 180 },
-    { label: 'Sep', value: 210 },
-    { label: 'Oct', value: 240 },
-    { label: 'Nov', value: 270 }
+    { label: '6-р сар', value: 120 },
+    { label: '7-р сар', value: 150 },
+    { label: '8-р сар', value: 180 },
+    { label: '9-р сар', value: 210 },
+    { label: '10-р сар', value: 240 },
+    { label: '11-р сар', value: 270 }
   ];
 
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
-          title="Total Users"
+          title="Нийт хэрэглэгч"
           value="1,234"
           trend={{ value: 12, isPositive: true }}
         />
         <StatCard
-          title="Active Nurses"
+          title="Идэвхтэй сувилагч"
           value="45"
           trend={{ value: 5, isPositive: true }}
         />
         <StatCard
-          title="Monthly Visits"
+          title="Сарын үзлэг"
           value="892"
           trend={{ value: 8, isPositive: true }}
         />
         <StatCard
-          title="Pending Approvals"
+          title="Батлагдахыг хүлээж буй"
           value="23"
           trend={{ value: 3, isPositive: false }}
         />
@@ -97,7 +97,7 @@ export const Analytics = () => {
       <div className="relative">
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg" />
         <div className="relative p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Monthly Visit Trends</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Сарын үзлэгийн хандлага</h3>
           <BarChart data={visitTrend} />
         </div>
       </div>

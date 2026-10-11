@@ -26,7 +26,7 @@ export const addParent = async (req: AuthenticatedRequest, res: Response) => {
         const validatedData = parentSchema.safeParse(req.body)
         if (!validatedData.success) {
             res.json({
-                message: "invalid data",
+                message: "Буруу өгөгдөл",
                 error: validatedData.error.format()
             })
             return
@@ -50,13 +50,13 @@ export const addParent = async (req: AuthenticatedRequest, res: Response) => {
 
         res.status(201).json({
             success: true,
-            message: 'Parent added successfully',
+            message: 'Эцэг/эх амжилттай нэмэгдлээ',
             data: { parent }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to add parent'
+            message: error.message || 'Эцэг/эх нэмж чадсангүй'
         })
     }
 }
@@ -74,13 +74,13 @@ export const getParents = async (req: AuthenticatedRequest, res: Response) => {
 
         res.status(200).json({
             success: true,
-            message: 'Parents retrieved successfully',
+            message: 'Эцэг эхийн мэдээллийг амжилттай авлаа',
             data: { parents }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to get parents'
+            message: error.message || 'Эцэг эхийн мэдээллийг авч чадсангүй'
         })
     }
 }
@@ -99,20 +99,20 @@ export const getParent = async (req: AuthenticatedRequest, res: Response) => {
 
         if (!parent) {
             res.json({
-                message: "parent not found"
+                message: "Эцэг/эх олдсонгүй"
             })
             return
         }
 
         res.status(200).json({
             success: true,
-            message: 'Parent retrieved successfully',
+            message: 'Эцэг/эхийн мэдээллийг амжилттай авлаа',
             data: { parent }
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to get parent'
+            message: error.message || 'Эцэг/эхийн мэдээллийг авч чадсангүй'
         })
     }
 }
@@ -123,7 +123,7 @@ export const updateParent = async (req: AuthenticatedRequest, res: Response) => 
         const validatedData = parentSchema.partial().safeParse(req.body)
         if (!validatedData.success) {
             res.json({
-                message: "invalid data"
+                message: "Буруу өгөгдөл"
             })
             return
         }
@@ -140,19 +140,19 @@ export const updateParent = async (req: AuthenticatedRequest, res: Response) => 
 
         if (parent.count === 0) {
             res.json({
-                message: "parent not found"
+                message: "Эцэг/эх олдсонгүй"
             })
             return
         }
 
         res.status(200).json({
             success: true,
-            message: 'Parent updated successfully'
+            message: 'Эцэг/эхийн мэдээлэл амжилттай шинэчлэгдлээ'
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to update parent'
+            message: error.message || 'Эцэг/эхийн мэдээллийг шинэчилж чадсангүй'
         })
     }
 }
@@ -171,19 +171,19 @@ export const deleteParent = async (req: AuthenticatedRequest, res: Response) => 
 
         if (parent.count === 0) {
             res.json({
-                message: "parent not found"
+                message: "Эцэг/эх олдсонгүй"
             })
             return
         }
 
         res.status(200).json({
             success: true,
-            message: 'Parent deleted successfully'
+            message: 'Эцэг/эх амжилттай устгагдлаа'
         })
     } catch (error: any) {
         res.status(400).json({
             success: false,
-            message: error.message || 'Failed to delete parent'
+            message: error.message || 'Эцэг/эхийг устгаж чадсангүй'
         })
     }
 }

@@ -13,12 +13,12 @@ export default function ReportFormPage() {
 
       <form className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm max-w-xl mx-auto space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Test Results</label>
+          <label className="block text-sm font-medium text-gray-700">Шинжилгээний хариу</label>
           <textarea className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" rows={6}></textarea>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Comments</label>
+          <label className="block text-sm font-medium text-gray-700">Тайлбар</label>
           <textarea className="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" rows={4}></textarea>
         </div>
 
@@ -26,7 +26,7 @@ export default function ReportFormPage() {
           type="submit"
           className="px-4 py-2 rounded-md bg-[#5B9BD5] text-white hover:bg-[#4A8BC2] shadow-md transition"
         >
-          Submit Report
+          Тайлан илгээх
         </button>
       </form>
     </main>

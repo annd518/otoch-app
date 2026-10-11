@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+import { label } from "@/lib/labels";
 
 export function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -12,7 +13,7 @@ export function StatusBadge({ status }: { status: string }) {
   };
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status] || "bg-gray-100 text-gray-700"}`}>
-      {status.replace("_", " ")}
+      {label(status)}
     </span>
   );
 }

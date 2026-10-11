@@ -14,48 +14,48 @@ export default function HomeTab() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.h1}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Welcome back to PariwarCare</Text>
+          <Text style={styles.h1}>Хянах самбар</Text>
+          <Text style={styles.headerSubtitle}>PariwarCare-д тавтай морил</Text>
         </View>
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Active Parent</Text>
+            <Text style={styles.cardTitle}>Идэвхтэй эцэг/эх</Text>
             <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>Active</Text>
+              <Text style={styles.statusText}>Идэвхтэй</Text>
             </View>
           </View>
-          <Text style={styles.cardSubtitle}>Mrs. Anita Sharma, 78</Text>
-          <Text style={styles.small}>Last reported: 2 hours ago</Text>
+          <Text style={styles.cardSubtitle}>Анита Шарма, 78 нас</Text>
+          <Text style={styles.small}>Сүүлд мэдээлсэн: 2 цагийн өмнө</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Health Summary</Text>
+          <Text style={styles.cardTitle}>Эрүүл мэндийн тойм</Text>
           <View style={styles.row}>
             <View style={styles.stat}>
               <View style={styles.statCircle}>
                 <Text style={styles.statValue}>72</Text>
               </View>
-              <Text style={styles.statLabel}>Heart Rate</Text>
+              <Text style={styles.statLabel}>Зүрхний цохилт</Text>
             </View>
             <View style={styles.stat}>
               <View style={styles.statCircle}>
                 <Text style={styles.statValue}>120/78</Text>
               </View>
-              <Text style={styles.statLabel}>Blood Pressure</Text>
+              <Text style={styles.statLabel}>Цусны даралт</Text>
             </View>
             <View style={styles.stat}>
               <View style={styles.statCircle}>
                 <Text style={styles.statValue}>98%</Text>
               </View>
-              <Text style={styles.statLabel}>Oxygen</Text>
+              <Text style={styles.statLabel}>Хүчилтөрөгч</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.alertCard}>
           <View style={styles.alertHeader}>
-            <Text style={styles.cardTitle}>Recent Alerts</Text>
+            <Text style={styles.cardTitle}>Сүүлийн мэдэгдлүүд</Text>
             <View style={styles.alertBadge}>
               <Text style={styles.alertBadgeText}>2</Text>
             </View>
@@ -63,15 +63,15 @@ export default function HomeTab() {
           <View style={styles.alertItem}>
             <Text style={styles.alertIcon}>💊</Text>
             <View style={styles.alertContent}>
-              <Text style={styles.alertText}>Missed medication reminder</Text>
-              <Text style={styles.alertTime}>Today</Text>
+              <Text style={styles.alertText}>Эм уух сануулга алгассан</Text>
+              <Text style={styles.alertTime}>Өнөөдөр</Text>
             </View>
           </View>
           <View style={styles.alertItem}>
             <Text style={styles.alertIcon}>📄</Text>
             <View style={styles.alertContent}>
-              <Text style={styles.alertText}>New report available</Text>
-              <Text style={styles.alertTime}>1 hour ago</Text>
+              <Text style={styles.alertText}>Шинэ тайлан бэлэн боллоо</Text>
+              <Text style={styles.alertTime}>1 цагийн өмнө</Text>
             </View>
           </View>
         </View>
@@ -79,27 +79,27 @@ export default function HomeTab() {
         <View style={styles.actions}>
           <Link href="/add-parent" asChild>
             <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>+ Add Parent</Text>
+              <Text style={styles.buttonText}>+ Эцэг/эх нэмэх</Text>
             </TouchableOpacity>
           </Link>
 
           <Link href="/parent/1" asChild>
             <TouchableOpacity style={styles.buttonOutline}>
-              <Text style={styles.buttonOutlineText}>View Profile</Text>
+              <Text style={styles.buttonOutlineText}>Профайл харах</Text>
             </TouchableOpacity>
           </Link>
         </View>
 
         <View style={styles.shortcuts}>
-          <Text style={styles.menuTitle}>Quick Actions</Text>
+          <Text style={styles.menuTitle}>Шуурхай үйлдлүүд</Text>
           <View style={styles.shortcutsRow}>
             <Link href="/report-viewer" asChild>
               <TouchableOpacity style={styles.tile}>
                 <View style={styles.tileIconContainer}>
                   <Text style={styles.tileIcon}>📊</Text>
                 </View>
-                <Text style={styles.tileText}>Reports</Text>
-                <Text style={styles.tileSub}>View latest</Text>
+                <Text style={styles.tileText}>Тайлан</Text>
+                <Text style={styles.tileSub}>Сүүлийнхийг харах</Text>
               </TouchableOpacity>
             </Link>
 
@@ -108,8 +108,8 @@ export default function HomeTab() {
                 <View style={styles.tileIconContainer}>
                   <Text style={styles.tileIcon}>🔔</Text>
                 </View>
-                <Text style={styles.tileText}>Alerts</Text>
-                <Text style={styles.tileSub}>Notifications</Text>
+                <Text style={styles.tileText}>Мэдэгдэл</Text>
+                <Text style={styles.tileSub}>Мэдэгдлүүд</Text>
               </TouchableOpacity>
             </Link>
 
@@ -118,8 +118,8 @@ export default function HomeTab() {
                 <View style={styles.tileIconContainer}>
                   <Text style={styles.tileIcon}>👤</Text>
                 </View>
-                <Text style={styles.tileText}>Account</Text>
-                <Text style={styles.tileSub}>Settings</Text>
+                <Text style={styles.tileText}>Бүртгэл</Text>
+                <Text style={styles.tileSub}>Тохиргоо</Text>
               </TouchableOpacity>
             </Link>
           </View>

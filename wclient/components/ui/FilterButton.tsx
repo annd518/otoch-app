@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { label } from "@/lib/labels";
 import { Button } from "./button";
 import { ChevronDown } from "lucide-react";
 
@@ -22,7 +23,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({ current, onChange })
         className="flex items-center gap-2"
         onClick={() => setOpen(!open)}
       >
-       {current.replace("_", " ")} Status
+       Төлөв: {label(current)}
         <ChevronDown className="w-4 h-4" />
       </Button>
 
@@ -39,7 +40,7 @@ export const FilterButton: React.FC<FilterButtonProps> = ({ current, onChange })
                 status === current ? "font-semibold text-[#2E5C8A]" : "text-gray-700"
               }`}
             >
-              {status.replace("_", " ")}
+              {label(status)}
             </button>
           ))}
         </div>

@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 
 export const metadata = {
   title: "PariwarCare",
-  description: "Care your parents",
+  description: "Эцэг эхээ асраарай",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

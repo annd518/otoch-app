@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { label } from "@/lib/labels"
 
 type Report = {
   id: string
@@ -34,7 +35,7 @@ const mockReports: Report[] = [
       oxygenLevel: "98%",
       weight: "70kg",
     },
-    notes: "Patient reported mild headache. All vitals normal.",
+    notes: "Өвчтөн бага зэрэг толгой өвдөж байгаа гэв. Бүх амин үзүүлэлт хэвийн.",
   },
   {
     id: "2",
@@ -50,7 +51,7 @@ const mockReports: Report[] = [
       oxygenLevel: "99%",
       weight: "65kg",
     },
-    notes: "Follow-up visit. Recovery progressing well.",
+    notes: "Давтан үзлэг. Эдгэрэлт сайн явагдаж байна.",
   },
 ]
 
@@ -124,33 +125,33 @@ export const ReportList = () => {
                       : "bg-red-100 text-red-800 border border-red-200"
                   }`}
                 >
-                  {report.status}
+                  {label(report.status)}
                 </span>
               </div>
 
               {/* Vitals */}
               <div className="mb-5">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Vitals</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Амин үзүүлэлт</h4>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Temperature</p>
+                      <p className="text-xs text-gray-500 mb-1">Биеийн халуун</p>
                       <p className="text-lg font-semibold text-gray-900">{report.vitals.temperature}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Blood Pressure</p>
+                      <p className="text-xs text-gray-500 mb-1">Цусны даралт</p>
                       <p className="text-lg font-semibold text-gray-900">{report.vitals.bloodPressure}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Pulse Rate</p>
+                      <p className="text-xs text-gray-500 mb-1">Судасны цохилт</p>
                       <p className="text-lg font-semibold text-gray-900">{report.vitals.pulseRate}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Oxygen Level</p>
+                      <p className="text-xs text-gray-500 mb-1">Хүчилтөрөгчийн түвшин</p>
                       <p className="text-lg font-semibold text-gray-900">{report.vitals.oxygenLevel}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Weight</p>
+                      <p className="text-xs text-gray-500 mb-1">Жин</p>
                       <p className="text-lg font-semibold text-gray-900">{report.vitals.weight}</p>
                     </div>
                   </div>
@@ -159,7 +160,7 @@ export const ReportList = () => {
 
               {/* Notes */}
               <div className="mb-5">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Notes</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Тэмдэглэл</h4>
                 <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-md border border-gray-200">
                   {report.notes}
                 </p>
@@ -175,7 +176,7 @@ export const ReportList = () => {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Approve
+                    Батлах
                   </button>
                   <button
                     onClick={() => handleReject(report.id)}
@@ -184,7 +185,7 @@ export const ReportList = () => {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    Reject
+                    Татгалзах
                   </button>
                 </div>
               )}
@@ -198,20 +199,20 @@ export const ReportList = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-lg w-full shadow-xl">
             <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Reject Report</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Тайланг татгалзах</h3>
 
               <div className="mb-5">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason for rejection
+                  Татгалзсан шалтгаан
                 </label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Provide a reason for rejecting this report..."
+                  placeholder="Энэ тайланг татгалзах шалтгаанаа бичнэ үү..."
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent min-h-[100px] resize-none"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  This will be shared with the nurse
+                  Үүнийг сувилагчид илгээнэ
                 </p>
               </div>
 
@@ -221,7 +222,7 @@ export const ReportList = () => {
                   disabled={!rejectReason.trim()}
                   className="flex-1 bg-red-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Submit
+                  Илгээх
                 </button>
                 <button
                   onClick={() => {
@@ -231,7 +232,7 @@ export const ReportList = () => {
                   }}
                   className="flex-1 bg-gray-100 text-gray-700 py-2.5 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                 >
-                  Cancel
+                  Цуцлах
                 </button>
               </div>
             </div>

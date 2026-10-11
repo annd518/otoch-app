@@ -25,7 +25,7 @@ const Index = () => {
           <View style={styles.textContainer}>
             <Text style={styles.title}>PariwarCare</Text>
             <Text style={styles.slogan}>
-              Your parents' health, in your hands
+              Таны эцэг эхийн эрүүл мэнд таны гарт
             </Text>
           </View>
         </View>
@@ -35,11 +35,11 @@ const Index = () => {
             style={styles.getStartedButton}
             onPress={handleGetStarted}
           >
-            <Text style={styles.getStartedText}>Get Started</Text>
+            <Text style={styles.getStartedText}>Эхлэх</Text>
           </TouchableOpacity>
 
           <Text style={styles.footerText}>
-            Caring for those who cared for us
+            Биднийг асарсан хүмүүсээ асарцгаая
           </Text>
         </View>
       </View>

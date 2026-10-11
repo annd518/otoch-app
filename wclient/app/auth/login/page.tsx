@@ -36,21 +36,21 @@ export default function LoginPage() {
       <Card className="max-w-md h-1/2 w-full flex flex-col gap-3 rounded-2xl shadow-xl border border-gray-200">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl font-bold text-blue-600">
-            Welcome Back
+            Тавтай морил
           </CardTitle>
           <CardDescription className="text-gray-600 mt-2">
-            Sign in to manage your parents' health
+            Эцэг эхийнхээ эрүүл мэндийг удирдахын тулд нэвтэрнэ үү
           </CardDescription>
         </CardHeader>
 
         <CardContent className="mt-4">
           <form onSubmit={handleLogin} className="flex flex-col gap-8">
             <div>
-              <label className="text-gray-700 text-sm  font-semibold">Email Address
+              <label className="text-gray-700 text-sm  font-semibold">Имэйл хаяг
               </label>
               <Input
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Имэйлээ оруулна уу"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 shadow-lg"
@@ -59,14 +59,14 @@ export default function LoginPage() {
 
             <div>
               <label className="flex justify-between text-gray-700 text-sm font-semibold">
-                Password
+                Нууц үг
                 <a href="#" className="text-blue-500 hover:underline text-sm font-semibold">
-                  Forgot Password?
+                  Нууц үгээ мартсан уу?
                 </a>
               </label>
               <Input
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Нууц үгээ оруулна уу"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 shadow-lg"
@@ -74,16 +74,16 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? "Нэвтэрч байна..." : "Нэвтрэх"}
             </Button>
 
            
           </form>
 
           <p className="mt-6 text-center text-gray-600 text-sm">
-            Don’t have an account?{" "}
+            Бүртгэл байхгүй юу?{" "}
             <a href="/auth/register" className="text-blue-500 hover:underline font-semibold ">
-              Sign Up
+              Бүртгүүлэх
             </a>
           </p>
         </CardContent>

@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { label } from "@/lib/labels"
 
 type Visit = {
   id: string
@@ -70,7 +71,7 @@ export function NurseVisitList() {
                     : "bg-green-100 text-green-800 border border-green-200"
                 }`}
               >
-                {visit.status}
+                {label(visit.status)}
               </span>
             </div>
 
@@ -82,15 +83,15 @@ export function NurseVisitList() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
                 <div>
-                  <p className="text-xs text-gray-500">Address</p>
+                  <p className="text-xs text-gray-500">Хаяг</p>
                   <p className="text-gray-900 font-medium">{visit.address}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Visit Type:</span>
+                <span className="text-xs text-gray-500">Үзлэгийн төрөл:</span>
                 <span className={`px-2.5 py-0.5 rounded-md text-xs font-medium border ${getVisitTypeBadge(visit.visitType)}`}>
-                  {visit.visitType}
+                  {label(visit.visitType)}
                 </span>
               </div>
             </div>
@@ -101,7 +102,7 @@ export function NurseVisitList() {
                 onClick={() => handleStartVisit(visit.id)}
                 className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
-                Start Visit
+                Үзлэг эхлүүлэх
               </button>
             )}
           </div>

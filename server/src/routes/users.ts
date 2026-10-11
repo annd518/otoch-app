@@ -21,7 +21,7 @@ router.get('/', requireAdmin, async (req: Request, res: Response) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch users'
+            message: 'Хэрэглэгчдийн жагсаалтыг авч чадсангүй'
         })
     }
 })
@@ -36,7 +36,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         if (requestingUser.userId !== id && requestingUser.role !== 'ADMIN') {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied'
+                message: 'Хандах эрхгүй'
             })
         }
         
@@ -48,7 +48,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'Хэрэглэгч олдсонгүй'
             })
         }
         
@@ -59,7 +59,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch user'
+            message: 'Хэрэглэгчийн мэдээллийг авч чадсангүй'
         })
     }
 })

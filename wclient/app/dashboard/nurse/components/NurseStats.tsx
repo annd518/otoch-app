@@ -9,7 +9,7 @@ export const NurseStats = () => {
     },
     weeklyStats: {
       totalVisits: 42,
-      avgDuration: "38 min",
+      avgDuration: "38 мин",
       satisfactionRate: "4.8/5",
     },
     tasks: {
@@ -23,7 +23,7 @@ export const NurseStats = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
       {/* Today's Visits - Emphasized with border */}
       <div className="bg-white rounded-lg border-l-4 border-blue-500 p-5 shadow-sm hover:shadow-md transition-shadow">
-        <p className="text-sm text-gray-600 mb-1">Today's Visits</p>
+        <p className="text-sm text-gray-600 mb-1">Өнөөдрийн үзлэг</p>
         <p className="text-3xl font-bold text-gray-900 mb-2">{stats.todayVisits.total}</p>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-green-600 font-medium">✓ {stats.todayVisits.completed} done</span>
@@ -39,15 +39,15 @@ export const NurseStats = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-gray-700">Average Duration</p>
+          <p className="text-sm font-medium text-gray-700">Дундаж хугацаа</p>
         </div>
         <p className="text-3xl font-bold text-purple-600">{stats.weeklyStats.avgDuration}</p>
-        <p className="text-xs text-gray-500 mt-1">Per visit this week</p>
+        <p className="text-xs text-gray-500 mt-1">Энэ долоо хоногт нэг үзлэгт</p>
       </div>
 
       {/* Patient Satisfaction - Rating style */}
       <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-5 shadow-sm border border-yellow-100 hover:shadow-md transition-shadow">
-        <p className="text-sm font-medium text-gray-700 mb-2">Patient Satisfaction</p>
+        <p className="text-sm font-medium text-gray-700 mb-2">Өвчтөний сэтгэл ханамж</p>
         <div className="flex items-baseline gap-2 mb-2">
           <p className="text-3xl font-bold text-gray-900">{stats.weeklyStats.satisfactionRate}</p>
           <div className="flex text-yellow-500">
@@ -58,22 +58,22 @@ export const NurseStats = () => {
             ))}
           </div>
         </div>
-        <p className="text-xs text-gray-600">Based on 35 reviews</p>
+        <p className="text-xs text-gray-600">35 үнэлгээнд үндэслэв</p>
       </div>
 
       {/* Pending Tasks - List style */}
       <div className="bg-white rounded-lg p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-        <p className="text-sm text-gray-600 mb-3">Pending Tasks</p>
+        <p className="text-sm text-gray-600 mb-3">Хүлээгдэж буй ажил</p>
         <p className="text-4xl font-bold text-gray-900 mb-3">
           {stats.tasks.reportsPending + stats.tasks.medicationReminders}
         </p>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Reports</span>
+            <span className="text-gray-600">Тайлан</span>
             <span className="font-medium text-gray-900">{stats.tasks.reportsPending}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Reminders</span>
+            <span className="text-gray-600">Сануулга</span>
             <span className="font-medium text-gray-900">{stats.tasks.medicationReminders}</span>
           </div>
         </div>
