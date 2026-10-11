@@ -12,6 +12,7 @@ import analyticsRoutes from './routes/analytics.routes'
 import reviewRoutes from './routes/review.routes'
 import catalogRoutes from './routes/catalog.routes'
 import orderRoutes from './routes/orders.routes'
+import paymentRoutes from './routes/payments.routes'
 import { specs } from './config/swagger'
 import { errorHandler, notFoundHandler } from './middlwares/error'
 
@@ -31,7 +32,9 @@ export function createApp() {
     app.use(express.json({ limit: '1mb' }))
     app.use(express.urlencoded({ extended: true, limit: '1mb' }))
     app.use(cookieParser())
-    app.use(fileupload({ limits: { fileSize: 10 * 1024 * 1024 }, abortOnLimit: true }))
+    // Over-limit files are flagged `truncated` (handled as 413 FILE_TOO_LARGE in the controller);
+    // abortOnLimit is off because it answers with plain text outside the error contract.
+    app.use(fileupload({ limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
     app.use(cors({ origin: corsOrigin(), credentials: true }))
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs))
@@ -66,6 +69,7 @@ export function createApp() {
     app.use('/api/review', reviewRoutes)
     app.use('/api/catalog', catalogRoutes)
     app.use('/api/orders', orderRoutes)
+    app.use('/api', paymentRoutes)
 
     app.use('/api', notFoundHandler)
     app.use(errorHandler)

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import prisma from '../db/db.config'
 import { ApiError, FieldErrors } from '../utils/http'
+import { getStorage } from './storage'
 
 /**
  * Draft order domain helpers. Order is a PROPOSED separate model (docs/l1-1-api.md D2);
@@ -14,11 +15,21 @@ export const RED_FLAG_BLOCK_ADVICE = {
     isFixture: true,
 }
 
+export const MAX_ATTACHMENTS = 5
+export const QUOTE_TTL_MINUTES = 15
+// Pricing rule identifier: catalog list price × quantity. No travel fee, discount or VAT
+// because none of them are approved (docs/l1-1-api.md D3).
+export const PRICING_VERSION = 'LIST_PRICE_ONLY_V1'
+export const PRICE_EXCLUDES = ['TRAVEL_FEE', 'DISCOUNT', 'VAT'] as const
+
 export const orderInclude = {
     items: { include: { service: true }, orderBy: { serviceCode: 'asc' } },
+    attachments: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } },
+    quotes: { orderBy: { createdAt: 'desc' }, take: 1 },
 } satisfies Prisma.OrderInclude
 
 export type OrderWithItems = Prisma.OrderGetPayload<{ include: typeof orderInclude }>
+type QuoteRow = OrderWithItems['quotes'][number]
 
 /** Loads an order owned by the user. Foreign and missing orders look identical (404). */
 export async function loadOwnedOrder(orderId: string, userId: string): Promise<OrderWithItems> {
@@ -33,11 +44,40 @@ export function questionnairesFor(order: OrderWithItems): string[] {
 }
 
 export const requiresReferral = (order: OrderWithItems) => order.items.some((i) => i.service.requiresReferral)
+const hasReferral = (order: OrderWithItems) => order.attachments.some((a) => a.kind === 'REFERRAL')
+
+/** A quote is usable only for the exact order version it was made for, and before it expires. */
+export function isQuoteValid(quote: QuoteRow | undefined, order: { version: number }, now = new Date()): quote is QuoteRow {
+    return !!quote && quote.orderVersion === order.version && quote.expiresAt > now
+}
+
+export function serializeQuote(q: QuoteRow) {
+    return {
+        id: q.id,
+        orderVersion: q.orderVersion,
+        catalogVersion: q.catalogVersion,
+        pricingVersion: q.pricingVersion,
+        currency: q.currency,
+        lines: q.lines,
+        subtotalMnt: q.subtotalMnt,
+        totalMnt: q.totalMnt,
+        excludes: PRICE_EXCLUDES,
+        isFixture: q.isFixture,
+        expiresAt: q.expiresAt.toISOString(),
+        // A quote is a price snapshot only — never a payment or an order confirmation
+        isPayment: false,
+    }
+}
+
+export function serializeAttachment(a: OrderWithItems['attachments'][number]) {
+    return { id: a.id, kind: a.kind, mimeType: a.mimeType, sizeBytes: a.sizeBytes, createdAt: a.createdAt.toISOString() }
+}
 
 /** API shape. Only fields the server actually stores are returned. */
 export function serializeOrder(order: OrderWithItems) {
     const questionnaires = questionnairesFor(order)
     const redFlagRequired = questionnaires.length > 0
+    const latestQuote = order.quotes[0]
     return {
         id: order.id,
         status: order.status,
@@ -61,14 +101,14 @@ export function serializeOrder(order: OrderWithItems) {
             questionnaires,
             answeredAt: order.redFlagAnsweredAt ? order.redFlagAnsweredAt.toISOString() : null,
         },
+        attachments: order.attachments.map(serializeAttachment),
         requirements: {
             redFlagAnswers: redFlagRequired && order.redFlagStatus !== 'CLEAR',
-            referralAttachment: requiresReferral(order),
-            // Private upload is not implemented yet (docs/l1-1-api.md §5)
-            referralUploadAvailable: false,
+            referralAttachment: requiresReferral(order) && !hasReferral(order),
+            referralUploadAvailable: getStorage() !== null,
         },
-        // Server pricing is not implemented yet; never a fake quote
-        quote: null,
+        // Only a quote that still matches this exact order version is returned
+        quote: isQuoteValid(latestQuote, order) ? serializeQuote(latestQuote) : null,
         createdAt: order.createdAt.toISOString(),
         updatedAt: order.updatedAt.toISOString(),
     }
@@ -76,7 +116,7 @@ export function serializeOrder(order: OrderWithItems) {
 
 /**
  * Server-side guard for anything that moves an order towards payment
- * (quote now; payment/submit later). Must be called again at every such step,
+ * (quote, payment invoice). Must be called again at every such step,
  * so the red flag check cannot be skipped by calling a later endpoint directly.
  */
 export function assertOrderReadyForPricing(order: OrderWithItems, now = new Date()) {
@@ -99,7 +139,33 @@ export function assertOrderReadyForPricing(order: OrderWithItems, now = new Date
         throw new ApiError(422, 'ORDER_INCOMPLETE', 'Захиалгын мэдээлэл дутуу байна', fields)
     }
 
-    if (requiresReferral(order)) {
-        throw new ApiError(422, 'REFERRAL_REQUIRED', 'Энэ үйлчилгээнд эмчийн заалтын зураг шаардлагатай. Зураг илгээх боломж хараахан нээгдээгүй байна')
+    if (requiresReferral(order) && !hasReferral(order)) {
+        throw new ApiError(422, 'REFERRAL_REQUIRED', 'Энэ үйлчилгээнд эмчийн заалтын зураг шаардлагатай')
+    }
+}
+
+/** Server-side price from the current catalog. Integer MNT only. */
+export function computeQuote(order: OrderWithItems) {
+    const lines = order.items.map((i) => {
+        if (!Number.isInteger(i.service.priceMnt) || i.service.priceMnt < 0) {
+            throw new ApiError(500, 'INTERNAL_ERROR', 'Каталогийн үнэ буруу байна')
+        }
+        return {
+            type: 'SERVICE',
+            serviceCode: i.serviceCode,
+            name: i.service.name,
+            quantity: i.quantity,
+            unitPriceMnt: i.service.priceMnt,
+            amountMnt: i.service.priceMnt * i.quantity,
+            isFixture: i.service.isFixture,
+        }
+    })
+    const subtotalMnt = lines.reduce((sum, l) => sum + l.amountMnt, 0)
+    if (!Number.isSafeInteger(subtotalMnt)) throw new ApiError(500, 'INTERNAL_ERROR', 'Үнийн дүн хэт их байна')
+    return {
+        lines,
+        subtotalMnt,
+        totalMnt: subtotalMnt,
+        isFixture: lines.some((l) => l.isFixture),
     }
 }

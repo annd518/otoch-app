@@ -4,13 +4,18 @@ import prisma from '../db/db.config'
 import { ApiError, FieldErrors, ok, validationError } from '../utils/http'
 import { getCatalogVersion } from '../services/catalog'
 import {
+    PRICING_VERSION,
+    QUOTE_TTL_MINUTES,
     RED_FLAG_BLOCK_ADVICE,
     assertOrderReadyForPricing,
+    computeQuote,
     loadOwnedOrder,
     orderInclude,
     questionnairesFor,
     serializeOrder,
+    serializeQuote,
 } from '../services/orders'
+import { findReplay, hashPayload, isUniqueViolation, purgeExpiredKey, readIdempotencyKey, recordKey } from '../services/idempotency'
 
 interface AuthenticatedRequest extends Request {
     user?: { userId: string; email: string; role: string }
@@ -119,30 +124,59 @@ export const createDraftOrder = async (req: AuthenticatedRequest, res: Response)
     const body = parsed.data
     const userId = req.user!.userId
 
+    // Idempotency-Key (optional for backward compatibility; mobile always sends one)
+    const key = readIdempotencyKey(req)
+    const scope = 'orders.create'
+    const requestHash = hashPayload(req.body)
+    const replay = async () => {
+        const row = key && (await findReplay(userId, scope, key, requestHash))
+        if (!row) return null
+        const existing = await loadOwnedOrder(row.resourceId, userId)
+        res.setHeader('Idempotent-Replayed', 'true')
+        return ok(res, { order: serializeOrder(existing), ignoredFields: ignoredFields(req.body, DRAFT_FIELDS), idempotentReplay: true }, 'Ноорог үүссэн байна', 201)
+    }
+    if (key) {
+        await purgeExpiredKey(userId, scope, key)
+        const replayed = await replay()
+        if (replayed) return replayed
+    }
+
     const parent = await prisma.parent.findFirst({ where: { id: body.parentId, children: { some: { id: userId } } } })
     if (!parent) throw new ApiError(404, 'PARENT_NOT_FOUND', 'Эцэг/эх олдсонгүй эсвэл хандах эрхгүй', { parentId: 'Олдсонгүй' })
 
     const catalogVersion = await assertCatalogVersion(body.catalogVersion)
     const items = await resolveItems(body.items)
 
-    const order = await prisma.$transaction(async (tx) => {
-        const created = await tx.order.create({
-            data: {
-                childId: userId,
-                parentId: body.parentId,
-                catalogVersion,
-                scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : null,
-                timeSlot: body.timeSlot ?? null,
-                notes: body.notes ?? null,
-                ...addressData(body.address),
-                items: { create: items },
-            },
+    let order
+    try {
+        // Order + idempotency record commit together; a concurrent duplicate key
+        // blocks on the unique index and then fails, so only one order survives.
+        order = await prisma.$transaction(async (tx) => {
+            const created = await tx.order.create({
+                data: {
+                    childId: userId,
+                    parentId: body.parentId,
+                    catalogVersion,
+                    scheduledFor: body.scheduledFor ? new Date(body.scheduledFor) : null,
+                    timeSlot: body.timeSlot ?? null,
+                    notes: body.notes ?? null,
+                    ...addressData(body.address),
+                    items: { create: items },
+                },
+            })
+            if (key) await recordKey(tx, { userId, scope, key, requestHash, resourceType: 'Order', resourceId: created.id })
+            await tx.orderEvent.create({ data: { orderId: created.id, type: 'CREATED', toStatus: 'DRAFT', actorId: userId } })
+            return tx.order.findUniqueOrThrow({ where: { id: created.id }, include: orderInclude })
         })
-        await tx.orderEvent.create({ data: { orderId: created.id, type: 'CREATED', toStatus: 'DRAFT', actorId: userId } })
-        return tx.order.findUniqueOrThrow({ where: { id: created.id }, include: orderInclude })
-    })
+    } catch (err) {
+        if (key && isUniqueViolation(err)) {
+            const replayed = await replay()
+            if (replayed) return replayed
+        }
+        throw err
+    }
 
-    return ok(res, { order: serializeOrder(order), ignoredFields: ignoredFields(req.body, DRAFT_FIELDS) }, 'Ноорог үүслээ', 201)
+    return ok(res, { order: serializeOrder(order), ignoredFields: ignoredFields(req.body, DRAFT_FIELDS), idempotentReplay: false }, 'Ноорог үүслээ', 201)
 }
 
 // GET /api/orders — own orders
@@ -237,12 +271,23 @@ export const getRedFlagQuestions = async (req: AuthenticatedRequest, res: Respon
         orderStatus: order.status,
         redFlag: { status: order.redFlagStatus },
         questionnaires,
+        // false while any question is placeholder/fixture text (no clinician-approved content yet)
+        approved: questions.length > 0 && questions.every((q) => !q.isFixture),
         containsFixtures: questions.some((q) => q.isFixture),
-        questions: questions.map((q) => ({ id: q.id, questionnaire: q.questionnaire, code: q.code, text: q.text, isFixture: q.isFixture })),
+        questions: questions.map((q) => ({
+            id: q.id, questionnaire: q.questionnaire, code: q.code, text: q.text,
+            isFixture: q.isFixture, approved: !q.isFixture,
+        })),
     }, 'Асуулга')
 }
 
-// PUT /api/orders/:id/red-flag-answers — full replacement of the answers
+/**
+ * PUT /api/orders/:id/red-flag-answers
+ *  - Any "true" for a question of this order blocks the order immediately, even if
+ *    other answers are missing or malformed (early "yes" is never lost).
+ *  - CLEAR requires every current question answered, all false, valid ids,
+ *    and (if sent) the current questionnaire set.
+ */
 export const putRedFlagAnswers = async (req: AuthenticatedRequest, res: Response) => {
     const parsed = answersSchema.safeParse(req.body ?? {})
     if (!parsed.success) throw validationError(parsed.error)
@@ -257,12 +302,28 @@ export const putRedFlagAnswers = async (req: AuthenticatedRequest, res: Response
     if (order.status !== 'DRAFT') throw new ApiError(409, 'ORDER_NOT_EDITABLE', 'Зөвхөн ноорог захиалгад хариулна')
 
     const questionnaires = questionnairesFor(order)
-    if (clientQuestionnaires && [...new Set(clientQuestionnaires)].sort().join(',') !== questionnaires.join(',')) {
-        throw new ApiError(409, 'QUESTIONNAIRE_OUTDATED', 'Асуулга шинэчлэгдсэн байна. Асуултуудыг дахин ачаална уу')
-    }
     const questions = await activeQuestionsFor(questionnaires)
     const byId = new Map(questions.map((q) => [q.id, q]))
 
+    // 1) Early positive: block on any "yes" to a real question of this order
+    const positives = answers.filter((a) => a.value === true && byId.has(a.questionId))
+    if (positives.length) {
+        // Store only well-formed answers for this order's questions (one per question; "yes" wins)
+        const stored = new Map<string, boolean>()
+        for (const a of answers) if (byId.has(a.questionId)) stored.set(a.questionId, stored.get(a.questionId) === true || a.value)
+        const updated = await writeAnswers(order.id, order.status, userId, stored, true)
+        return ok(res, {
+            redFlag: { status: updated.redFlagStatus, answeredAt: updated.redFlagAnsweredAt?.toISOString() ?? null },
+            orderStatus: updated.status,
+            version: updated.version,
+            advice: RED_FLAG_BLOCK_ADVICE,
+        }, 'Захиалгыг үргэлжлүүлэх боломжгүй')
+    }
+
+    // 2) No positive: everything must be valid and complete to become CLEAR
+    if (clientQuestionnaires && [...new Set(clientQuestionnaires)].sort().join(',') !== questionnaires.join(',')) {
+        throw new ApiError(409, 'QUESTIONNAIRE_OUTDATED', 'Асуулга шинэчлэгдсэн байна. Асуултуудыг дахин ачаална уу')
+    }
     const fields: FieldErrors = {}
     const seen = new Set<string>()
     answers.forEach((a, idx) => {
@@ -278,13 +339,19 @@ export const putRedFlagAnswers = async (req: AuthenticatedRequest, res: Response
             Object.fromEntries(missing.map((q) => [q.id, 'Хариулаагүй'])))
     }
 
-    // A single "yes" blocks the order. No clinical rule beyond that is invented here.
-    const flagged = answers.some((a) => a.value === true)
-    const now = new Date()
+    const updated = await writeAnswers(order.id, order.status, userId, new Map(answers.map((a) => [a.questionId, false])), false)
+    return ok(res, {
+        redFlag: { status: updated.redFlagStatus, answeredAt: updated.redFlagAnsweredAt?.toISOString() ?? null },
+        orderStatus: updated.status,
+        version: updated.version,
+    }, 'Хариулт хадгалагдлаа')
+}
 
-    const updated = await prisma.$transaction(async (tx) => {
+async function writeAnswers(orderId: string, fromStatus: string, userId: string, answers: Map<string, boolean>, flagged: boolean) {
+    const now = new Date()
+    return prisma.$transaction(async (tx) => {
         const res = await tx.order.updateMany({
-            where: { id: order.id, status: 'DRAFT', redFlagStatus: { not: 'FLAGGED' } },
+            where: { id: orderId, status: 'DRAFT', redFlagStatus: { not: 'FLAGGED' } },
             data: {
                 version: { increment: 1 },
                 redFlagStatus: flagged ? 'FLAGGED' : 'CLEAR',
@@ -292,36 +359,76 @@ export const putRedFlagAnswers = async (req: AuthenticatedRequest, res: Response
                 ...(flagged && { status: 'BLOCKED_RED_FLAG' as const }),
             },
         })
-        if (res.count === 0) throw new ApiError(409, 'ORDER_NOT_EDITABLE', 'Захиалгын төлөв өөрчлөгдсөн байна. Дахин ачаална уу')
-
-        await tx.redFlagAnswer.deleteMany({ where: { orderId: order.id } })
+        if (res.count === 0) {
+            const current = await tx.order.findUnique({ where: { id: orderId } })
+            if (current?.redFlagStatus === 'FLAGGED') {
+                throw new ApiError(409, 'RED_FLAG_BLOCKED', 'Энэ захиалга аюулын шинжийн асуулгаар хаагдсан. Хариултыг өөрчлөх боломжгүй')
+            }
+            throw new ApiError(409, 'ORDER_NOT_EDITABLE', 'Захиалгын төлөв өөрчлөгдсөн байна. Дахин ачаална уу')
+        }
+        await tx.redFlagAnswer.deleteMany({ where: { orderId } })
         await tx.redFlagAnswer.createMany({
-            data: answers.map((a) => ({ orderId: order.id, questionId: a.questionId, value: a.value })),
+            data: [...answers].map(([questionId, value]) => ({ orderId, questionId, value })),
         })
         // Audit: outcome only — never which question was answered "yes"
         await tx.orderEvent.create({
             data: {
-                orderId: order.id,
+                orderId,
                 type: flagged ? 'RED_FLAG_FLAGGED' : 'RED_FLAG_CLEAR',
-                fromStatus: order.status,
-                toStatus: flagged ? 'BLOCKED_RED_FLAG' : order.status,
+                fromStatus,
+                toStatus: flagged ? 'BLOCKED_RED_FLAG' : fromStatus,
                 actorId: userId,
             },
         })
-        return tx.order.findUniqueOrThrow({ where: { id: order.id } })
+        return tx.order.findUniqueOrThrow({ where: { id: orderId } })
     })
-
-    return ok(res, {
-        redFlag: { status: updated.redFlagStatus, answeredAt: now.toISOString() },
-        orderStatus: updated.status,
-        version: updated.version,
-        ...(flagged && { advice: RED_FLAG_BLOCK_ADVICE }),
-    }, flagged ? 'Захиалгыг үргэлжлүүлэх боломжгүй' : 'Хариулт хадгалагдлаа')
 }
 
-// POST /api/orders/:id/quote — guards run for real; pricing itself is NOT implemented yet
+const quoteSchema = z.object({
+    orderVersion: z.number({ message: 'orderVersion шаардлагатай' }).int().min(1),
+})
+
+/**
+ * POST /api/orders/:id/quote — server-side price for the exact current order version.
+ * A quote is a price snapshot; it is not a payment and does not confirm the order.
+ */
 export const requestQuote = async (req: AuthenticatedRequest, res: Response) => {
+    const parsed = quoteSchema.safeParse(req.body ?? {})
+    if (!parsed.success) throw validationError(parsed.error)
+
     const order = await loadOwnedOrder(req.params.id, req.user!.userId)
+    if (order.version !== parsed.data.orderVersion) {
+        throw new ApiError(409, 'VERSION_CONFLICT', 'Захиалга өөрчлөгдсөн байна. Дахин ачаална уу')
+    }
     assertOrderReadyForPricing(order)
-    throw new ApiError(501, 'NOT_IMPLEMENTED', 'Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна')
+
+    const catalogVersion = await getCatalogVersion()
+    if (!catalogVersion || catalogVersion !== order.catalogVersion) {
+        throw new ApiError(409, 'CATALOG_OUTDATED', 'Каталог шинэчлэгдсэн байна. Үйлчилгээгээ дахин сонгоно уу')
+    }
+
+    const price = computeQuote(order)
+    const quote = await prisma.$transaction(async (tx) => {
+        // Re-check the version inside the transaction so a concurrent edit cannot be priced
+        const still = await tx.order.count({ where: { id: order.id, version: order.version, status: 'DRAFT' } })
+        if (!still) throw new ApiError(409, 'VERSION_CONFLICT', 'Захиалга өөрчлөгдсөн байна. Дахин ачаална уу')
+        const created = await tx.quote.create({
+            data: {
+                orderId: order.id,
+                orderVersion: order.version,
+                catalogVersion,
+                pricingVersion: PRICING_VERSION,
+                currency: 'MNT',
+                lines: price.lines,
+                subtotalMnt: price.subtotalMnt,
+                totalMnt: price.totalMnt,
+                isFixture: price.isFixture,
+                expiresAt: new Date(Date.now() + QUOTE_TTL_MINUTES * 60_000),
+            },
+        })
+        await tx.orderEvent.create({ data: { orderId: order.id, type: 'QUOTED', actorId: req.user!.userId } })
+        return created
+    })
+
+    return ok(res, { quote: serializeQuote(quote), orderStatus: order.status }, 'Үнийн санал (төлбөр биш)', 201)
 }
