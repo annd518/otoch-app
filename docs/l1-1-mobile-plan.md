@@ -647,3 +647,11 @@ Backend `16ce810`-аас хойш шинэчлэгдээгүй, main-д merge х
 | Native build, store upload, төхөөрөмж | Хийгээгүй |
 
 QPay sandbox шалгагдаагүй. Mock PAID-ийг backend-ийн dev туслах endpoint-оор өдөөсөн.
+
+---
+
+## 14. 2026-10-17: backend `8f6309f` recovery (H1–H5)
+
+Хэрэгжсэн, `17cbfa9`. RESUME, DONE нь серверийн payment-ийг уншина (paid зөвхөн `PAID` + `paidAt`). WAIT нь QR-гүй unconfirmed төлөв бөгөөд `expiresAt` хүртэл polling хийнэ. NEW_QUOTE нь шинэ quote ба шинэ key шаардана. CONTACT_SUPPORT нь retry хийхгүй, холбоо барих мэдээлэл зохиохгүй. `ORDER_NOT_EDITABLE` нь хуучин серверт зориулсан fallback.
+
+Шалгалт: unit 149/149, `8f6309f`-ийн эсрэг интеграц 13/13, JS export амжилттай. Хүлээлгэн өгөх баримт: `docs/l1-1-handover-mobile.md`.
