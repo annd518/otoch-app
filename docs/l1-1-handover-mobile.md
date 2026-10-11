@@ -6,10 +6,10 @@
 | Branch | `work/mobile-l1-1` |
 | Source commit (код) | `17cbfa9` |
 | Pull request | [#4](https://github.com/annd518/otoch-app/pull/4) → `main`, merge хийгдээгүй |
-| Хамааралтай backend | [PR #5](https://github.com/annd518/otoch-app/pull/5), `work/backend-l1-1` `8f6309f` |
+| Хамааралтай backend | [PR #5](https://github.com/annd518/otoch-app/pull/5), `work/backend-l1-1` `7506a14` (кодын хувьд `49f0f65`) |
 | main | `901bb91` (backend-ийн хуучин `16ce810` кодтой) |
 
-> **Товч дүгнэлт.** Mobile-ийн L1-1 урсгал код болон тестийн түвшинд бэлэн. Backend `8f6309f`-ийн тусгаарласан хуулбартай 13/13 интеграцийн шалгалт давсан. Native build, store-д байршуулах, бодит төхөөрөмж дээрх тест **хийгдээгүй**. Шалтгаан нь identifier, account эрх, staging, төхөөрөмж байхгүй. QPay-г зөвхөн backend-ийн mock горимд шалгасан, sandbox шалгагдаагүй.
+> **Товч дүгнэлт.** Mobile-ийн L1-1 урсгал код болон тестийн түвшинд бэлэн. Backend `7506a14`-ийн тусгаарласан хуулбартай 13/13 интеграцийн шалгалт давсан. Native build, store-д байршуулах, бодит төхөөрөмж дээрх тест **хийгдээгүй**. Шалтгаан нь identifier, account эрх, staging, төхөөрөмж байхгүй. QPay-г зөвхөн backend-ийн mock горимд шалгасан, sandbox шалгагдаагүй.
 
 ---
 
@@ -35,7 +35,7 @@ Restart эсвэл re-login хийсний дараа "Захиалга" tab н�
 
 ## 2. Real, fixture, mock endpoint
 
-| Endpoint | Backend `8f6309f` | Өгөгдөл | Dev mock |
+| Endpoint | Backend `7506a14` | Өгөгдөл | Dev mock |
 |---|---|---|---|
 | Auth, parents | Real | Бодит | Үгүй |
 | `GET /api/catalog/services` | Real | **Fixture** үнэ (`isFixture`) | Бий |
@@ -54,12 +54,15 @@ Restart эсвэл re-login хийсний дараа "Захиалга" tab н�
 | `npm run lint` | 0 алдаа, 0 анхааруулга |
 | `npm run typecheck` (апп + тест) | 0 алдаа. `any`, `ts-ignore`, `eslint-disable` ашиглаагүй. |
 | `npm test` | 149/149 |
-| Backend `8f6309f`-ийн эсрэг интеграц | 13/13 |
+| Backend `7506a14`-ийн эсрэг интеграц | 13/13 (өмнө нь `8f6309f`-тэй мөн 13/13) |
+| main + PR #5 + PR #4 нэгтгэсэн код | Зөрчилгүй. Mobile lint, typecheck, 149/149, export. Backend tsc, 100/100, `prisma validate`, migration ба schema зөрүүгүй. |
 | `expo export` iOS, Android | Амжилттай. **Native build биш.** |
 
-Интеграцийн орчин: `8f6309f`-ийг scratchpad-д хуулж, шинэ embedded DB-тэй ажиллуулсан. Тохиргоо нь `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`, `JWT_EXPIRES_IN=20s`. Provider timeout болон rejection-ийг серверийн өөрийн `qpayMock.failNextCreate`-ээр scratch туслах файлаар өдөөсөн. Repo-ийн серверийн код өөрчлөгдөөгүй.
+Интеграцийн орчин: `7506a14`-ийг scratchpad-д хуулж, шинэ embedded DB-тэй ажиллуулсан. Тохиргоо нь `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`, `JWT_EXPIRES_IN=20s`. Provider timeout болон rejection-ийг серверийн өөрийн `qpayMock.failNextCreate`-ээр scratch туслах файлаар өдөөсөн. Repo-ийн серверийн код өөрчлөгдөөгүй.
 
 Шалгасан зүйлс: auth ба token дуусалт, draft replay, эрт "Тийм" блок, re-login хийсний дараах блок, quote version, upload-ийн алдагдсан хариу ба retry, унших, устгах, мөн төлбөрийн RESUME, DONE, WAIT (QR-гүй), CONTACT_SUPPORT, NEW_QUOTE. Өөр хэрэглэгч payment-д хандвал 404 буцаж, `paymentId` задрахгүй.
+
+Production fixture хамгаалалт (`49f0f65`): quote болон төлбөр үүсгэх үед ирэх 503 `FIXTURE_DATA_NOT_ALLOWED`-г mobile алдаа гэж харуулна. Амжилт гэж үзэхгүй, `paymentId` хадгалахгүй, гаргахгүй. Үүнийг серверийн хариуны хэлбэрээр client түвшинд шалгасан. Production горимд mock QPay хориотой тул бүтэн сервер ажиллуулж шалгаагүй. Серверийн талын шалгалт backend-ийн тестэд бий.
 
 Дэлгэцийн түвшний polling, app resume, камер, deeplink-ийг бодит төхөөрөмж дээр **шалгаагүй**.
 
@@ -115,6 +118,6 @@ Restart эсвэл re-login хийсний дараа "Захиалга" tab н�
 
 ## 8. Backend-тэй хамтарсан төлөв
 
-- PR #4 нь PR #5 (`8f6309f`)-аас хамаарна. PR #5-ийг өмнө нь эсвэл хамт merge хийх хэрэгтэй.
+- PR #4 нь PR #5 (`7506a14`)-аас хамаарна. PR #5-ийг өмнө нь эсвэл хамт merge хийх хэрэгтэй.
 - Backend-ийн H1–H5 handoff mobile `17cbfa9`-д хэрэгжсэн. Backend-ийн засвар шаардлагагүй.
 - Нээлттэй: QPay sandbox credential, private bucket, staging hosting, тусламжийн суваг (reconciliation үед хэрэглэгчийг хаашаа чиглүүлэх).
