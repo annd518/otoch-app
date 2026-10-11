@@ -98,4 +98,3 @@ ALTER TABLE "RefreshSession" ADD CONSTRAINT "RefreshSession_userId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "AvailabilitySlot" ADD CONSTRAINT "AvailabilitySlot_zoneId_fkey" FOREIGN KEY ("zoneId") REFERENCES "ServiceZone"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
