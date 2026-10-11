@@ -8,16 +8,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import Cookies from 'js-cookie';
-import { authService, UserRole } from '@/lib/services/auth';
+import { authService } from '@/lib/services/auth';
+import { homePathForRole, sessionFromAuthData, type SessionUser } from '@/lib/auth/session-core';
+import { clearSession, getSessionUser, saveSession } from '@/lib/auth/session';
 
-// User interface (decoded from JWT or stored)
-export interface User {
-  id?: string;
-  name?: string;
-  email?: string;
-  role?: UserRole;
-}
+export type User = SessionUser;
 
 // Auth context type
 interface AuthContextType {
@@ -25,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -35,6 +30,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+const CONTRACT_ERROR = 'Серверийн хариу буруу байна. Дахин оролдоно уу.';
 
 /**
  * Authentication Provider Component
@@ -46,51 +43,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isInitializing, setIsInitializing] = useState(true);
   const router = useRouter();
 
-  // Check for stored auth on mount
+  // Restore a valid (non-expired) session on mount; drop anything else
   useEffect(() => {
-    const token = authService.getStoredToken();
-    const userToken = authService.getStoredUserToken();
-
-    if (token && userToken) {
-      // We have tokens, consider user authenticated
-      // In a real app, you might want to decode the JWT here
-      // or make a /me API call to get current user
-      setUser({ email: 'stored' }); // Placeholder user object
-    }
-
+    const stored = getSessionUser();
+    if (stored) setUser(stored);
+    else clearSession();
     setIsInitializing(false);
   }, []);
 
   /**
-   * Login user
+   * Login user, then route by role
    */
   const login = async (email: string, password: string): Promise<void> => {
-    console.log('AuthContext login called with:', { email, password: '***' });
     setIsLoading(true);
     try {
-      console.log('Making API call to authService.login...');
       const response = await authService.login({ email, password });
-      console.log('API response:', response);
+      const session = sessionFromAuthData(response.data);
+      if (!response.success || !session) throw { message: CONTRACT_ERROR, status: 0 };
 
-      if (response.success) {
-        // Store tokens in localStorage
-        authService.storeTokens(response.data.token, response.data.user);
-
-        // Also store in cookies for middleware access
-        Cookies.set('auth_token', response.data.token, { expires: 7 }); // 7 days
-        Cookies.set('user_token', response.data.user, { expires: 7 });
-
-        // Set user state (using token as placeholder, you could decode JWT here)
-        setUser({ email });
-
-        toast.success(response.message || 'Амжилттай нэвтэрлээ!');
-
-        // Redirect to dashboard
-        router.push('/dashboard');
-      }
+      saveSession(session);
+      setUser(session.user);
+      toast.success(response.message || 'Амжилттай нэвтэрлээ!');
+      router.push(homePathForRole(session.user.role));
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.');
+      // 401 INVALID_CREDENTIALS -> server message "Имэйл эсвэл нууц үг буруу байна"
+      toast.error(error?.message || 'Нэвтрэхэд алдаа гарлаа. Дахин оролдоно уу.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -98,27 +75,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   /**
-   * Signup new user
+   * Signup new family (CHILD) user. Staff accounts are created by an admin.
    */
-  const signup = async (
-    name: string,
-    email: string,
-    password: string,
-    role: UserRole
-  ): Promise<void> => {
+  const signup = async (name: string, email: string, password: string): Promise<void> => {
     setIsLoading(true);
     try {
-      const response = await authService.signup({ name, email, password, role });
-
+      const response = await authService.signup({ name, email, password, role: 'CHILD' });
       if (response.success) {
         toast.success(response.message || 'Бүртгэл амжилттай үүслээ!');
-
-        // Redirect to login
         router.push('/auth/login');
       }
     } catch (error: any) {
-      console.error('Signup error:', error);
-      toast.error(error.message || 'Бүртгүүлэхэд алдаа гарлаа. Дахин оролдоно уу.');
+      toast.error(error?.message || 'Бүртгүүлэхэд алдаа гарлаа. Дахин оролдоно уу.');
       throw error;
     } finally {
       setIsLoading(false);
@@ -129,10 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Logout user
    */
   const logout = (): void => {
-    authService.logout();
-    // Remove cookies
-    Cookies.remove('auth_token');
-    Cookies.remove('user_token');
+    clearSession();
     setUser(null);
     toast.success('Амжилттай гарлаа');
     router.push('/auth/login');

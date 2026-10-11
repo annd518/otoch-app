@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { clearSession, getSessionUser } from '@/lib/auth/session';
+import { label } from '@/lib/labels';
 import toast from 'react-hot-toast';
 
 export default function DashboardLayout({
@@ -16,36 +17,12 @@ export default function DashboardLayout({
   const [userData, setUserData] = useState<{ name?: string; email?: string; role?: string } | null>(null);
 
   useEffect(() => {
-    // Get user data from cookie
-    const userToken = Cookies.get('user_token');
-    if (userToken) {
-      try {
-        // Decode JWT
-        const base64Url = userToken.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
-        setUserData(JSON.parse(jsonPayload));
-      } catch (error) {
-        console.error('Error decoding user token:', error);
-      }
-    }
+    // Validated user object saved at login (not a JWT decode)
+    setUserData(getSessionUser());
   }, []);
 
   const handleLogout = () => {
-    // Clear all auth cookies
-    Cookies.remove('auth_token');
-    Cookies.remove('user_token');
-    Cookies.remove('token');
-    Cookies.remove('user');
-
-    // Clear localStorage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_token');
+    clearSession();
 
     toast.success('Амжилттай гарлаа');
     router.push('/auth/login');
@@ -71,7 +48,7 @@ export default function DashboardLayout({
                     {userData?.name || 'User'}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {userData?.role || 'Role'}
+                    {userData?.role ? label(userData.role) : 'Role'}
                   </p>
                 </div>
               </div>

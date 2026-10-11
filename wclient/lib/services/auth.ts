@@ -4,9 +4,10 @@
  */
 
 import { apiClient } from '@/lib/api';
+import type { UserRole as SessionUserRole } from '@/lib/auth/session-core';
 
 // Types
-export type UserRole = 'CHILD' | 'NURSE' | 'ADMIN';
+export type UserRole = SessionUserRole;
 
 export interface User {
   id: string;
@@ -25,22 +26,16 @@ export interface SignupCredentials {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
+  // Public signup only accepts CHILD (server returns 403 ROLE_NOT_ALLOWED otherwise)
+  role: 'CHILD';
 }
 
+/** docs/l1-1-api.md §1.1 — data.token is the JWT, data.user is the user object */
 export interface AuthResponse {
   success: boolean;
   message: string;
   data: {
     token: string;
-    user: string; // JWT token string according to your API spec
-  };
-}
-
-export interface SignupResponse {
-  success: boolean;
-  message: string;
-  data: {
     user: User;
   };
 }
@@ -62,54 +57,14 @@ export const authService = {
   },
 
   /**
-   * Register new user
-   * @param credentials - User signup credentials including role
-   * @returns Promise with signup response containing user data
+   * Register new family (CHILD) user
+   * @param credentials - User signup credentials
+   * @returns Promise with auth response containing token and user
    */
-  signup: async (credentials: SignupCredentials): Promise<SignupResponse> => {
-    return apiClient<SignupResponse>('/auth/signup', {
+  signup: async (credentials: SignupCredentials): Promise<AuthResponse> => {
+    return apiClient<AuthResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
-  },
-
-  /**
-   * Logout user by clearing local storage
-   */
-  logout: (): void => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user_token');
-    }
-  },
-
-  /**
-   * Get stored authentication token from localStorage
-   * @returns Token string or null if not found
-   */
-  getStoredToken: (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('auth_token');
-  },
-
-  /**
-   * Get stored user token from localStorage
-   * @returns User token string or null if not found
-   */
-  getStoredUserToken: (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('user_token');
-  },
-
-  /**
-   * Store authentication tokens in localStorage
-   * @param token - Auth token
-   * @param userToken - User token
-   */
-  storeTokens: (token: string, userToken: string): void => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-      localStorage.setItem('user_token', userToken);
-    }
   },
 };

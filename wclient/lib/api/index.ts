@@ -9,7 +9,6 @@ export {
   reviewAPI,
   analyticsAPI,
   setAuthToken,
-  setUserData,
   getAuthToken,
   getUserData,
   clearAuth,

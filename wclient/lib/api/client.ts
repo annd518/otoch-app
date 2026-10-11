@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import Cookies from 'js-cookie';
+import { clearSession, getSessionUser } from '@/lib/auth/session';
 
 // Base API URL
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
@@ -32,8 +33,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Token expired or invalid - clear token and redirect to login
-      Cookies.remove('auth_token');
-      Cookies.remove('user_token');
+      clearSession();
       if (typeof window !== 'undefined') {
         window.location.href = '/auth/login';
       }
@@ -116,10 +116,10 @@ export const authAPI = {
     email: string;
     password: string;
     role: 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN';
-  }) => apiClient.post<ApiResponse<{ user: User }>>('/auth/signup', data),
+  }) => apiClient.post<ApiResponse<{ token: string; user: User }>>('/auth/signup', data),
 
   login: (data: { email: string; password: string }) =>
-    apiClient.post<ApiResponse<{ token: string; user: string }>>('/auth/login', data),
+    apiClient.post<ApiResponse<{ token: string; user: User }>>('/auth/login', data),
 };
 
 // 👥 User Management
@@ -214,23 +214,14 @@ export const setAuthToken = (token: string) => {
   Cookies.set('auth_token', token, { expires: 7 }); // Token expires in 7 days
 };
 
-export const setUserData = (user: string) => {
-  Cookies.set('user_token', user, { expires: 7 });
-};
-
 export const getAuthToken = () => {
   return Cookies.get('auth_token');
 };
 
-export const getUserData = () => {
-  const userData = Cookies.get('user_token');
-  return userData ? JSON.parse(userData) : null;
-};
+/** Validated user saved at login (lib/auth/session.ts); null if missing/expired */
+export const getUserData = () => getSessionUser();
 
-export const clearAuth = () => {
-  Cookies.remove('auth_token');
-  Cookies.remove('user_token');
-};
+export const clearAuth = () => clearSession();
 
 export const isAuthenticated = () => {
   return !!Cookies.get('auth_token');
