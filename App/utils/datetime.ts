@@ -29,3 +29,10 @@ export function slotStartToUtcIso(date: string, slot: string): string | null {
 export function ulaanbaatarDate(now: Date): string {
   return new Date(now.getTime() + ULAANBAATAR_OFFSET_MS).toISOString().slice(0, 10)
 }
+
+// "2026-10-20" + "09:00-11:00" -> "2026-10-20T09:00:00+08:00"
+// Orders API (docs/l1-1-api.md §3.1) expects ISO-8601 with an explicit offset.
+export function slotStartToUlaanbaatarIso(date: string, slot: string): string | null {
+  if (slotStartToUtcIso(date, slot) === null) return null
+  return `${date}T${slot.slice(0, 5)}:00${ULAANBAATAR_OFFSET}`
+}

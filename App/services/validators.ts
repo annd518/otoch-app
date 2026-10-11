@@ -171,6 +171,7 @@ function parseQuoteLine(value: unknown): QuoteLine | null {
   if (typeof value.serviceId === 'string') line.serviceId = value.serviceId
   if (typeof value.code === 'string') line.code = value.code
   if (isInteger(value.quantity)) line.quantity = value.quantity
+  if (typeof value.serviceCode === 'string' && !line.code) line.code = value.serviceCode
   if (isInteger(value.unitPriceMnt)) line.unitPriceMnt = value.unitPriceMnt
   return line
 }
@@ -183,11 +184,11 @@ export function parseQuote(data: unknown): Quote | null {
     q.currency !== 'MNT' ||
     !Array.isArray(q.lines) ||
     !isInteger(q.subtotalMnt) ||
-    !isInteger(q.travelFeeMnt) ||
-    !isInteger(q.discountMnt) ||
     !isInteger(q.totalMnt) ||
     !nonEmptyString(q.pricingVersion) ||
-    !nonEmptyString(q.expiresAt)
+    !nonEmptyString(q.expiresAt) ||
+    // a quote is never a payment
+    q.isPayment === true
   ) {
     return null
   }
@@ -197,15 +198,21 @@ export function parseQuote(data: unknown): Quote | null {
     if (!line) return null
     lines.push(line)
   }
+  const excludes = Array.isArray(q.excludes) ? q.excludes.filter((e): e is string => typeof e === 'string') : []
+  // Backend 28590ee sends travelFeeMnt/discountMnt = 0 meaning "not calculated"
+  // when they are listed in `excludes`. They must not be shown as a real 0 ₮.
   return {
     id: q.id,
     currency: 'MNT',
     lines,
     subtotalMnt: q.subtotalMnt,
-    travelFeeMnt: q.travelFeeMnt,
-    discountMnt: q.discountMnt,
+    travelFeeMnt: isInteger(q.travelFeeMnt) && !excludes.includes('TRAVEL_FEE') ? q.travelFeeMnt : null,
+    discountMnt: isInteger(q.discountMnt) && !excludes.includes('DISCOUNT') ? q.discountMnt : null,
     totalMnt: q.totalMnt,
     pricingVersion: q.pricingVersion,
     expiresAt: q.expiresAt,
+    isFixture: q.isFixture === true,
+    orderVersion: isInteger(q.orderVersion) ? q.orderVersion : null,
+    excludes,
   }
 }

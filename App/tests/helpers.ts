@@ -1,5 +1,12 @@
 import type { Session, SessionStore } from '../services/authFlow'
-import { createHttpClient, type FetchLike, type HttpClient, type HttpRequestInit } from '../services/httpClient'
+import { createMockBackend } from '../mocks/mockBackend'
+import {
+  createHttpClient,
+  type FetchLike,
+  type HttpClient,
+  type HttpRequestInit,
+  type UploadLike,
+} from '../services/httpClient'
 import type { ApiConfig } from '../utils/apiConfig'
 
 export interface RecordedCall {
@@ -48,19 +55,34 @@ export const TEST_CONFIG: ApiConfig = {
 
 export function makeClient(
   replies: FakeReply[],
-  options: { token?: string | null; config?: ApiConfig } = {},
+  options: { token?: string | null; config?: ApiConfig; upload?: UploadLike; fetch?: FetchLike } = {},
 ): { client: HttpClient; calls: RecordedCall[]; remaining: () => number; unauthorizedCount: () => number } {
   const fake = createFakeFetch(replies)
   let unauthorized = 0
   const client = createHttpClient({
     config: options.config ?? TEST_CONFIG,
-    fetch: fake.fetch,
+    fetch: options.fetch ?? fake.fetch,
+    upload: options.upload,
     getToken: async () => options.token ?? null,
     onUnauthorized: () => {
       unauthorized += 1
     },
   })
   return { client, calls: fake.calls, remaining: fake.remaining, unauthorizedCount: () => unauthorized }
+}
+
+export const VALID_TOKEN = makeJwt({ userId: 'u_child_1', email: 'child@test.mn', role: 'CHILD', exp: 4102444800 })
+
+// Client wired to the development mock backend, with timers removed.
+export function makeMockClient(scenario = '') {
+  const backend = createMockBackend({ scenario, sleep: async () => {} })
+  let fetchCount = 0
+  const countingFetch: FetchLike = (url, init) => {
+    fetchCount += 1
+    return backend.fetch(url, init)
+  }
+  const harness = makeClient([], { token: VALID_TOKEN, fetch: countingFetch, upload: backend.upload })
+  return { ...harness, fetchCount: () => fetchCount }
 }
 
 // Unsigned test JWT with the same claims the server signs (authController.ts).

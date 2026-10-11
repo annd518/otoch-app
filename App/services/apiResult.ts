@@ -77,6 +77,11 @@ export function interpretResponse<T>(
   if (status < 200 || status >= 300) {
     return { ok: false, kind: 'http', status, message: message ?? DEFAULT_ERROR_MESSAGE, ...details }
   }
+  // 204 No Content (e.g. DELETE). There is no envelope; the parser decides.
+  if (status === 204) {
+    const empty = parse(null)
+    return empty === null ? { ok: false, kind: 'contract', status, message: CONTRACT_ERROR_MESSAGE } : { ok: true, data: empty }
+  }
   if (!isRecord(body) || body.success !== true) {
     return { ok: false, kind: 'rejected', status, message: message ?? DEFAULT_ERROR_MESSAGE, ...details }
   }
@@ -85,4 +90,15 @@ export function interpretResponse<T>(
     return { ok: false, kind: 'contract', status, message: CONTRACT_ERROR_MESSAGE }
   }
   return message === undefined ? { ok: true, data } : { ok: true, data, message }
+}
+
+// A 404 for a route the server does not have yet (no body, or error.code
+// NOT_FOUND from the unified error contract) means "endpoint not implemented".
+// A 404 with a specific code (PARENT_NOT_FOUND, ORDER_NOT_FOUND...) is a real
+// "not found" and is returned unchanged.
+export function markNotImplemented<T>(result: ApiResult<T>, message: string): ApiResult<T> {
+  if (!result.ok && result.kind === 'http' && result.status === 404 && (result.code === undefined || result.code === 'NOT_FOUND')) {
+    return { ok: false, kind: 'not_implemented', status: 404, message }
+  }
+  return result
 }

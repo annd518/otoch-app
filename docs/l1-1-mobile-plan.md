@@ -7,7 +7,7 @@
 | Branch | `work/mobile-l1-1` |
 | Суурь commit | `aacfaad` (origin/main, "Update OTOCH app development") |
 | Хүлээлгэн өгөх | 2026-10-17 |
-| Төлөв | Ноорог. API гэрээ батлагдаагүй. 2026-10-12-нд auth засвар ба каталог хэрэгжсэн (9-р хэсэг). |
+| Төлөв | Ноорог. API гэрээ батлагдаагүй. 10-12: auth засвар, каталог (9-р хэсэг). 10-13: draft, red flag, 103, заалтын зураг (10-р хэсэг). |
 
 > **Анхаар.** API-ийн хэсгүүд backend-ийн `docs/l1-1-api.md` саналд тулгуурласан.
 > Тэр файл 2026-10-11-ний байдлаар зөвхөн `origin/work/backend-l1-1` (commit `3b1bc42`) дээр байгаа, main-д ороогүй, **батлагдаагүй**.
@@ -443,3 +443,215 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 2. Token-ийг `expo-secure-store` руу шилжүүлэх. Шинэ dependency тул lockfile өөрчлөгдөнө, тусдаа PR.
 3. Mock fixture-ийг release bundle-аас хасах.
 4. Бодит төхөөрөмж дээр Expo Go-оор login, каталог, захиалгын smoke test.
+
+---
+
+## 10. 2026-10-13-ны явц
+
+### 10.1 Шинэ backend auth-тай нийцэл
+
+- **Login.** Backend branch (`work/backend-l1-1`, `e261639`) `data.user` объект, `data.token` string буцаадаг. Апп объектыг шууд ашиглана, `GET /api/users/:id` дуудахгүй. Интеграцийн шалгалтаар login нэг хүсэлтээр дууссан.
+- **Хуучин хариуны fallback.** origin/main-ийн сервер `data.user`-д JWT string буцаадаг хэвээр. Тэр тохиолдолд л апп JWT-ээс `userId` авч `GET /api/users/:id` дуудна (`App/services/authFlow.ts`). Backend branch main болон staging-д орсны дараа энэ fallback-ийг устгана.
+- **Session.** Хадгалсан token-ий `exp` өнгөрсөн бол хүсэлт илгээхгүй, session-ийг дуусгана. 401 ирвэл session дуусна. `FORBIDDEN`, `ROLE_NOT_ALLOWED` зэрэг эрхийн 403 үед хэрэглэгч нэвтэрсэн хэвээр үлдэнэ. Зөвхөн хуучин серверийн "403 + хугацаа дууссан token" хослол session-ийг дуусгана.
+- **Шалгалт.** Backend branch-ийн серверийг `JWT_EXPIRES_IN=5s`-тэй ажиллуулж 11/11 шалгалт давсан: signup, logout, login, буруу нууц үг, эрхгүй 403, каталог, orders/red flag "хэрэгжээгүй", хүчингүй token 401, хугацаа дуусалт.
+
+### 10.2 Дэлгэц ба endpoint-ийн mock/real төлөв
+
+Ажлын явцад backend branch `16ce810` (`d842241`) болж draft захиалга, red flag асуулгыг хэрэгжүүлсэн. Mobile-ийг тэр хэрэгжүүлэлттэй нийцүүлж, локалд ажиллуулсан серверийн эсрэг шалгасан. Тэр branch main-д ороогүй, staging байхгүй.
+
+| Дэлгэц | Route | Endpoint | origin/main сервер | backend branch `16ce810` | Dev mock |
+|---|---|---|---|---|---|
+| Login, бүртгэл | `auth/*` | `POST /api/auth/login`, `/signup` | Real (хуучин хэлбэр) | Real | Үгүй |
+| Өвчтөн | `(tabs)/add-parent`, алхам 1 | `GET/POST /api/parents` | Real | Real | Үгүй |
+| Каталог | `booking/catalog` | `GET /api/catalog/services` | "Хэрэгжээгүй" | Real (fixture өгөгдөл) | Бий |
+| Захиалга, алхам 1 | `(tabs)/bookappointment` | `POST /api/orders`, `PATCH /api/orders/:id` | "Хэрэгжээгүй" | Real | Бий |
+| Red flag | `booking/red-flags` | `GET .../red-flag-questions`, `PUT .../red-flag-answers` | "Хэрэгжээгүй" | Real (3 fixture асуулт) | Бий (5 dev fixture асуулт) |
+| 103 | `booking/emergency` | Байхгүй | Апп дотор | Апп дотор | Үгүй |
+| Заалтын зураг | `booking/referral` | `POST/DELETE /api/orders/:id/attachments` | "Хэрэгжээгүй" | "Хэрэгжээгүй" (`referralUploadAvailable: false`) | Бий. Серверт хадгалагдахгүй. |
+| Хураангуй | `booking/review` | Quote (§6) | Дуудахгүй | Guard бий, үнэ 501 | Дуудахгүй |
+
+- Захиалгын урсгал `POST /api/visits`-ийг цаашид дуудахгүй.
+- Mock-ийг endpoint тус бүрээр сонгоно: `EXPO_PUBLIC_MOCK_ENDPOINTS=attachments` нь зөвхөн upload-ийг mock болгоно. Release build-д mock хэзээ ч асахгүй.
+- Mock хувилбарууд: `EXPO_PUBLIC_MOCK_SCENARIO`-д `order-network-error-once`, `redflag-load-error`, `redflag-submit-error`, `upload-fail-once`, `empty`, `error`.
+
+### 10.3 Draft-ийн хамгаалалт
+
+- **State.** Ноорог `app/_layout.tsx` дээрх reducer-д (`App/services/bookingDraft.ts`) хадгалагдана. Буцах, дахин оролдох үед үйлчилгээ, өвчтөн, хаяг, огноо, тэмдэглэл алдагдахгүй.
+- **Payload.** `items[{ serviceId, serviceCode, quantity: 1 }]`, `catalogVersion`, `parentId`, `scheduledFor` (`2026-10-20T09:00:00+08:00` хэлбэр), `timeSlot`, `address.text`, `notes`, `nurseGenderPreference`.
+- **Давхар хүсэлт.** Товч ажиллаж байх үед дахин дарахад нэг л хүсэлт явна. Сүлжээний алдааны дараах дахин оролдлого ижил `Idempotency-Key`-ийг ашиглана.
+- **Засвар.** Хадгалсан ноорогт өөрчлөлт хийвэл `version`-тэй PATCH илгээнэ. `items`-ийг зөвхөн үйлчилгээ солигдсон үед илгээнэ, учир нь сервер `items` ирэхэд red flag хариултыг тэглэдэг. Өвчтөн солигдвол шинэ ноорог үүснэ.
+- **Серверийн төлөв.** Хадгалсны дараа red flag-ийн төлвийг серверийн хариунаас авна. Асуулгад хариулахад сервер `version`-ийг нэмдэг тул апп шинэ `version`-ийг хадгална.
+- **Хадгалагдаагүй талбар.** Сервер `nurseGenderPreference`-ийг хадгалдаггүй (`ignoredFields`). Апп энэ тухай сонголтын доор бичнэ.
+- **Хуучирсан каталог.** `409 CATALOG_OUTDATED` ирвэл үйлчилгээгээ дахин сонгохыг санал болгоно.
+- **Үнэн төлөв.** Апп "хадгалагдаагүй", "MOCK ноорог", "серверт хадгалагдсан, төлбөр хийгдээгүй" гэсэн төлвийг ялгаж харуулна. Эцсийн дүн зөвхөн `quote.totalMnt`, quote хэрэгжээгүй тул нийт дүн харагдахгүй.
+- **Газрын зураг.** Ажиллагаагүй `MapView` ба давтамжийн сонголтыг захиалгын дэлгэцээс хассан. Хаягийг текстээр оруулна, `lat/lng` илгээхгүй.
+
+### 10.4 Red flag ба 103
+
+- Mock асуулга 5 асуулттай, бүгд `[DEV FIXTURE]` гэж тэмдэглэгдсэн, эмнэлгийн хариуцагчаар батлагдаагүй. Серверээс ирсэн асуулгыг `approved: true` биш бол "батлагдаагүй" гэж харуулна.
+- Асуулт анхдагчаар сонгоогүй. Бүгд "Үгүй" болтол "Үргэлжлүүлэх" идэвхгүй.
+- Нэг "Тийм" дармагц баталгаажуулах цонхгүйгээр 103 дэлгэц рүү шилжиж, ноорог энэ төхөөрөмж дээр түгжигдэнэ.
+- 103 дэлгэцэд захиалга үргэлжлүүлэх товч байхгүй. `tel:103` товч ба "Нүүр хуудас руу буцах" товч л байна. iOS-ийн swipe-back болон Android-ийн back товч асуулга руу буцаахгүй.
+- Асуулга ачаалах эсвэл илгээх алдаа гарвал апп шалгалтыг алгасахгүй, "Дахин оролдох" л санал болгоно. `QUESTIONNAIRE_OUTDATED` бол асуулгыг дахин ачаална.
+- Серверийн fixture асуулгыг (`isFixture`) "Серверийн туршилтын асуулга, батлагдаагүй" гэж харуулна. Сервер асуулга шаардаагүй бол (хоосон жагсаалт) энэ тухай бичиж үргэлжлүүлнэ.
+- Сервер `FLAGGED`, `BLOCKED_RED_FLAG` эсвэл `RED_FLAG_BLOCKED` буцаавал апп 103 руу шилжинэ.
+- Түгжигдсэн ноорогоос гарах цорын ганц зам нь "Шинэ захиалга эхлэх".
+- **Хязгаарлалт.** Эрт "Тийм" гэсэн хариуг серверт мэдэгддэггүй, учир нь гэрээ бүх хариултыг нэг дор шаарддаг (GAP-13).
+
+### 10.5 Заалтын зураг
+
+- **Dependency.** `expo-image-picker@57.0.20` нэмсэн. Энэ нь SDK 57-ийн хувилбар бөгөөд `expo-image-loader@57.0.1`-ийг дагуулж орно. Камер, галерей, permission-ийг нэг package-аар шийддэг тул хамгийн бага сонголт. Lockfile-д зөвхөн эдгээр 2 entry нэмэгдсэн.
+- **HEIC.** Package-ийн эх кодоос шалгахад iOS-ийн анхдагч горим HEIC-ийг хэвээр өгдөг байсан. Иймээс `preferredAssetRepresentationMode: compatible` ба `quality: 0.8` ашиглаж JPEG болгоно. Android quality < 1 үед JPEG эсвэл PNG болгож шахдаг. Хөрвүүлэлт бодит iPhone дээр шалгагдаагүй. Хөрвөөгүй HEIC болон PDF-ийг апп тодорхой мессежээр татгалзана.
+- **Хязгаар.** JPEG/PNG, 10 MB, 5 файл. PDF-ийг дэмжинэ гэж үзүүлэхгүй.
+- **Permission.** Камерын зөвшөөрлийг зөвхөн камер ашиглах үед асууна. Хаалттай бол "Тохиргоо нээх" товч гарна. Галерей нь системийн photo picker тул зөвшөөрөл шаардахгүй. Микрофоны permission хаагдсан.
+- **Upload.** Mock дээр явц, алдаа, дахин оролдох, устгах ажилладаг. "Mock-д илгээгдсэн (серверт биш)" гэж харуулна. Real горимд "хэрэгжээгүй" гэж харуулна. Зураг болон эрүүл мэндийн мэдээллийг log-д бичихгүй.
+
+### 10.6 Шалгалтын дүн
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint | 0 error, 0 warning |
+| Typecheck: апп ба тест | 0 error |
+| Unit тест | 106/106 |
+| Мутаци: "Тийм"-тэй үргэлжлүүлэх, түгжигдсэн ноорог засах, хугацаа дууссан token илгээх | 3 мутаци бүгд тестээр баригдсан |
+| Backend branch-ийн эсрэг интеграц: auth (`3a5e2be`) | 11/11 |
+| Backend branch-ийн эсрэг интеграц: draft, red flag (`16ce810`) | 14/14 |
+| `expo-doctor` | 21/21 (app.json-ийн хуучирсан 2 түлхүүрийг хассаны дараа) |
+| `expo export` iOS, Android | Амжилттай. Native build биш. |
+| Төхөөрөмж, simulator | Хийгээгүй. Холбогдсон төхөөрөмж, Xcode, Android SDK байхгүй. |
+
+### 10.7 Backend-д өгөх handoff
+
+| # | Асуудал | Санал |
+|---|---|---|
+| GAP-12 | Сервер `items[].serviceCode`, `catalogVersion`-ийг хүлээн авдаг болсон. `items[].serviceId`-г чимээгүй хаядаг. | Шийдэгдсэн. Mobile `serviceId`-г зөвхөн гэрээний анхны саналд нийцүүлэх зорилгоор илгээдэг. |
+| GAP-13 | Эрт "Тийм" хариуг серверт бүртгэх зам алга. Апп 103 руу шууд шилжиж ноорогийг төхөөрөмж дээр түгжинэ, серверт DRAFT хэвээр үлдэнэ. | Аль нэг асуулт `true` бол дутуу хариултыг хүлээн авч `BLOCKED_RED_FLAG` болгох. |
+| GAP-14 | Асуулгын бичвэр батлагдсан эсэх. | `isFixture`-ээр шийдэгдсэн. Батлагдсан бичвэр ирэхэд `approved: true` эсвэл `isFixture: false`. |
+| GAP-15 | Сервер `Idempotency-Key`-ийг үл тоодог. Ижил key-тэй давтан хүсэлт шинэ ноорог үүсгэсэн (интеграцаар батлагдсан). | `POST /api/orders`-д ижил key-д ижил ноорог буцаах. Тэр болтол сүлжээний алдааны дараах retry давхар ноорог үүсгэж болзошгүй. |
+| GAP-16 | `nurseGenderPreference` хадгалагддаггүй. | Хадгалах эсвэл mobile-аас сонголтыг хасах шийдвэр. |
+| Upload | `referralUploadAvailable: false`. Заалт шаардсан үйлчилгээ quote дээр `REFERRAL_REQUIRED` авна. | Storage эрх (D6), upload endpoint. |
+| Merge, staging | Backend branch main-д ороогүй, staging байхгүй. | Mobile client тэр branch-тэй нийцсэн тул main руу оруулах, HTTPS staging гаргах. |
+
+---
+
+## 11. 2026-10-14-ний явц
+
+Backend `16ce810`-аас хойш шинэчлэгдээгүй, main-д merge хийгдсэн (`901bb91`). Quote 501 буцаадаг, upload ба QPay хэрэгжээгүй, `Idempotency-Key`-ийг үл тоодог, эрт блокийн API байхгүй.
+
+### 11.1 Endpoint-ийн төлөв (main = `16ce810` сервер)
+
+| Endpoint | Сервер | Dev mock | Sandbox |
+|---|---|---|---|
+| Auth, parents, catalog, orders, red flag | Real | Каталог, orders, red flag-д бий | Хамаарахгүй |
+| `POST /api/orders/:id/quote` | Guard real, үнэ 501 | Бий (fixture үнэ) | Хамаарахгүй |
+| `POST/DELETE .../attachments` | Хэрэгжээгүй | Бий | Хамаарахгүй |
+| `POST .../payments/qpay`, `GET .../payments/:id` | Хэрэгжээгүй | Бий (бодит QPay биш) | QPay sandbox тест хийгдээгүй |
+
+### 11.2 Idempotency
+
+- Нэг логик create нь payload-ийн хурууны хээтэй (`fingerprint`) холбогдсон нэг key-тэй. Timeout зэрэг үр дүн тодорхойгүй алдааны дараах retry ижил key ашиглана.
+- Payload өөрчлөгдвөл эсвэл "Шинэ захиалга эхлэх" дарвал шинэ key үүснэ. Өмнөх оролдлогоос үлдсэн DRAFT нь төлбөргүй, хор хөнөөлгүй.
+- Upload зураг бүр өөрийн тогтмол key-тэй (GAP-17 санал). Invoice quote бүрд нэг key.
+- Одоогийн сервер key-ийг үл тоодог тул timeout-ийн дараах retry давхар DRAFT үүсгэдэг (интеграцаар батлагдсан). Товчийг давхар дарахаас хамгаалах нь үүнийг орлохгүй.
+
+### 11.3 Эрт "Тийм"
+
+- Апп шууд түгжиж 103 рүү шилжинэ. Дараа нь одоогийн хариултуудыг (`Тийм`-тэй) `PUT red-flag-answers`-аар илгээнэ.
+- Сервер дутуу хариултыг `400 RED_FLAG_INCOMPLETE`-ээр татгалздаг (GAP-13). Тэр үед блок "серверт бүртгэгдээгүй" төлөвтэй хадгалагдаж (`AsyncStorage`, хэрэглэгч тус бүр), tab нээгдэх бүрт, дахин нэвтэрсний дараа ч дахин илгээгдэнэ. Хэзээ ч CLEAR гэж үзэхгүй.
+- Сервер `BLOCKED_RED_FLAG` гэвэл (өөр төхөөрөмж дээр ч) апп түүнийг хүндэтгэнэ. `QUESTIONNAIRE_OUTDATED` бол хуучин хариултаар үргэлжлүүлэхгүй.
+- **Эрсдэл:** Сервер дээр захиалга `DRAFT/NOT_ANSWERED` хэвээр үлддэг тул өөр client тэр захиалгыг үргэлжлүүлж болно. Backend-ийн P0.
+
+### 11.4 Асуулга, quote, upload, төлбөр
+
+- Асуултын тоо серверээс хамаарна. Mock backend-ийн fixture-тэй ижил: `GENERAL_V1`, 3 асуулт, `isFixture`.
+- Quote: 501 болон бусад алдаа амжилт биш. Задаргаа, `totalMnt`, fixture шошго. Ноорог өөрчлөгдөх эсвэл хугацаа дуусахад хүчингүй. "Үнийн санал нь захиалга баталгаажсан гэсэн үг биш" гэж харуулна.
+- Upload: серверийн attachment ID-г хадгална. Preview-г "илгээгдсэн" гэж харуулахгүй. Заалт шаардлагатай үед серверт хадгалсан зураггүйгээр quote, төлбөр рүү үргэлжлэхгүй. Алдааны код бүрд тайлбар.
+- QPay: QR, backend-ийн зөвхөн app scheme deeplink (http, javascript гэх мэт шүүгдэнэ), 4 секунд тутам polling, апп дэвсгэрээс буцахад шууд шалгана, хугацаа дуусалт, `PAID`-ийг зөвхөн backend `paidAt`-тай баталсан үед. Сервергүй үед "боломжгүй" төлөв.
+- Сувилагчийн хүйсийн сонголт идэвхгүй, "сервер хадгалдаггүй" тайлбартай, payload-д орохгүй.
+- Logout болон login хийхэд ноорог цэвэрлэгдэнэ.
+
+### 11.5 Шалгалт
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint, typecheck | 0 алдаа |
+| Unit тест | 128/128 |
+| Main серверийн эсрэг интеграц | 9/9 |
+| iOS, Android JS export | Амжилттай. Native build биш. |
+| Бодит төхөөрөмж | Хийгээгүй. Төхөөрөмж, Xcode, Android SDK байхгүй. |
+
+### 11.6 Backend handoff
+
+| # | Хэрэгцээ |
+|---|---|
+| P0 | GAP-13: аль нэг `true`-тэй дутуу хариултыг хүлээн авч `BLOCKED_RED_FLAG` болгох. Одоо сервер блокийг мэдэхгүй. |
+| P0 | GAP-15: `POST /api/orders`-д `Idempotency-Key`. Ижил key, өөр payload бол 422. |
+| P1 | Quote (§6) үнэ, `isFixture` шошго. |
+| P1 | Upload (§5) storage. GAP-17: upload-д `Idempotency-Key`. |
+| P1 | QPay invoice ба status (§7), sandbox эрх. |
+| P2 | GAP-16: сувилагчийн хүйсийг хадгалах эсэх. |
+
+---
+
+## 12. 2026-10-15: backend `76b7e9e`-тэй нийцүүлэлт
+
+Туршсан сервер: `work/backend-l1-1` `76b7e9e`, scratchpad-д хуулж локалд `http://localhost:8080`, `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`. main (`901bb91`) нь хуучин `16ce810`-ийн кодтой.
+
+| Хэсэг | Backend `76b7e9e` | Mobile |
+|---|---|---|
+| Auth | Хэвээр | Нэг хүсэлттэй login, 401 → logout, эрхийн 403 → logout биш. 7/7 интеграцад багтсан. |
+| GAP-15 idempotency | **Засагдсан.** Ижил key + payload → replay, өөр payload → 409 | Payload-ийн fingerprint-тэй key, retry ижил key |
+| GAP-13 эрт "Тийм" | **Засагдсан.** Нэг `true` хариулт шууд блоклоно | Зөвхөн тэр нэг хариултыг илгээнэ. Блок хадгалагдаж, дахин илгээгдэнэ |
+| Quote | `orderVersion` заавал, `excludes`, `isFixture`, `isPayment: false` | Quote авахын өмнө `GET /api/orders/:id`-ээр version авна. Хуучин version-ий quote хүчингүй. Ороогүй зардлыг харуулна. |
+| Upload | Magic bytes, 10 MB, 5 файл, key-тэй replay, `storage: local-dev` | Зураг бүр тогтмол key. "local-dev storage" шошго. Staging bucket байхгүй. |
+| QPay | Зөвхөн mock горим шалгагдсан. Sandbox шалгагдаагүй | `isMock` шошго. PAID-ийг зөвхөн серверийн `paidAt`-тай үед. Mock PAID-ийг "QPay биш" гэж харуулна. |
+
+**Зөрүү (backend handoff):** өөр key-ээр давхар invoice үүсгэхэд гэрээ `409 PAYMENT_IN_PROGRESS` (`paymentId`-тэй) гэсэн ч сервер `409 ORDER_NOT_EDITABLE` буцаасан. Mobile хоёуланд нь шинэ нэхэмжлэх үүсгэхгүй. Хуучин нэхэмжлэхийг үргэлжлүүлэхэд `paymentId` хэрэгтэй.
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint, typecheck | 0 алдаа |
+| Unit тест | 132/132 |
+| Backend `76b7e9e`-ийн эсрэг интеграц | 7/7 |
+| iOS, Android JS export | Амжилттай. Native build биш. |
+| Бодит төхөөрөмж, native build, store upload | Хийгээгүй (төхөөрөмж, эрх, identifier байхгүй) |
+
+---
+
+## 13. 2026-10-16: backend `28590ee`, payment recovery
+
+Туршсан сервер: `work/backend-l1-1` `28590ee` (PR #5), тусгаарласан хуулбар `http://localhost:8081`, шинэ embedded DB, `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`, `JWT_EXPIRES_IN=20s`. Бодит эсвэл бусдын DB-д хүрээгүй.
+
+### 13.1 Payment recovery
+
+- Апп захиалга бүрийн `{key, quoteId, paymentId}`-г хэрэглэгч тус бүрээр хадгална (`App/utils/paymentStore.ts`). Үнэ, QR, хувийн мэдээлэл хадгалахгүй.
+- Хүсэлт илгээхээс өмнө key хадгалагдана. Timeout эсвэл restart-ийн дараа ижил key + quote-оор replay хийж, нэг л нэхэмжлэх буцаана. `paymentId` мэдэгдэж байвал `GET payment`-ээр бүтэн нэхэмжлэх (QR, deeplink, хугацаа) сэргээнэ.
+- `409 PAYMENT_IN_PROGRESS` + `paymentId` ирвэл тэр нэхэмжлэхийг үргэлжлүүлнэ (гэрээ).
+- **Серверийн бодит зан төлөв:** өөр key-ээр (өөр төхөөрөмж, хадгалсан бичлэг алга) хүсэхэд `409 ORDER_NOT_EDITABLE`, `paymentId`-гүй. Апп "энэ төхөөрөмж сэргээж чадахгүй" гэж харуулна. Шинэ нэхэмжлэх, хуурамч амжилт байхгүй.
+- PAID зөвхөн серверийн `PAID` + `paidAt`. PAID, EXPIRED, FAILED нь бичлэгийг хаана. `isMock` бол "бодит QPay биш" гэж харуулна.
+- Нэг timer, in-flight хамгаалалт. Дэлгэц хаагдах үед (logout орно) polling зогсоно. Апп resume үед нэг удаа шалгана.
+- "Захиалга" tab нь `GET /api/orders?status=AWAITING_PAYMENT` болон `BLOCKED_RED_FLAG`-аар restart эсвэл re-login хийсний дараа төлөвийг сэргээнэ.
+
+### 13.2 Quote
+
+`travelFeeMnt`, `discountMnt` = 0 боловч `excludes`-д байвал апп тэдгээрийг "тооцоогүй" (`null`) гэж үзнэ. "0 ₮" гэж харуулахгүй, "Ороогүй: унааны зардал, хөнгөлөлт, НӨАТ" гэж харуулна.
+
+### 13.3 Шалгалт
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint, typecheck | 0 алдаа |
+| Unit тест | 143/143 |
+| Backend `28590ee`-ийн эсрэг интеграц | 8/8: auth ба token дуусалт, draft replay, эрт блок, re-login дараах блок, quote version, upload алдагдсан хариу + retry/read/delete, төлбөр сэргээлт |
+| iOS, Android JS export | Амжилттай. Native build биш. |
+| Native build, store upload, төхөөрөмж | Хийгээгүй |
+
+QPay sandbox шалгагдаагүй. Mock PAID-ийг backend-ийн dev туслах endpoint-оор өдөөсөн.
+
+---
+
+## 14. 2026-10-17: backend `8f6309f` recovery (H1–H5)
+
+Хэрэгжсэн, `17cbfa9`. RESUME, DONE нь серверийн payment-ийг уншина (paid зөвхөн `PAID` + `paidAt`). WAIT нь QR-гүй unconfirmed төлөв бөгөөд `expiresAt` хүртэл polling хийнэ. NEW_QUOTE нь шинэ quote ба шинэ key шаардана. CONTACT_SUPPORT нь retry хийхгүй, холбоо барих мэдээлэл зохиохгүй. `ORDER_NOT_EDITABLE` нь хуучин серверт зориулсан fallback.
+
+Шалгалт: unit 149/149, `8f6309f`-ийн эсрэг интеграц 13/13, JS export амжилттай. Хүлээлгэн өгөх баримт: `docs/l1-1-handover-mobile.md`.

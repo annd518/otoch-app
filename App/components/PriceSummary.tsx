@@ -1,9 +1,11 @@
 import React from "react"
 import { StyleSheet, Text, View } from "react-native"
 
-import type { SelectedService } from "@/context/BookingDraftContext"
+import type { SelectedService } from "@/services/bookingDraft"
 import type { Quote } from "@/services/apiTypes"
 import { formatMnt } from "@/utils/money"
+
+const EXCLUDE_LABELS: Record<string, string> = { TRAVEL_FEE: "унааны зардал", DISCOUNT: "хөнгөлөлт", VAT: "НӨАТ" }
 
 // Shows the server quote when one exists (lines + quote.totalMnt). Without a
 // quote it shows only the catalog display price and never adds anything up.
@@ -22,6 +24,11 @@ export function PriceSummary({ service, quote }: { service: SelectedService | nu
           <Text style={styles.total}>Нийт төлөх:</Text>
           <Text style={styles.total}>{formatMnt(quote.totalMnt)}</Text>
         </View>
+        {quote.excludes.length > 0 ? (
+          <Text style={styles.note}>
+            Ороогүй: {quote.excludes.map((e) => EXCLUDE_LABELS[e] ?? e).join(", ")}.
+          </Text>
+        ) : null}
       </View>
     )
   }
