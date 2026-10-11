@@ -11,6 +11,7 @@ RUN npm ci --ignore-scripts
 COPY prisma ./prisma
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
+COPY assets ./assets
 RUN npx prisma generate && npx tsc -p tsconfig.build.json
 
 # Release step: applies committed migrations only (never db push / migrate reset)
@@ -25,6 +26,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/assets ./assets
 COPY prisma/schema.prisma ./prisma/schema.prisma
 USER node
 EXPOSE 8000

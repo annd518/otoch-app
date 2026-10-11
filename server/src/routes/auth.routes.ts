@@ -1,7 +1,20 @@
-import { Router } from 'express'
-import { signupController, loginController } from '../controllers/authController'
+import {
+  requestOtp,
+  verifyOtp,
+  refreshSession,
+  logoutSession,
+} from "../controllers/otpController";
+import { Router } from "express";
+import {
+  signupController,
+  loginController,
+} from "../controllers/authController";
 
-const router = Router()
+const router = Router();
+router.post("/otp/request", requestOtp);
+router.post("/otp/verify", verifyOtp);
+router.post("/refresh", refreshSession);
+router.post("/logout", logoutSession);
 
 /**
  * @swagger
@@ -24,7 +37,7 @@ const router = Router()
  *       201:
  *         description: User created successfully
  */
-router.post('/signup', signupController)
+router.post("/signup", signupController);
 
 /**
  * @swagger
@@ -45,7 +58,6 @@ router.post('/signup', signupController)
  *       200:
  *         description: Login successful
  */
-router.post('/login', loginController)
+router.post("/login", loginController);
 
-
-export default router
+export default router;

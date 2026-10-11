@@ -1,51 +1,58 @@
-import React, { useState } from "react"
+import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
+import { theme } from "@/design/theme";
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
-} from "react-native"
-import { Link, useLocalSearchParams, useRouter } from "expo-router"
-import { SafeAreaView } from "react-native-safe-area-context"
+} from "react-native";
+import { Link, useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useBookingDraft } from "@/context/BookingDraftContext"
-import { apiService } from "@/services/api"
+import { useBookingDraft } from "@/context/BookingDraftContext";
+import { apiService } from "@/services/api";
 
 export default function LoginScreen() {
-  const router = useRouter()
-  const params = useLocalSearchParams<{ email?: string; registered?: string; expired?: string }>()
-  const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const { dispatch } = useBookingDraft()
-  const justRegistered = params.registered === "1"
-  const sessionExpired = params.expired === "1"
+  const router = useRouter();
+  const params = useLocalSearchParams<{
+    email?: string;
+    registered?: string;
+    expired?: string;
+  }>();
+  const [email, setEmail] = useState(
+    typeof params.email === "string" ? params.email : "",
+  );
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { dispatch } = useBookingDraft();
+  const justRegistered = params.registered === "1";
+  const sessionExpired = params.expired === "1";
 
   const handleLogin = async () => {
-    const trimmedEmail = email.trim()
+    const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
-      Alert.alert("Алдаа", "Бүх талбарыг бөглөнө үү")
-      return
+      Alert.alert("Алдаа", "Бүх талбарыг бөглөнө үү");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await apiService.login(trimmedEmail, password)
+      const result = await apiService.login(trimmedEmail, password);
       if (result.ok) {
-        dispatch({ type: "reset" })
-        router.replace("/(tabs)")
+        dispatch({ type: "reset" });
+        router.replace("/(tabs)");
       } else {
-        Alert.alert("Нэвтэрч чадсангүй", result.message)
+        Alert.alert("Нэвтэрч чадсангүй", result.message);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,13 +67,15 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>Тавтай морил</Text>
             <Text style={styles.subtitle}>
-              PariwarCare-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
+              OTOCH-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
             </Text>
           </View>
 
           {sessionExpired && (
             <View style={[styles.notice, styles.noticeWarn]}>
-              <Text style={[styles.noticeText, styles.noticeWarnText]}>Нэвтрэх хугацаа дууссан. Дахин нэвтэрнэ үү.</Text>
+              <Text style={[styles.noticeText, styles.noticeWarnText]}>
+                Нэвтрэх хугацаа дууссан. Дахин нэвтэрнэ үү.
+              </Text>
             </View>
           )}
 
@@ -84,7 +93,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Имэйлээ оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -98,7 +107,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Нууц үгээ оруулна уу"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.color.secondary}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -107,7 +116,9 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>Нууц үгээ мартсан уу?</Text>
+              <Text style={styles.forgotPasswordText}>
+                Нууц үгээ мартсан уу?
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -141,13 +152,13 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.color.background,
   },
   container: {
     flex: 1,
@@ -162,14 +173,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
+    fontFamily: "Montserrat_600SemiBold",
     fontSize: 32,
     fontWeight: "800",
-    color: "#111",
+    color: theme.color.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#666",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: theme.color.secondary,
     textAlign: "center",
   },
   form: {
@@ -179,47 +192,52 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: theme.color.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#f7f8fb",
+    backgroundColor: theme.color.subtle,
     borderWidth: 1,
-    borderColor: "#e1e4e8",
+    borderColor: theme.color.info,
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
-    color: "#111",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: theme.color.text,
   },
   forgotPassword: {
     alignSelf: "flex-end",
     marginBottom: 24,
   },
   forgotPasswordText: {
-    color: "#2f80ed",
-    fontSize: 14,
+    color: theme.color.brand,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
     fontWeight: "600",
   },
   primaryButton: {
-    backgroundColor: "#2f80ed",
+    minHeight: 56,
+    backgroundColor: theme.color.brand,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
-    shadowColor: "#2f80ed",
+    shadowColor: theme.color.brand,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#a0c4f0",
+    backgroundColor: theme.color.info,
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
+    color: theme.color.background,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
     fontWeight: "700",
   },
   divider: {
@@ -230,12 +248,13 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e1e4e8",
+    backgroundColor: theme.color.info,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#999",
-    fontSize: 14,
+    color: theme.color.secondary,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
     fontWeight: "600",
   },
   registerSection: {
@@ -244,29 +263,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   registerText: {
-    fontSize: 15,
-    color: "#666",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: theme.color.secondary,
   },
   registerLink: {
-    fontSize: 15,
-    color: "#2f80ed",
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    color: theme.color.brand,
     fontWeight: "700",
   },
   notice: {
-    backgroundColor: "#e8f5e9",
+    backgroundColor: theme.color.info,
     borderRadius: 12,
     padding: 14,
     marginBottom: 20,
   },
   noticeText: {
-    color: "#1b5e20",
-    fontSize: 14,
-    lineHeight: 20,
+    color: theme.color.secondary,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    lineHeight: 28,
   },
   noticeWarn: {
-    backgroundColor: "#fff3e0",
+    backgroundColor: theme.color.subtle,
   },
   noticeWarnText: {
-    color: "#e65100",
+    color: theme.color.secondary,
   },
-})
+});

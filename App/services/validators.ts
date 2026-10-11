@@ -1,7 +1,7 @@
 // Runtime checks for server data. A parser returns null when the payload does
 // not match, which the client reports as a contract failure instead of
 // pretending the request succeeded.
-import { isRecord } from './apiResult'
+import { isRecord } from "./apiResult";
 import {
   USER_ROLES,
   type AppUser,
@@ -12,112 +12,135 @@ import {
   type QuoteLine,
   type UserRole,
   type Visit,
-} from './apiTypes'
+} from "./apiTypes";
 
 function nonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== ''
+  return typeof value === "string" && value.trim() !== "";
 }
 
 export function isUserRole(value: unknown): value is UserRole {
-  return typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value)
+  return (
+    typeof value === "string" &&
+    (USER_ROLES as readonly string[]).includes(value)
+  );
 }
 
 function isInteger(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value)
+  return typeof value === "number" && Number.isInteger(value);
 }
 
 function optionalText(value: unknown): string | null | undefined {
-  if (value === null || value === undefined) return null
-  return typeof value === 'string' ? value : undefined
+  if (value === null || value === undefined) return null;
+  return typeof value === "string" ? value : undefined;
 }
 
 export function parseUser(value: unknown): AppUser | null {
-  if (!isRecord(value)) return null
-  const { id, name, email, role } = value
-  if (!nonEmptyString(id) || typeof name !== 'string' || !nonEmptyString(email) || !isUserRole(role)) return null
-  return { id, name, email, role }
+  if (!isRecord(value)) return null;
+  const { id, name, email, role } = value;
+  if (
+    !nonEmptyString(id) ||
+    typeof name !== "string" ||
+    !nonEmptyString(email) ||
+    !isUserRole(role)
+  )
+    return null;
+  return { id, name, email, role };
 }
 
 export function parseUserEnvelope(data: unknown): AppUser | null {
-  return isRecord(data) ? parseUser(data.user) : null
+  return isRecord(data) ? parseUser(data.user) : null;
 }
 
 export interface LoginData {
-  token: string
-  user: unknown
+  token: string;
+  user: unknown;
 }
 
 export function parseLoginData(data: unknown): LoginData | null {
-  if (!isRecord(data) || !nonEmptyString(data.token)) return null
-  return { token: data.token, user: data.user }
+  if (!isRecord(data) || !nonEmptyString(data.token)) return null;
+  return { token: data.token, user: data.user };
 }
 
 export interface SignupData {
-  user: AppUser
-  token: string | null
+  user: AppUser;
+  token: string | null;
 }
 
 export function parseSignupData(data: unknown): SignupData | null {
-  if (!isRecord(data)) return null
-  const user = parseUser(data.user)
-  if (!user) return null
-  return { user, token: nonEmptyString(data.token) ? data.token : null }
+  if (!isRecord(data)) return null;
+  const user = parseUser(data.user);
+  if (!user) return null;
+  return { user, token: nonEmptyString(data.token) ? data.token : null };
 }
 
 export function parseParent(value: unknown): Parent | null {
-  if (!isRecord(value)) return null
-  const { id, name, age, gender, address, emergencyContact } = value
-  const diseases = optionalText(value.diseases)
-  const medications = optionalText(value.medications)
+  if (!isRecord(value)) return null;
+  const { id, name, age, gender, address, emergencyContact } = value;
+  const diseases = optionalText(value.diseases);
+  const medications = optionalText(value.medications);
   if (
     !nonEmptyString(id) ||
-    typeof name !== 'string' ||
+    typeof name !== "string" ||
     !isInteger(age) ||
-    typeof gender !== 'string' ||
-    typeof address !== 'string' ||
-    typeof emergencyContact !== 'string' ||
+    typeof gender !== "string" ||
+    typeof address !== "string" ||
+    typeof emergencyContact !== "string" ||
     diseases === undefined ||
     medications === undefined
   ) {
-    return null
+    return null;
   }
-  return { id, name, age, gender, address, diseases, medications, emergencyContact }
+  return {
+    id,
+    name,
+    age,
+    gender,
+    address,
+    diseases,
+    medications,
+    emergencyContact,
+    ...(typeof value.birthYear === "number" && { birthYear: value.birthYear }),
+    ...(typeof value.needsRepresentative === "boolean" && {
+      needsRepresentative: value.needsRepresentative,
+    }),
+  };
 }
 
 export function parseParentList(data: unknown): Parent[] | null {
-  if (!isRecord(data) || !Array.isArray(data.parents)) return null
-  const parents: Parent[] = []
+  if (!isRecord(data) || !Array.isArray(data.parents)) return null;
+  const parents: Parent[] = [];
   for (const item of data.parents) {
-    const parent = parseParent(item)
-    if (!parent) return null
-    parents.push(parent)
+    const parent = parseParent(item);
+    if (!parent) return null;
+    parents.push(parent);
   }
-  return parents
+  return parents;
 }
 
 export function parseCreatedParent(data: unknown): Parent | null {
-  return isRecord(data) ? parseParent(data.parent) : null
+  return isRecord(data) ? parseParent(data.parent) : null;
 }
 
 export function parseCreatedVisit(data: unknown): Visit | null {
-  if (!isRecord(data) || !isRecord(data.visit)) return null
-  const { id, parentId, scheduledFor, visitType, status } = data.visit
+  if (!isRecord(data) || !isRecord(data.visit)) return null;
+  const { id, parentId, scheduledFor, visitType, status } = data.visit;
   if (
     !nonEmptyString(id) ||
     !nonEmptyString(parentId) ||
     !nonEmptyString(scheduledFor) ||
-    (visitType !== 'BASIC' && visitType !== 'FULL') ||
+    (visitType !== "BASIC" && visitType !== "FULL") ||
     !nonEmptyString(status)
   ) {
-    return null
+    return null;
   }
-  return { id, parentId, scheduledFor, visitType, status }
+  return { id, parentId, scheduledFor, visitType, status };
 }
 
 function parseCatalogService(value: unknown): CatalogService | null {
-  if (!isRecord(value)) return null
-  const { id, code, name, priceMnt, durationMin, requiresReferral, isActive } = value
-  const redFlag = value.redFlagQuestionnaire
+  if (!isRecord(value)) return null;
+  const { id, code, name, priceMnt, durationMin, requiresReferral, isActive } =
+    value;
+  const redFlag = value.redFlagQuestionnaire;
   if (
     !nonEmptyString(id) ||
     !nonEmptyString(code) ||
@@ -126,62 +149,114 @@ function parseCatalogService(value: unknown): CatalogService | null {
     priceMnt < 0 ||
     !isInteger(durationMin) ||
     durationMin <= 0 ||
-    typeof requiresReferral !== 'boolean' ||
-    typeof isActive !== 'boolean' ||
-    (redFlag !== undefined && redFlag !== null && typeof redFlag !== 'string')
+    typeof requiresReferral !== "boolean" ||
+    typeof isActive !== "boolean" ||
+    (redFlag !== undefined && redFlag !== null && typeof redFlag !== "string")
   ) {
-    return null
+    return null;
   }
   return {
     id,
     code,
     name,
-    description: typeof value.description === 'string' ? value.description : '',
-    category: typeof value.category === 'string' ? value.category : '',
+    description: typeof value.description === "string" ? value.description : "",
+    category: typeof value.category === "string" ? value.category : "",
     priceMnt,
     durationMin,
     requiresReferral,
-    redFlagQuestionnaire: typeof redFlag === 'string' ? redFlag : null,
+    redFlagQuestionnaire: typeof redFlag === "string" ? redFlag : null,
     isActive,
     isFixture: value.isFixture === true,
-  }
+    group: typeof value.group === "string" ? value.group : undefined,
+    sortOrder:
+      typeof value.sortOrder === "number" ? value.sortOrder : undefined,
+    includes: Array.isArray(value.includes)
+      ? value.includes.filter((s): s is string => typeof s === "string")
+      : undefined,
+    nurseSupplies: Array.isArray(value.nurseSupplies)
+      ? value.nurseSupplies.filter((s): s is string => typeof s === "string")
+      : undefined,
+    preparation: Array.isArray(value.preparation)
+      ? value.preparation.filter((s): s is string => typeof s === "string")
+      : undefined,
+    exclusions: Array.isArray(value.exclusions)
+      ? value.exclusions.filter((s): s is string => typeof s === "string")
+      : undefined,
+    formConfig:
+      isRecord(value.formConfig) &&
+      typeof value.formConfig.windowMin === "number" &&
+      typeof value.formConfig.attachmentLimit === "number"
+        ? {
+            windowMin: value.formConfig.windowMin,
+            attachmentLimit: value.formConfig.attachmentLimit,
+            referral:
+              typeof value.formConfig.referral === "string"
+                ? value.formConfig.referral
+                : "none",
+            medicationRequired: value.formConfig.medicationRequired === true,
+            firstDoseCheck: value.formConfig.firstDoseCheck === true,
+            familyPresence:
+              typeof value.formConfig.familyPresence === "string"
+                ? value.formConfig.familyPresence
+                : "optional",
+            approved: value.formConfig.approved === true,
+          }
+        : undefined,
+  };
 }
 
 export function parseCatalog(data: unknown): Catalog | null {
-  if (!isRecord(data) || data.currency !== 'MNT' || !Array.isArray(data.services)) return null
-  const { catalogVersion } = data
-  if (catalogVersion !== null && catalogVersion !== undefined && !nonEmptyString(catalogVersion)) return null
-  const services: CatalogService[] = []
+  if (
+    !isRecord(data) ||
+    data.currency !== "MNT" ||
+    !Array.isArray(data.services)
+  )
+    return null;
+  const { catalogVersion } = data;
+  if (
+    catalogVersion !== null &&
+    catalogVersion !== undefined &&
+    !nonEmptyString(catalogVersion)
+  )
+    return null;
+  const services: CatalogService[] = [];
   for (const item of data.services) {
-    const service = parseCatalogService(item)
-    if (!service) return null
-    services.push(service)
+    const service = parseCatalogService(item);
+    if (!service) return null;
+    services.push(service);
   }
   return {
-    catalogVersion: typeof catalogVersion === 'string' ? catalogVersion : null,
-    currency: 'MNT',
-    containsFixtures: data.containsFixtures === true || services.some((s) => s.isFixture),
+    catalogVersion: typeof catalogVersion === "string" ? catalogVersion : null,
+    currency: "MNT",
+    containsFixtures:
+      data.containsFixtures === true || services.some((s) => s.isFixture),
     services,
-  }
+  };
 }
 
 function parseQuoteLine(value: unknown): QuoteLine | null {
-  if (!isRecord(value) || !nonEmptyString(value.name) || !isInteger(value.amountMnt)) return null
-  const line: QuoteLine = { name: value.name, amountMnt: value.amountMnt }
-  if (typeof value.serviceId === 'string') line.serviceId = value.serviceId
-  if (typeof value.code === 'string') line.code = value.code
-  if (isInteger(value.quantity)) line.quantity = value.quantity
-  if (typeof value.serviceCode === 'string' && !line.code) line.code = value.serviceCode
-  if (isInteger(value.unitPriceMnt)) line.unitPriceMnt = value.unitPriceMnt
-  return line
+  if (
+    !isRecord(value) ||
+    !nonEmptyString(value.name) ||
+    !isInteger(value.amountMnt)
+  )
+    return null;
+  const line: QuoteLine = { name: value.name, amountMnt: value.amountMnt };
+  if (typeof value.serviceId === "string") line.serviceId = value.serviceId;
+  if (typeof value.code === "string") line.code = value.code;
+  if (isInteger(value.quantity)) line.quantity = value.quantity;
+  if (typeof value.serviceCode === "string" && !line.code)
+    line.code = value.serviceCode;
+  if (isInteger(value.unitPriceMnt)) line.unitPriceMnt = value.unitPriceMnt;
+  return line;
 }
 
 export function parseQuote(data: unknown): Quote | null {
-  if (!isRecord(data) || !isRecord(data.quote)) return null
-  const q = data.quote
+  if (!isRecord(data) || !isRecord(data.quote)) return null;
+  const q = data.quote;
   if (
     !nonEmptyString(q.id) ||
-    q.currency !== 'MNT' ||
+    q.currency !== "MNT" ||
     !Array.isArray(q.lines) ||
     !isInteger(q.subtotalMnt) ||
     !isInteger(q.totalMnt) ||
@@ -190,29 +265,37 @@ export function parseQuote(data: unknown): Quote | null {
     // a quote is never a payment
     q.isPayment === true
   ) {
-    return null
+    return null;
   }
-  const lines: QuoteLine[] = []
+  const lines: QuoteLine[] = [];
   for (const item of q.lines) {
-    const line = parseQuoteLine(item)
-    if (!line) return null
-    lines.push(line)
+    const line = parseQuoteLine(item);
+    if (!line) return null;
+    lines.push(line);
   }
-  const excludes = Array.isArray(q.excludes) ? q.excludes.filter((e): e is string => typeof e === 'string') : []
+  const excludes = Array.isArray(q.excludes)
+    ? q.excludes.filter((e): e is string => typeof e === "string")
+    : [];
   // Backend 28590ee sends travelFeeMnt/discountMnt = 0 meaning "not calculated"
   // when they are listed in `excludes`. They must not be shown as a real 0 ₮.
   return {
     id: q.id,
-    currency: 'MNT',
+    currency: "MNT",
     lines,
     subtotalMnt: q.subtotalMnt,
-    travelFeeMnt: isInteger(q.travelFeeMnt) && !excludes.includes('TRAVEL_FEE') ? q.travelFeeMnt : null,
-    discountMnt: isInteger(q.discountMnt) && !excludes.includes('DISCOUNT') ? q.discountMnt : null,
+    travelFeeMnt:
+      isInteger(q.travelFeeMnt) && !excludes.includes("TRAVEL_FEE")
+        ? q.travelFeeMnt
+        : null,
+    discountMnt:
+      isInteger(q.discountMnt) && !excludes.includes("DISCOUNT")
+        ? q.discountMnt
+        : null,
     totalMnt: q.totalMnt,
     pricingVersion: q.pricingVersion,
     expiresAt: q.expiresAt,
     isFixture: q.isFixture === true,
     orderVersion: isInteger(q.orderVersion) ? q.orderVersion : null,
     excludes,
-  }
+  };
 }

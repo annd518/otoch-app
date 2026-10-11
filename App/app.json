@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "App",
+    "name": "OTOCH",
     "slug": "App",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "app",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
@@ -48,7 +48,9 @@
           "cameraPermission": "Эмчийн заалтын зургийг авахад камер ашиглах шаардлагатай.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
