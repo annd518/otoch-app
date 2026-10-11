@@ -5,7 +5,7 @@
 | Огноо | 2026-10-11 |
 | Branch / суурь commit | `work/mobile-l1-1` / `aacfaad` |
 | Хамрах хүрээ | `App/` (Expo, React Native) |
-| Өнөөдрийн нотолгооны түвшин | Код уншсан, lockfile-ээр install хийсэн, lint, typecheck, JS bundle export ажиллуулсан. **Ямар ч build хийгээгүй, store руу upload хийгээгүй.** |
+| Нотолгооны түвшин (2026-10-12) | Lockfile-ээр install, lint, typecheck, unit тест, локал серверийн эсрэг интеграцийн тест, JS bundle export. **Native build, signed build, store upload хийгээгүй. Бодит төхөөрөмж дээр туршаагүй.** |
 
 **Төлөвийн тэмдэглэгээ.**
 
@@ -41,11 +41,11 @@
 | Хувилбар | Дутуу | `App/app.json:5` нь `"1.0.0"`. iOS `buildNumber`, Android `versionCode` байхгүй. Гараар эсвэл EAS remote versioning ашиглах эсэхийг шийднэ. |
 | Expo / EAS project | Дутуу | `eas.json`, `extra.eas.projectId`, `owner` байхгүй. Expo account байгаа эсэх: эрхгүй тул шалгаагүй. |
 | Өөр build pipeline | Дутуу (шийдвэр) | `.github/workflows`, fastlane, Codemagic, Bitrise тохиргоо repo-д байхгүй. `App/.gitignore:42-43` нь `/ios`, `/android`-ийг ignore хийдэг тул native хавтсыг build үед үүсгэх (CNG) загвартай. |
-| Staging API URL | Дутуу | Repo-д байхгүй. Backend-ийн төлөвлөгөөгөөр staging 10-16-нд "эрх байвал" гарна (`origin/work/backend-l1-1:docs/l1-1-backend-plan.md`). `App/utils/env.ts:19-20` нь `EXPO_PUBLIC_API_URL`-ийг дэмждэг. Утга өгөхгүй бол release build `localhost` эсвэл `10.0.2.2` руу хандаж ажиллахгүй. iOS ATS, Android cleartext хориг тул staging заавал HTTPS байна. |
+| Staging API URL | Дутуу (код бэлэн) | Утга repo-д байхгүй. Backend-ийн зорилт 10-13. 2026-10-12-оос release build `EXPO_PUBLIC_API_URL`-гүй эсвэл `http://` хаягтай бол хүсэлт илгээхгүй, тохиргооны алдаа харуулна. LAN, `10.0.2.2`, `localhost` руу унахгүй (`App/utils/apiConfig.ts`, тестээр баталгаажсан). |
 | Нууц утга | Баталгаажсан | `App/`-д `.env`, key, certificate байхгүй. `.gitignore`-ууд `*.p12`, `*.p8`, `*.jks`, `*.keystore`, `*.mobileprovision`-ийг хаадаг. `EXPO_PUBLIC_*` утга bundle-д орох тул тэнд нууц хадгалахгүй. |
 | Камер, зургийн permission | Дутуу | Одоо шаардлагагүй, учир нь camera, image-picker модуль байхгүй. L1-1 S4-д `expo-image-picker` нэмэхэд usage string заавал хэрэгтэй. |
 | Байршлын permission | Дутуу (шийдвэр) | Одоо байхгүй. Хаягаа газрын зураг дээр гараар тэмдэглэвэл permission хэрэггүй. "Миний байршил" товч хэрэгтэй бол зөвхөн foreground permission. Хүүхэд хэрэглэгчийн апп background байршил шаардахгүй. |
-| `react-native-maps` | Дутуу | `App/package.json:37` 1.27.2. Android build-д Google Maps API key хэрэгтэй. Package-ийн config plugin `androidGoogleMapsApiKey` сонголттой (`node_modules/react-native-maps/plugin/build/android.js:47-48`) ч `App/app.json:28-46`-ийн plugins-д нэмэгдээгүй. iOS анхдагчаар Apple Maps ашигладаг. |
+| `react-native-maps` | Дутуу (блоклогч байж болзошгүй) | `App/package.json:37` 1.27.2. Захиалгын дэлгэц `MapView`-г шууд харуулдаг. Android build-д Google Maps API key тохируулаагүй бол тэр дэлгэц нээгдэхэд апп унах эрсдэлтэй. Expo Go-д энэ асуудал гарахгүй. Шаардлага ба хязгаарлалтыг 9.3-т бичив. iOS анхдагчаар Apple Maps ашигладаг. |
 | Нууцлалын бодлогын URL | Дутуу | Хоёр store эрүүл мэндийн өгөгдөл цуглуулдаг аппаас шаарддаг. Repo-д байхгүй. |
 | Expo Go | Дутуу | Туршаагүй. Одоогийн dependency бүгд SDK 57-ийн жагсаалтад багтдаг ч Expo Go дээр ажиллах нь баталгаажаагүй. |
 | Бодит төхөөрөмжийн тест | Дутуу | Нэг ч төхөөрөмж дээр туршаагүй. |
@@ -61,6 +61,12 @@
 | `expo config --type public` | Identifier, owner, EAS project байхгүйг баталсан | 1 |
 | `expo export` (iOS, Android JS bundle) | Амжилттай, Hermes bytecode үүссэн | 2. Native build биш. |
 | `expo-doctor` | Ажиллуулаагүй (10-12-ны 8-р алхам) | — |
+| **2026-10-12** `npm ci` cache-ээс | 856 package, lockfile өөрчлөгдөөгүй, `npm ls` алдаагүй | 2 |
+| **2026-10-12** ESLint | 0 error, 0 warning | 2 |
+| **2026-10-12** Typecheck (апп + тест) | 0 error | 2 |
+| **2026-10-12** Unit тест | 44/44 | 2 |
+| **2026-10-12** Локал серверийн эсрэг интеграц | 14/14 (`docs/l1-1-mobile-plan.md` 9.4) | 2 |
+| **2026-10-12** `expo export` iOS, Android | Амжилттай. Native build биш. | 2 |
 | Expo Go, simulator, native build, cloud build, store upload | Хийгээгүй | — |
 
 ## 4. iOS
@@ -146,3 +152,82 @@ Account нээх, төлбөр хийх, cloud build эхлүүлэх, store р�
 | Нууцлалын бодлого, дэмжлэгийн URL | Бүтээгдэхүүний эзэн | Хоёр store |
 | Tester-ийн жагсаалт | Бүтээгдэхүүний эзэн | iOS-д Apple ID имэйл, Android-д Google account имэйл |
 | Бодит төхөөрөмж | Баг | Дор хаяж нэг iPhone, нэг Android |
+
+## 9. 2026-10-12: cloud build-ийн бэлтгэл
+
+### 9.1 Батлагдсан identifier, account шалгасан дүн
+
+| Зүйл | Төлөв | Тайлбар |
+|---|---|---|
+| iOS bundle identifier | Дутуу | Repo, main-д нэгтгэсэн backend баримт, 10-12-ны даалгаварт батлагдсан утга алга. `app.json`-д бичээгүй. |
+| Android package | Дутуу | Дээрхтэй адил. |
+| Expo account, project ID, owner | Эрхгүй тул шалгаагүй | `eas-cli` суугаагүй, Expo account-д нэвтрээгүй. |
+| Apple Developer, App Store Connect | Эрхгүй тул шалгаагүй | |
+| Google Play Console | Эрхгүй тул шалгаагүй | |
+| Staging HTTPS URL | Дутуу | Backend-ийн зорилт 10-13. |
+
+Батлагдсан утга байхгүй тул `app.json`-д өөрчлөлт хийгээгүй, `eas.json` үүсгээгүй.
+
+### 9.2 Xcode, Android SDK-гүйгээр build хийх бэлтгэл (EAS Build)
+
+`App/.gitignore` нь `/ios`, `/android`-ийг ignore хийдэг тул EAS cloud дээр native төслийг үүсгэж build хийнэ. Локал Xcode, Android SDK шаардлагагүй. Систем дээр юу ч суулгаагүй.
+
+**Шаардлагатай зүйл ба зөвшөөрөл:**
+
+| Алхам | Юу болох | Зөвшөөрөл |
+|---|---|---|
+| `npx eas-cli login` | Expo account-д нэвтэрнэ | Account эзэмшигч |
+| `npx eas-cli init` | `app.json`-д `extra.eas.projectId`, `owner` бичнэ | Account эзэмшигч. Тусдаа PR. |
+| `app.json` identifier | `ios.bundleIdentifier`, `android.package`, хувилбар | Бүтээгдэхүүний эзэн бичгээр баталсны дараа |
+| `eas.json` | Доорх профайлууд | Mobile, review-тэй PR |
+| `eas build` | Кодыг Expo-ийн сервер рүү upload хийж build хийнэ. Build quota зарцуулна, төлбөртэй байж болно. | Эзэмшигч, тодорхой зөвшөөрөл |
+| iOS credential | EAS Apple Developer account-аар certificate, profile үүсгэнэ | Apple account эзэмшигч (App Manager эсвэл Admin) |
+| Android keystore | EAS upload keystore үүсгэнэ. Play App Signing идэвхжүүлнэ. | Play account эзэмшигч |
+| TestFlight, Play internal upload | Store руу илгээнэ | Тусдаа зөвшөөрөл. Энэ ажлын хүрээнд хийхгүй. |
+
+**`eas.json`-ийн санал (одоогоор файл үүсгээгүй):**
+
+```json
+{
+  "cli": { "appVersionSource": "remote" },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": { "EXPO_PUBLIC_API_URL": "<STAGING_HTTPS_URL>" }
+    },
+    "staging": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "env": { "EXPO_PUBLIC_API_URL": "<STAGING_HTTPS_URL>" }
+    }
+  }
+}
+```
+
+- `preview`: Android APK-г tester шууд суулгана. iOS internal distribution нь төхөөрөмжийн UDID бүртгэл шаардана.
+- `staging`: TestFlight болон Play internal testing-д зориулсан store build, staging API-тай.
+- `EXPO_PUBLIC_API_MODE`-ийг тохируулахгүй. Release build-д mock ямар ч тохиолдолд идэвхжихгүй.
+- Development client профайл хэрэгтэй бол `expo-dev-client` dependency нэмэх шаардлагатай (lockfile өөрчлөгдөнө).
+
+### 9.3 Android Google Maps API key
+
+**Шаардлага.**
+
+- Google Cloud project дээр "Maps SDK for Android" идэвхжүүлсэн key. Google Cloud billing account шаардлагатай тул төлбөрийн шийдвэр хэрэгтэй.
+- Key-ийг `react-native-maps` config plugin-ийн `androidGoogleMapsApiKey`-ээр өгнө. Үүний тулд `app.json`-ийг `app.config.ts` болгож key-ийг build-ийн env хувьсагчаас (EAS environment variable) уншина. Key-ийг repo-д бичихгүй.
+
+**Хязгаарлалт (restriction).**
+
+- Key APK дотор орох тул нууц биш. Иймээс заавал хязгаарлана.
+- Application restriction: Android app. Батлагдсан package name болон SHA-1 fingerprint: Play App Signing key (Play Console-оос), upload key эсвэл EAS keystore (internal build).
+- API restriction: зөвхөн "Maps SDK for Android".
+- Staging, production-д тусдаа key ашиглах.
+
+**Сонголт.** Захиалгын дэлгэцийн газрын зураг одоо зөвхөн харагддаг, байршил сонгох үйлдэлгүй. Key 10-13-аас өмнө гарахгүй бол Android build-ээс өмнө `MapView`-г түр хасах эсвэл key байгаа эсэхээр нөхцөлдүүлэх шийдвэр гаргана.
+
+### 9.4 Staging URL-ийн бэлэн байдал (зорилт 10-13)
+
+- Backend HTTPS staging URL өгмөгц `eas.json`-ийн `env`-д эсвэл EAS environment variable-д оруулна.
+- Release build `http://` хаяг, хоосон утгыг татгалзаж тохиргооны алдаа харуулна.
+- Локал хөгжүүлэлтэд `App/.env.example`-ийг `.env.local` болгон хуулж ашиглана. `.env`, `.env.local` git-д орохгүй.

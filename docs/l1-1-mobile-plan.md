@@ -7,7 +7,7 @@
 | Branch | `work/mobile-l1-1` |
 | Суурь commit | `aacfaad` (origin/main, "Update OTOCH app development") |
 | Хүлээлгэн өгөх | 2026-10-17 |
-| Төлөв | Ноорог. API гэрээ батлагдаагүй. |
+| Төлөв | Ноорог. API гэрээ батлагдаагүй. 2026-10-12-нд auth засвар ба каталог хэрэгжсэн (9-р хэсэг). |
 
 > **Анхаар.** API-ийн хэсгүүд backend-ийн `docs/l1-1-api.md` саналд тулгуурласан.
 > Тэр файл 2026-10-11-ний байдлаар зөвхөн `origin/work/backend-l1-1` (commit `3b1bc42`) дээр байгаа, main-д ороогүй, **батлагдаагүй**.
@@ -16,6 +16,8 @@
 ---
 
 ## 1. Одоогийн төлөв (кодоор шалгасан)
+
+> Энэ хэсэг 2026-10-11-ний төлвийг бичсэн. 2026-10-12-нд засагдсан зүйлсийг 9-р хэсгээс үзнэ үү.
 
 ### 1.1 Стек
 
@@ -273,7 +275,7 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 
 | Өдөр | Mobile ажил | Backend-ийн тухайн өдрийн ажил | Хамаарал |
 |---|---|---|---|
-| 10-12 | Build бэлтгэл (`docs/l1-1-build-readiness.md` 7-р хэсэг). Lint, typecheck-ийг 0 болгох. API client нэгтгэх, `success` шалгалт, auth guard, logout. Mock adapter, fixture. | Каталог | Identifier, account-ийн шийдвэр |
+| 10-12 | Build бэлтгэл (`docs/l1-1-build-readiness.md` 7-р хэсэг). Lint, typecheck-ийг 0 болгох. API client нэгтгэх, `success` шалгалт, auth guard, logout. Mock adapter, fixture. **Төлөв:** код талын ажил дууссан (9-р хэсэг). Identifier, account-ийн шийдвэр ирээгүй. | Каталог | Identifier, account-ийн шийдвэр |
 | 10-13 | S1 каталог (бодит endpoint бэлэн бол түүгээр), S2 өвчтөн/хаяг/цаг (mock) | Orders | GAP-1 |
 | 10-14 | S3 red flag, S4 заалтын зураг (`expo-image-picker`, permission string) | Red flag, attachment | Асуултын агуулга (D4) |
 | 10-15 | S5 quote, S6 QPay (mock, дараа нь backend-ийн sandbox горим) | Quote, QPay | QPay sandbox эрх (D5) |
@@ -341,3 +343,91 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 2. `services/api.ts`-ийг төрөлжүүлж `success`-ийг шалгадаг болгоод бүх дэлгэцийг түүн рүү шилжүүлнэ. Typecheck-ийг 0 болгоно.
 3. `bookappointment.tsx:139-155` буруу амжилтын мэдэгдэл, `register.tsx:57` signup-ийн дараах урсгал, `profile.tsx:23-26` logout, `login.tsx:39` ба `register.tsx:55` token log.
 4. `bookappointment.tsx:170` effect-ийг S2-ийн refactor дотор засна.
+
+---
+
+## 9. 2026-10-12-ны явц
+
+### 9.1 Хийсэн ажил
+
+| Ажил | Гол файл | Үр дүн |
+|---|---|---|
+| Login component-ийн нэр, lint | `App/app/auth/login.tsx` | `LoginScreen`. Lint error 0. |
+| Token, user, role-ийг тусдаа key-д | `App/utils/storage.ts` | `@auth_token`, `@user_data` (JSON объект), `@user_role`-ийг `multiSet`-ээр нэг дор бичнэ. |
+| Login-ийн user объект | `App/services/authFlow.ts` | Сервер `data.user`-д JWT string буцаадаг тул (backend plan F6) JWT-ийн `userId`-аар `GET /api/users/:id` дуудаж жинхэнэ объект авна. Профайл авч чадахгүй бол юу ч хадгалахгүй. |
+| Logout | `App/app/(tabs)/profile.tsx` | Баталгаажуулалтын дараа token, user, role-ийг устгаж login руу шилжинэ. Профайл хадгалсан хэрэглэгчийн нэр, имэйлийг харуулна. |
+| Эмзэг log | Бүх дэлгэц | Response, token-той `console.log` устсан. Зөвхөн `App/utils/env.ts` dev build-д API хаягийг log хийнэ. |
+| Signup | `App/app/auth/register.tsx` | Token ирвэл шууд нэвтэрнэ. Ирэхгүй бол (одоогийн гэрээ) login руу имэйлтэй шилжиж "Бүртгэл амжилттай үүслээ" мэдэгдэл харуулна. "Нэвтрэх" холбоос засагдсан. |
+| Худал амжилт | `App/services/apiResult.ts` | Амжилт гэж зөвхөн `body.success === true` ба шаардлагатай `data` parser-ээр батлагдсан үед үзнэ. HTTP 200 + зөвхөн `message` бол алдаа. |
+| Нэг API client | `App/services/httpClient.ts`, `App/services/api.ts` | Бүх дэлгэц `apiService`-ээр дамжина. axios-ын шууд дуудлага 0. 15 секундын timeout. |
+| Session дуусах | `App/services/httpClient.ts` | 401, эсвэл хугацаа нь дууссан token-той 403 ирвэл session цэвэрлэж login руу шилжинэ. |
+| Auth guard | `App/app/(tabs)/_layout.tsx` | Tab-ууд хүчинтэй session (token, user объект, exp) шаардана. Хуучин буруу хадгалсан session-ийг цэвэрлэнэ. |
+| Каталог | `App/app/booking/catalog.tsx`, `App/services/catalog.ts`, `App/mocks/catalogMock.ts` | Loading, error, empty, сонголт. Үнэ ₮-өөр. |
+| Захиалгын state | `App/context/BookingDraftContext.tsx` | `id`, `code`, `catalogVersion`, `source`, урьдчилсан үнэ, `quote` хадгална. Сонголт солигдвол quote хүчингүй болно. |
+| Үнийн бүтэц | `App/components/PriceSummary.tsx` | Quote байвал `lines` ба `quote.totalMnt`. Үгүй бол зөвхөн каталогийн урьдчилсан үнэ. Апп нийт дүн тооцохгүй. Хуурамч रू дүн, eSewa/Khalti/промо товч хасагдсан. |
+| Захиалгын дэлгэц | `App/app/(tabs)/bookappointment.tsx` | Каталогоос сонголт, буруу хариуг алдаа гэж харуулна, амжилтын мессеж "Үзлэгийн хүсэлт бүртгэгдлээ". Цагийг Улаанбаатарын цагаар тооцож UTC ISO илгээнэ. Хаягийн хэсэг "Lalitpur" биш сонгосон өвчтөний хаягийг харуулна. |
+| Өвчтөн нэмэх | `App/app/(tabs)/add-parent.tsx` | Серверийн дүрмийг урьдчилан шалгана. 8 оронтой дугаарт `+976` нэмнэ. |
+| Release API тохиргоо | `App/utils/apiConfig.ts`, `App/utils/env.ts`, `App/.env.example` | Release build-д `EXPO_PUBLIC_API_URL` заавал, `https://` байх ёстой. LAN, `10.0.2.2`, `localhost` руу унахгүй. |
+
+### 9.2 API client-ийн бүтэц
+
+1. Дэлгэц зөвхөн `apiService`-ийг (`App/services/api.ts`) дуудна.
+2. `apiService` нь цэвэр логикийн модулиуд (`httpClient`, `authFlow`, `catalog`) руу React Native-ийн хамаарлыг (fetch, AsyncStorage, router) дамжуулна.
+3. `httpClient` тохиргоог шалгаж, token нэмж, хариуг `interpretResponse`-оор тайлбарлана.
+4. `interpretResponse` нь HTTP статус, `success`, `error.code`, `error.fields`, мөн endpoint бүрийн data parser (`App/services/validators.ts`)-ийг шалгана.
+5. Цэвэр модулиуд React Native импортгүй тул Node дээр unit тестлэгдэнэ.
+
+`App/config/api.ts`-ийн `API_ENDPOINTS`-ийг харьцангуй замтай `API_PATHS` болгосон. Сувилагч, админы ашиглагдаагүй endpoint client-ээс хасагдсан. `axios` dependency `package.json`-д үлдсэн, учир нь хасвал lockfile өөрчлөгдөнө.
+
+### 9.3 Mock ба real горим
+
+| Хувьсагч | Утга | Үйлдэл |
+|---|---|---|
+| `EXPO_PUBLIC_API_MODE` | `real` (анхдагч), `mock` | `mock` нь зөвхөн `__DEV__` үед хүчинтэй. Release build-д үргэлж `real`. |
+| `EXPO_PUBLIC_MOCK_SCENARIO` | `ok`, `empty`, `error` | Каталогийн mock хариу. |
+| `EXPO_PUBLIC_API_URL` | Серверийн root URL | Release-д заавал `https://`. |
+
+- Mock одоогоор зөвхөн каталогт хамаарна. Auth, өвчтөн, үзлэг үргэлж жинхэнэ API-г дуудна.
+- Mock горимд каталогийн дэлгэц болон сонгосон үйлчилгээн дээр "MOCK" тэмдэг харагдана. Fixture-ийн нэр бүр `[MOCK]`-оор эхэлнэ.
+- Real горимд `GET /api/catalog/services` 404 буцаавал "Каталогийн API серверт хараахан нэмэгдээгүй байна" гэж харуулна, ажилласан мэт дүр үзүүлэхгүй.
+- Mock fixture release bundle-д орсон хэвээр боловч тохиргоогоор хүрэх боломжгүй. Bundle-аас бүрэн хасах нь дараагийн сайжруулалт.
+
+### 9.4 Шалгалтын дүн
+
+| Шалгалт | Дүн |
+|---|---|
+| `npm ci` (cache-ээс, lockfile-ээр) | 856 package, `package-lock.json` өөрчлөгдөөгүй, `npm ls` алдаагүй |
+| `npm run lint` (`expo lint`) | 0 error, 0 warning |
+| `npm run typecheck` (апп + тест) | 0 error. `any`, `ts-ignore`, `eslint-disable` ашиглаагүй. |
+| `npm test` (unit) | 44/44 амжилттай |
+| Мутацийн шалгалт | `success` шалгалтыг түр унтраахад 4 тест унасан. Тестүүд худал амжилтыг барьж чадна. |
+| Локал серверийн эсрэг интеграц | 14/14 амжилттай (доор) |
+| `expo export` iOS, Android | Хоёулаа Hermes bundle үүссэн. Native build, signed build биш. |
+| Бодит төхөөрөмж, simulator | Хийгээгүй. Төхөөрөмж холбогдоогүй, Xcode, Android SDK байхгүй. |
+
+**Интеграцийн шалгалт.** origin/main-ийн серверийн кодыг scratchpad руу хуулж, түр embedded Postgres-тэй ажиллуулаад, mobile-ийн compile хийсэн client-ийг жинхэнэ HTTP-ээр шалгасан. `server/` хавтсанд юу ч үүсгээгүй. Шалгасан зүйлс:
+
+- Signup token-гүй хариу өгч, апп login руу шилжих төлөвт орсон.
+- Давхар имэйл, буруу нууц үг HTTP 200-аар ирсэн ч алдаа гэж танигдсан, session хадгалагдаагүй.
+- Login-ий JWT string `GET /api/users/:id`-ээр жинхэнэ хэрэглэгч болж, `CHILD` role хадгалагдсан.
+- 8 оронтой дугаартай өвчтөнийг сервер татгалзсан, `+976`-тайг хүлээн авсан.
+- Байхгүй өвчтөнд хийсэн захиалга алдаа гэж танигдсан.
+- `+08:00` offset-тэй `scheduledFor`-ийг сервер татгалзсан, UTC ISO-г хүлээн авсан.
+- Каталог 404 "хэрэгжээгүй" гэж харагдсан.
+- Logout-ийн дараах хүсэлт 401 болж session дуусах handler ажилласан.
+
+### 9.5 Backend-д өгөх шинэ олдвор
+
+| # | Олдвор | Нотолгоо | Mobile-ийн одоогийн арга |
+|---|---|---|---|
+| GAP-8 | Token байхгүй үед 401, хүчингүй эсвэл хугацаа дууссан үед **403** буцаадаг. Хариу нь `success`, `message`-гүй, зөвхөн `{ error }`. Гэрээ (API §0.1) 401 `UNAUTHENTICATED` гэж заасан. | `server/src/middlwares/auth.ts:12-20` | `error` string-ийг мессеж болгоно. 403 ирэхэд token-ий `exp` дууссан бол session дуусгана. |
+| GAP-9 | `emergencyContact` 10-аас доошгүй тэмдэгт шаарддаг тул 8 оронтой монгол дугаарыг татгалздаг. Validation-ий хариунд `error` нь zod format объект. | `server/src/controllers/parentController.ts:20,27-31` | 8 оронтой дугаарт `+976` нэмнэ. |
+| GAP-10 | `POST /api/visits` нь `+08:00` offset-тэй огноог татгалздаг. API §0 offset-тэй ISO-г шаардсан тул шинэ endpoint-ууд offset-ийг хүлээн авах ёстой. | Интеграцийн шалгалт, `server/src/controllers/visitController.ts` `z.string().datetime()` | UTC (`Z`) ISO илгээнэ. |
+| GAP-11 | `POST /api/visits` үйлчилгээ, тэмдэглэл, сувилагчийн хүйсийг хүлээж авдаггүй. Каталогоос сонгосон үйлчилгээ одоо серверт хадгалагдахгүй. | `visitController.ts` `visitSchema` | Мессежийг "Үзлэгийн хүсэлт" гэж өөрчилсөн. Orders API гарахад шилжинэ. |
+
+### 9.6 Дараагийн алхам
+
+1. S2: DRAFT захиалга (`POST /api/orders`), цагийн цонх (GAP-1-ийн шийдвэрээр).
+2. Token-ийг `expo-secure-store` руу шилжүүлэх. Шинэ dependency тул lockfile өөрчлөгдөнө, тусдаа PR.
+3. Mock fixture-ийг release bundle-аас хасах.
+4. Бодит төхөөрөмж дээр Expo Go-оор login, каталог, захиалгын smoke test.
