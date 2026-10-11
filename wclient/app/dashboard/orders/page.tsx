@@ -1,0 +1,265 @@
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import api from "@/lib/api/client";
+import { getSessionUser } from "@/lib/auth/session";
+import type { SessionUser } from "@/lib/auth/session-core";
+type Order = {
+  id: string;
+  version: number;
+  status: string;
+  patientName?: string;
+  scheduledFor: string | null;
+  address: { text: string } | null;
+  nurse: { name: string } | null;
+  eta: string | null;
+  isMock: boolean;
+  timeline: { id: string; status: string; at: string }[];
+};
+const labels: Record<string, string> = {
+  DRAFT: "Ноорог",
+  PAID: "Төлбөр төлөгдсөн",
+  ASSIGNED: "Сувилагч томилогдсон",
+  IN_PROGRESS: "Үйлчилгээ эхэлсэн",
+  COMPLETED: "Дууссан",
+  BLOCKED_RED_FLAG: "Аюулын шинжээр зогссон",
+  AWAITING_PAYMENT: "Төлбөр хүлээж байна",
+  CANCELLED: "Цуцлагдсан",
+  EXPIRED: "Хугацаа дууссан",
+};
+const date = (v: string | null) =>
+  v
+    ? new Date(v).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" })
+    : "Тодорхойгүй";
+export default function StaffOrders() {
+  const [user, setUser] = useState<SessionUser | null>(null),
+    [rows, setRows] = useState<Order[]>([]),
+    [selected, setSelected] = useState<Order | null>(null),
+    [nurses, setNurses] = useState<{ id: string; name: string }[]>([]),
+    [nurseId, setNurseId] = useState(""),
+    [eta, setEta] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true),
+    [nextCursor, setNextCursor] = useState<string | null>(null),
+    [testEnv, setTestEnv] = useState(false);
+  const inFlight = useRef(false);
+  const load = useCallback(async (cursor?: string) => {
+    try {
+      const r = await api.get("/staff/orders", {
+        params: cursor ? { cursor } : {},
+      });
+      if (!r.data.success) throw new Error(r.data.message);
+      setRows((old) =>
+        cursor ? [...old, ...r.data.data.orders] : r.data.data.orders,
+      );
+      setNextCursor(r.data.data.nextCursor);
+      setTestEnv(r.data.data.environment === "staging-test");
+      setError("");
+    } catch {
+      setError(
+        "Захиалгыг ачаалж чадсангүй. Дахин нэвтрэх эсвэл холболтоо шалгана уу.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    const u = getSessionUser();
+    setUser(u);
+    if (u && ["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(u.role)) {
+      void load();
+      if (u.role !== "NURSE")
+        void api
+          .get("/staff/orders/nurses")
+          .then((r) => setNurses(r.data.data.nurses))
+          .catch(() => setError("Сувилагчдыг ачаалж чадсангүй"));
+    } else setLoading(false);
+  }, [load]);
+  const open = async (id: string) => {
+    try {
+      const r = await api.get("/staff/orders/" + encodeURIComponent(id));
+      setSelected(r.data.data.order);
+      setNurseId("");
+      setEta("");
+      setError("");
+    } catch {
+      setError("Дэлгэрэнгүй ачаалж чадсангүй");
+    }
+  };
+  const act = async (action: string, fields: Record<string, unknown> = {}) => {
+    if (!selected || inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const r = await api.post(
+        "/staff/orders/" + encodeURIComponent(selected.id) + "/" + action,
+        { version: selected.version, ...fields },
+      );
+      if (!r.data.success) throw new Error(r.data.message);
+      await open(selected.id);
+      await load();
+    } catch (e) {
+      const v = e as {
+        response?: { data?: { message?: string; error?: { code: string } } };
+      };
+      await open(selected.id);
+      setError(
+        v.response?.data?.message ??
+          "Үйлдэл амжилтгүй. Давтан оролдохын өмнө дахин ачаална уу.",
+      );
+    } finally {
+      setBusy(false);
+      inFlight.current = false;
+    }
+  };
+  if (
+    !loading &&
+    (!user || !["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(user.role))
+  )
+    return <p className="p-6">Ажилтны эрх шаардлагатай.</p>;
+  return (
+    <main className="p-4 md:p-8 space-y-4">
+      <h1 className="text-2xl font-bold">Үйлчилгээний захиалгууд</h1>
+      {testEnv && (
+        <p role="status" className="p-4 bg-amber-100">
+          Туршилтын орчин · бодит төлбөр биш. Зөвхөн зохиомол мэдээлэл ашиглана.
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="p-4 bg-red-100">
+          {error}
+        </p>
+      )}
+      <button
+        className="min-h-12 border rounded px-4"
+        onClick={() => void load()}
+        disabled={busy}
+      >
+        Дахин ачаалах
+      </button>
+      {loading ? (
+        <p>Ачаалж байна…</p>
+      ) : !rows.length ? (
+        <p>Захиалга алга.</p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {rows.map((o) => (
+            <button
+              key={o.id}
+              className="border rounded-xl p-4 text-left min-h-12"
+              onClick={() => void open(o.id)}
+            >
+              <strong>{o.patientName}</strong>
+              <p>{labels[o.status] ?? "Төлөв шинэчлэгдэж байна"}</p>
+              <p>{date(o.scheduledFor)}</p>
+              {o.isMock && <p>Туршилтын төлбөр · бодит QPay биш</p>}
+            </button>
+          ))}
+        </div>
+      )}
+      {nextCursor && (
+        <button
+          className="min-h-12 border p-3"
+          onClick={() => void load(nextCursor)}
+        >
+          Дараагийн захиалгууд
+        </button>
+      )}
+      {selected && (
+        <section
+          className="bg-white border rounded-xl p-4 space-y-4"
+          aria-label="Захиалгын дэлгэрэнгүй"
+        >
+          <h2 className="text-xl font-semibold">
+            {selected.patientName} · {labels[selected.status]}
+          </h2>
+          {selected.isMock && <p>Туршилтын төлбөр · бодит QPay биш</p>}
+          <p>Хаяг: {selected.address?.text ?? "Ороогүй"}</p>
+          <p>Сувилагч: {selected.nurse?.name ?? "Томилогдоогүй"}</p>
+          <p>Ирэх хугацаа: {date(selected.eta)}</p>
+          {user?.role !== "NURSE" &&
+            ["PAID", "ASSIGNED"].includes(selected.status) && (
+              <div className="space-y-2">
+                <label htmlFor="nurse">Сувилагч сонгох</label>
+                <select
+                  id="nurse"
+                  className="block border p-3 min-h-12"
+                  value={nurseId}
+                  onChange={(e) => setNurseId(e.target.value)}
+                >
+                  <option value="">Сонгоно уу</option>
+                  {nurses.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="bg-blue-700 text-white min-h-12 p-3 rounded"
+                  disabled={busy || !nurseId}
+                  onClick={() => void act("assign", { nurseId })}
+                >
+                  Томилох / дахин томилох
+                </button>
+              </div>
+            )}
+          {user?.role === "NURSE" &&
+            ["ASSIGNED", "IN_PROGRESS"].includes(selected.status) && (
+              <div className="space-y-2">
+                <label htmlFor="eta">
+                  ETA · Улаанбаатарын цаг (YYYY-MM-DD HH:mm)
+                </label>
+                <input
+                  id="eta"
+                  className="border p-3 min-h-12"
+                  type="text"
+                  placeholder="2026-10-20 14:30"
+                  value={eta}
+                  onChange={(e) => setEta(e.target.value)}
+                />
+                <button
+                  className="min-h-12 border p-3"
+                  disabled={
+                    busy || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(eta)
+                  }
+                  onClick={() =>
+                    void act("eta", {
+                      eta: eta.replace(" ", "T") + ":00+08:00",
+                    })
+                  }
+                >
+                  ETA шинэчлэх
+                </button>
+                <button
+                  className="min-h-12 border p-3"
+                  disabled={busy}
+                  onClick={() => void act("eta", { eta: null })}
+                >
+                  ETA тодорхойгүй болгох
+                </button>
+                <button
+                  className="bg-blue-700 text-white min-h-12 p-3 rounded"
+                  disabled={busy}
+                  onClick={() =>
+                    void act(
+                      selected.status === "ASSIGNED" ? "start" : "complete",
+                    )
+                  }
+                >
+                  {selected.status === "ASSIGNED"
+                    ? "Үйлчилгээ эхлэх"
+                    : "Үйлчилгээ дуусгах"}
+                </button>
+              </div>
+            )}
+          <h3 className="font-bold">Явц</h3>
+          {selected.timeline.map((t) => (
+            <p key={t.id}>
+              {labels[t.status] ?? "Шинэчлэгдсэн"} · {date(t.at)}
+            </p>
+          ))}
+        </section>
+      )}
+    </main>
+  );
+}

@@ -113,6 +113,10 @@ model ServiceCatalogItem {
   sortOrder        Int         @default(0)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  metadata         Json?
+  contentVersion   String?
+  approvedBy       String?
+  approvedAt       DateTime?
   orderItems       OrderItem[]
 
   @@index([isActive, category, sortOrder])
@@ -196,6 +200,8 @@ model RedFlagQuestion {
   isActive      Boolean @default(true)
   isFixture     Boolean @default(false) // true = placeholder text, not approved clinical content
 
+  approvedBy String?
+  approvedAt DateTime?
   answers RedFlagAnswer[]
 
   @@unique([questionnaire, code])
@@ -380,4 +386,24 @@ model AccountDeletionRequest {
   userId String @unique
   requestedAt DateTime @default(now())
   status String @default("REQUESTED")
+}
+
+model ContentPublication {
+  id String @id @default(cuid())
+  kind String
+  version String
+  digest String
+  payload Json
+  approvedBy String
+  approvedAt DateTime
+  createdAt DateTime @default(now())
+  @@unique([kind, version])
+}
+model BlobCleanupJob {
+  id String @id @default(cuid())
+  storageKey String @unique
+  storageDriver String
+  attempts Int @default(0)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
 }

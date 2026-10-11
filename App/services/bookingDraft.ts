@@ -217,6 +217,20 @@ export function bookingDraftReducer(
           isFixture: service.isFixture,
           source,
         },
+        details: {
+          ...state.details,
+          ...(state.details.bookingForm && {
+            bookingForm: {
+              ...state.details.bookingForm,
+              consent: {
+                ...state.details.bookingForm.consent,
+                service: false,
+                sensitiveData: false,
+                catalogVersion: null,
+              },
+            },
+          }),
+        },
         dirty: true,
         quote: null,
         paymentKey: null,
@@ -475,7 +489,7 @@ export function needsReferral(
 ): boolean {
   return (
     state.service?.requiresReferral === true ||
-    (state.service?.code === "S04" &&
+    (state.service?.formConfig?.referral === "partial" &&
       state.details.bookingForm?.postoperative === true) ||
     orderRequiresReferral
   );

@@ -287,6 +287,12 @@ export function Screen({
             {title}
           </Copy>
         </View>
+        {process.env.EXPO_PUBLIC_APP_ENV === "staging-test" && (
+          <Banner>
+            Туршилтын орчин · бодит төлбөр биш. Зөвхөн зохиомол мэдээлэл
+            ашиглана.
+          </Banner>
+        )}
         <OfflineBanner />
         {children}
       </ScrollView>

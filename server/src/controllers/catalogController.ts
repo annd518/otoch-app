@@ -1,4 +1,4 @@
-import { CATALOG_V2 } from "../data/catalogV2";
+import { readMetadata } from "../services/serviceMetadata";
 import { Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../db/db.config";
@@ -42,16 +42,17 @@ export const listCatalogServices = async (req: Request, res: Response) => {
     isActive: i.isActive,
     isFixture: i.isFixture,
     ...(() => {
-      const meta = CATALOG_V2.find((s) => s.code === i.code);
+      const meta = readMetadata(i.metadata);
       return meta
         ? {
-            group: meta.group,
-            includes: meta.includes,
-            preparation: meta.preparation,
-            nurseSupplies: meta.nurseSupplies,
-            exclusions: meta.exclusions,
-            formConfig: meta.formConfig,
-            sortOrder: meta.sortOrder,
+            ...meta,
+            sortOrder: i.sortOrder,
+            contentVersion: i.contentVersion,
+            approval: {
+              approved: !i.isFixture && !!i.approvedAt && !!i.approvedBy,
+              approvedAt: i.approvedAt?.toISOString() ?? null,
+              approvedBy: i.approvedBy,
+            },
           }
         : {};
     })(),

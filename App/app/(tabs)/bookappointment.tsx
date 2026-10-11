@@ -158,13 +158,19 @@ export default function Booking() {
     !!patient &&
     ((patient.birthYear !== undefined &&
       patient.birthYear !== null &&
-      new Date().getFullYear() - patient.birthYear < 18) ||
+      Number(
+        new Intl.DateTimeFormat("en", {
+          year: "numeric",
+          timeZone: "Asia/Ulaanbaatar",
+        }).format(new Date()),
+      ) -
+        patient.birthYear <
+        18) ||
       patient.needsRepresentative);
-  const medicationRequired =
-    service.formConfig?.medicationRequired ??
-    ["S02", "S03"].includes(service.code);
-  const firstDoseCheck =
-    service.formConfig?.firstDoseCheck ?? ["S02", "S03"].includes(service.code);
+  const presenceRequired =
+    familyRequired || service.formConfig?.familyPresence === "required";
+  const medicationRequired = service.formConfig?.medicationRequired ?? false;
+  const firstDoseCheck = service.formConfig?.firstDoseCheck ?? false;
   const scheduledAt = Date.parse(
     `${details.date}T${details.timeSlot.slice(0, 5)}:00+08:00`,
   );
@@ -350,6 +356,7 @@ export default function Booking() {
                 consent: {
                   ...form.consent,
                   service: !form.consent.service,
+                  catalogVersion: service.catalogVersion,
                   acceptedAt: new Date().toISOString(),
                 },
               })
@@ -363,12 +370,13 @@ export default function Booking() {
                 consent: {
                   ...form.consent,
                   sensitiveData: !form.consent.sensitiveData,
+                  catalogVersion: service.catalogVersion,
                   acceptedAt: new Date().toISOString(),
                 },
               })
             }
           />
-          {familyRequired && (
+          {presenceRequired && (
             <Banner>
               Насанд хүрсэн гэр бүлийн гишүүн байлцах шаардлагатай.
             </Banner>
@@ -384,9 +392,8 @@ export default function Booking() {
               !patient?.birthYear ||
               !form.consent.service ||
               !form.consent.sensitiveData ||
-              (familyRequired &&
-                (!form.familyPresent ||
-                  form.consent.signer !== "REPRESENTATIVE"))
+              (presenceRequired && !form.familyPresent) ||
+              (familyRequired && form.consent.signer !== "REPRESENTATIVE")
             }
             onPress={() => {
               if (!details.bookingForm) setForm({});
@@ -404,7 +411,7 @@ export default function Booking() {
               дэлгэцүүдэд бөглөнө.
             </Copy>
           </Card>
-          {service.code === "S04" && (
+          {service.formConfig?.referral === "partial" && (
             <Chip
               label="Мэс заслын дараах шарх"
               selected={form.postoperative}

@@ -92,6 +92,7 @@ const addressSchema = z.object({
 
 const bookingFormSchema = z.object({
   consent: z.object({
+    catalogVersion: z.string().nullable().optional(),
     service: z.boolean(),
     sensitiveData: z.boolean(),
     signer: z.enum(["RECIPIENT", "REPRESENTATIVE"]).default("RECIPIENT"),
@@ -436,6 +437,21 @@ export const updateDraftOrder = async (
     const updated = await tx.order.updateMany({
       where: { id: current.id, version: body.version, status: "DRAFT" },
       data: {
+        ...(itemsChanged &&
+          catalogVersion !== current.catalogVersion &&
+          body.bookingForm === undefined && {
+            bookingForm: {
+              consent: {
+                service: false,
+                sensitiveData: false,
+                version: "V2_2026_10",
+                acceptedAt: new Date().toISOString(),
+              },
+              familyPresent: false,
+              postoperative: false,
+              medication: null,
+            },
+          }),
         ...(body.bookingForm !== undefined && {
           bookingForm: {
             ...body.bookingForm,
@@ -778,6 +794,15 @@ export const requestQuote = async (
 
   const price = computeQuote(order);
   const quote = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('otoch-content-publication'))`;
+    const latest = await tx.serviceCatalogItem.aggregate({
+      where: { isActive: true },
+      _max: { updatedAt: true },
+    });
+    if (latest._max.updatedAt?.toISOString() !== catalogVersion)
+      throw new ApiError(409, "CATALOG_OUTDATED", "Каталог шинэчлэгдсэн байна");
+    await assertNoFixtureDataInProduction(order, tx);
+    assertOrderReadyForPricing(order);
     // Re-check the version inside the transaction so a concurrent edit cannot be priced
     const still = await tx.order.count({
       where: { id: order.id, version: order.version, status: "DRAFT" },

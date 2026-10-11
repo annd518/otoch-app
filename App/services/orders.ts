@@ -74,6 +74,7 @@ function parseSavedForm(value: unknown): BookingForm | null {
       version: c.version,
       service: c.service,
       sensitiveData: c.sensitiveData,
+      catalogVersion: text(c.catalogVersion) ? c.catalogVersion : null,
       acceptedAt: c.acceptedAt,
       ...(c.signer === "RECIPIENT" || c.signer === "REPRESENTATIVE"
         ? { signer: c.signer }
@@ -132,6 +133,7 @@ export function parseOrder(data: unknown): Order | null {
             ...(typeof o.address.lng === "number" && { lng: o.address.lng }),
           }
         : null,
+    isMock: o.isMock === true,
     bookingForm: parseSavedForm(o.bookingForm),
     zoneId: text(o.zoneId) ? o.zoneId : null,
     attachments: Array.isArray(o.attachments)

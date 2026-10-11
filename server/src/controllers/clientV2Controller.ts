@@ -1,3 +1,4 @@
+import { serviceConfig } from "../services/serviceMetadata";
 import { recordPdf } from "../services/recordPdf";
 import { Request, Response, Router } from "express";
 import prisma from "../db/db.config";
@@ -66,7 +67,9 @@ clientV2Routes.get("/availability", async (req, res) => {
     },
     orderBy: { startsAt: "asc" },
   });
-  const windowMin = ["S03", "S06"].includes(serviceCode) ? 120 : 60;
+  const windowMin = /^S\d{2}$/.test(serviceCode)
+    ? serviceConfig(service).windowMin
+    : 60;
   const available = [];
   for (const s of slots) {
     if ((s.endsAt.getTime() - s.startsAt.getTime()) / 60000 < windowMin)

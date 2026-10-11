@@ -274,6 +274,18 @@ export const createQPayPayment = async (
   let payment: Payment;
   try {
     payment = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('otoch-content-publication'))`;
+      const latest = await tx.serviceCatalogItem.aggregate({
+        where: { isActive: true },
+        _max: { updatedAt: true },
+      });
+      if (latest._max.updatedAt?.toISOString() !== quote.catalogVersion)
+        throw new ApiError(
+          409,
+          "CATALOG_OUTDATED",
+          "Каталог шинэчлэгдсэн байна",
+        );
+      assertOrderReadyForPricing(lockedOrder);
       await tx.$executeRaw`SELECT 1 FROM "Order" WHERE "id" = ${lockedOrder.id} FOR UPDATE`;
       const current = await tx.order.findUniqueOrThrow({
         where: { id: lockedOrder.id },
@@ -316,6 +328,7 @@ export const createQPayPayment = async (
             },
           },
         });
+        await assertNoFixtureDataInProduction(lockedOrder, tx);
         if (!slot || booked >= slot.capacity)
           throw new ApiError(
             409,

@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { clearSession, getSessionUser } from '@/lib/auth/session';
-import { label } from '@/lib/labels';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { clearSession, getSessionUser } from "@/lib/auth/session";
+import { label } from "@/lib/labels";
+import toast from "react-hot-toast";
 
 export default function DashboardLayout({
   children,
@@ -14,7 +14,11 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [userData, setUserData] = useState<{ name?: string; email?: string; role?: string } | null>(null);
+  const [userData, setUserData] = useState<{
+    name?: string;
+    email?: string;
+    role?: string;
+  } | null>(null);
 
   useEffect(() => {
     // Validated user object saved at login (not a JWT decode)
@@ -24,8 +28,8 @@ export default function DashboardLayout({
   const handleLogout = () => {
     clearSession();
 
-    toast.success('Амжилттай гарлаа');
-    router.push('/auth/login');
+    toast.success("Амжилттай гарлаа");
+    router.push("/auth/login");
   };
 
   return (
@@ -40,15 +44,15 @@ export default function DashboardLayout({
               <div className="flex items-center space-x-3 px-3 py-2">
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {userData?.name?.charAt(0).toUpperCase() || 'U'}
+                    {userData?.name?.charAt(0).toUpperCase() || "U"}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">
-                    {userData?.name || 'User'}
+                    {userData?.name || "User"}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {userData?.role ? label(userData.role) : 'Role'}
+                    {userData?.role ? label(userData.role) : "Role"}
                   </p>
                 </div>
               </div>
@@ -56,12 +60,21 @@ export default function DashboardLayout({
 
             {/* Navigation */}
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+              {userData?.role &&
+                ["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(userData.role) && (
+                  <Link
+                    href="/dashboard/orders"
+                    className="block px-3 py-3 rounded-md text-base font-medium"
+                  >
+                    Үйлчилгээний захиалгууд
+                  </Link>
+                )}
               <Link
                 href="/dashboard"
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === '/dashboard'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-50'
+                  pathname === "/dashboard"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Тойм
@@ -69,9 +82,9 @@ export default function DashboardLayout({
               <Link
                 href="/dashboard/nurse"
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === '/dashboard/nurse'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-50'
+                  pathname === "/dashboard/nurse"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Сувилагчийн самбар
@@ -79,9 +92,9 @@ export default function DashboardLayout({
               <Link
                 href="/dashboard/medical-admin"
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === '/dashboard/medical-admin'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-50'
+                  pathname === "/dashboard/medical-admin"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Эмнэлгийн админ
@@ -89,9 +102,9 @@ export default function DashboardLayout({
               <Link
                 href="/dashboard/admin"
                 className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === '/dashboard/admin'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-900 hover:bg-gray-50'
+                  pathname === "/dashboard/admin"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-900 hover:bg-gray-50"
                 }`}
               >
                 Админ
@@ -125,9 +138,7 @@ export default function DashboardLayout({
 
         {/* Main content */}
         <main className="flex-1 lg:pl-64">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
     </div>

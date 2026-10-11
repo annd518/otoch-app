@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { CATALOG_V2 } from "../data/catalogV2";
+import { readMetadata } from "../services/serviceMetadata";
 import { Request, Response } from "express";
 import type { UploadedFile } from "express-fileupload";
 import prisma from "../db/db.config";
@@ -128,7 +128,18 @@ export const uploadAttachment = async (
 
   // Random object key; nothing derived from the user's filename
   const storageKey = `orders/${order.id}/${randomUUID()}.${EXT[mimeType]}`;
-  await storage.put(storageKey, file.data);
+  await prisma.blobCleanupJob.create({
+    data: { storageKey, storageDriver: storage.driver },
+  });
+  try {
+    await storage.put(storageKey, file.data);
+  } catch {
+    throw new ApiError(
+      503,
+      "STORAGE_UNAVAILABLE",
+      "Зураг хадгалах үйлчилгээ түр боломжгүй байна",
+    );
+  }
 
   try {
     const attachment = await prisma.$transaction(async (tx) => {
@@ -136,26 +147,25 @@ export const uploadAttachment = async (
       await tx.$executeRaw`SELECT 1 FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
       const current = await tx.order.findUniqueOrThrow({
         where: { id: order.id },
+        include: { items: { include: { service: true } } },
       });
       assertEditable(current);
       const count = await tx.attachment.count({
         where: { orderId: order.id, status: "ACTIVE" },
       });
-      if (
-        count >=
-        Math.min(
-          MAX_ATTACHMENTS,
-          ...order.items.map(
-            (i) =>
-              CATALOG_V2.find((s) => s.code === i.serviceCode)?.formConfig
-                .attachmentLimit ?? MAX_ATTACHMENTS,
-          ),
-        )
-      ) {
+      const attachmentLimit = Math.min(
+        MAX_ATTACHMENTS,
+        ...current.items.map(
+          (i) =>
+            readMetadata(i.service.metadata)?.formConfig.attachmentLimit ??
+            MAX_ATTACHMENTS,
+        ),
+      );
+      if (count >= attachmentLimit) {
         throw new ApiError(
           409,
           "ATTACHMENT_LIMIT",
-          `Нэг захиалгад хамгийн ихдээ ${MAX_ATTACHMENTS} файл`,
+          `Нэг захиалгад хамгийн ихдээ ${attachmentLimit} файл`,
         );
       }
       const created = await tx.attachment.create({
@@ -194,6 +204,9 @@ export const uploadAttachment = async (
       });
       return created;
     });
+    await prisma.blobCleanupJob
+      .update({ where: { storageKey }, data: { completedAt: new Date() } })
+      .catch((e) => logError("cleanup job complete", e));
     return ok(
       res,
       {
@@ -273,6 +286,18 @@ export const deleteAttachment = async (
   const storage = requireStorage();
 
   await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT 1 FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+    assertEditable(
+      await tx.order.findUniqueOrThrow({ where: { id: order.id } }),
+    );
+    await tx.blobCleanupJob.upsert({
+      where: { storageKey: attachment.storageKey },
+      create: {
+        storageKey: attachment.storageKey,
+        storageDriver: attachment.storageDriver,
+      },
+      update: { completedAt: null, createdAt: new Date() },
+    });
     const updated = await tx.attachment.updateMany({
       where: { id: attachment.id, status: "ACTIVE" },
       data: { status: "DELETED", deletedAt: new Date() },
@@ -295,6 +320,12 @@ export const deleteAttachment = async (
   // Blob is removed after the record is marked deleted (private data is not kept)
   await storage
     .remove(attachment.storageKey)
+    .then(() =>
+      prisma.blobCleanupJob.update({
+        where: { storageKey: attachment.storageKey },
+        data: { completedAt: new Date() },
+      }),
+    )
     .catch((e) => logError("attachment delete blob", e));
   res.status(204).end();
 };

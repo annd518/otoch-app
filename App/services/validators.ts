@@ -167,6 +167,24 @@ function parseCatalogService(value: unknown): CatalogService | null {
     redFlagQuestionnaire: typeof redFlag === "string" ? redFlag : null,
     isActive,
     isFixture: value.isFixture === true,
+    contentVersion:
+      typeof value.contentVersion === "string"
+        ? value.contentVersion
+        : undefined,
+    approval:
+      isRecord(value.approval) && typeof value.approval.approved === "boolean"
+        ? {
+            approved: value.approval.approved,
+            approvedAt:
+              typeof value.approval.approvedAt === "string"
+                ? value.approval.approvedAt
+                : null,
+            approvedBy:
+              typeof value.approval.approvedBy === "string"
+                ? value.approval.approvedBy
+                : null,
+          }
+        : undefined,
     group: typeof value.group === "string" ? value.group : undefined,
     sortOrder:
       typeof value.sortOrder === "number" ? value.sortOrder : undefined,
