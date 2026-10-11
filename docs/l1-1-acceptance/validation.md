@@ -1,3 +1,5 @@
+> Шинэчлэл: v2.0 агуулгын approval gate хаагдсан. [PDF эх ба баталгаа](source/approval.md). Approved import багц бэлэн; одоогийн DB-д apply хийгдээгүй. Доорх 128 тест нь өмнөх хэрэгжүүлэлтийн тайлан.
+
 # L1-1 1–5 хэрэгжүүлэлтийн validation
 
 Суурь main: `161950fe670b44b4398b593023618430a063ece0`. Ажлын branch: `feat/l1-1-acceptance`.
@@ -23,4 +25,4 @@ Browser mock review зураг: [staff-mock-review.png](staff-mock-review.png). 
 
 Бодит `.env`, WIN1252 `.local-pg`, хэрэглэгчийн DB, signing файлд хүрээгүй. Docker CLI энэ компьютерт олдоогүй тул image build/compose runtime шалгаагүй. `docker-compose.staging-test.yml` нь deploy template; ажиллаж буй staging биш.
 
-1–5 нийт **🟡**. Батлагдсан үнэ/эмнэлзүйн асуулга/бүс/slot, HTTPS staging, private bucket, identifier/signing болон iPhone/Android evidence дутуу. [Acceptance checklist](acceptance.md) бүх external gate хүлээгдэж байна. QPay mock-г sandbox гэж тооцоогүй.
+1–5 нийт **🟡**. Approved багцын DB publication, бүсийн бодит геометр/slot, HTTPS staging, private bucket, identifier/signing болон iPhone/Android evidence дутуу. [Acceptance checklist](acceptance.md) бүх external gate хүлээгдэж байна. QPay mock-г sandbox гэж тооцоогүй.

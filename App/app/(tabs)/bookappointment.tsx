@@ -170,6 +170,8 @@ export default function Booking() {
   const presenceRequired =
     familyRequired || service.formConfig?.familyPresence === "required";
   const medicationRequired = service.formConfig?.medicationRequired ?? false;
+  const medicationFieldsVisible =
+    service.formConfig?.medicationFieldsVisible ?? medicationRequired;
   const firstDoseCheck = service.formConfig?.firstDoseCheck ?? false;
   const scheduledAt = Date.parse(
     `${details.date}T${details.timeSlot.slice(0, 5)}:00+08:00`,
@@ -418,7 +420,7 @@ export default function Booking() {
               onPress={() => setForm({ postoperative: !form.postoperative })}
             />
           )}
-          {medicationRequired && (
+          {medicationFieldsVisible && (
             <>
               {(["name", "dose", "route", "expiresAt"] as const).map(
                 (key, i) => (
@@ -451,23 +453,31 @@ export default function Booking() {
                   />
                 ),
               )}
-              <Input
-                label="Хэд дэх тун"
-                keyboardType="number-pad"
-                value={String(medication.doseNumber)}
-                onChangeText={(value) =>
-                  setForm({
-                    medication: {
-                      ...medication,
-                      doseNumber: Number(value) || 1,
-                    },
-                  })
-                }
-              />
+              {firstDoseCheck && (
+                <Input
+                  label="Хэд дэх тун"
+                  keyboardType="number-pad"
+                  value={String(medication.doseNumber)}
+                  onChangeText={(value) =>
+                    setForm({
+                      medication: {
+                        ...medication,
+                        doseNumber: Number(value) || 1,
+                      },
+                    })
+                  }
+                />
+              )}
               <Banner>
-                Эхний тунг гэрт хийхгүй. Эмийн нэр, тун, аргыг заалттайгаа
-                тулган оруулна уу.
+                {firstDoseCheck ? "Эхний тунг гэрт хийхгүй. " : ""}
+                Эмийн нэр, тун, аргыг заалттайгаа тулган оруулна уу.
               </Banner>
+              {!medicationRequired && (
+                <Button
+                  title="Эмийн мэдээлэл оруулахгүй"
+                  onPress={() => setForm({ medication: null })}
+                />
+              )}
             </>
           )}
           <Button
@@ -475,7 +485,7 @@ export default function Booking() {
             title="Заалт, асуулгыг бөглөх"
             busy={save.running}
             disabled={
-              medicationRequired &&
+              (medicationRequired || form.medication !== null) &&
               (!form.medication?.name ||
                 !form.medication.dose ||
                 !form.medication.route ||

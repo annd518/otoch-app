@@ -76,6 +76,7 @@ export interface CatalogService {
     windowMin: number;
     referral: string;
     medicationRequired: boolean;
+    medicationFieldsVisible?: boolean;
     firstDoseCheck: boolean;
     familyPresence: string;
     attachmentLimit: number;

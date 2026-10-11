@@ -1,6 +1,6 @@
 # 1–5 acceptance checklist
 
-Төлөв: бүх external gate **ХҮЛЭЭГДЭЖ БАЙНА**. Кодын автомат шалгалтыг validation.md-д тусад нь бүртгэнэ.
+Төлөв: бүх external gate **ХҮЛЭЭГДЭЖ БАЙНА**. v2.0-ийн үнэ/асуулт/дүрмийг эзэмшигч чатад баталсан: source/approval.md. Кодын автомат шалгалтыг validation.md-д тусад нь бүртгэнэ.
 
 Gate бүрт backend/mobile/staff SHA, HTTPS environment, iPhone/Android model+OS, tester, огноо, screenshot/log (нууцгүй), expected/actual, pass/fail оруулна.
 
@@ -19,4 +19,4 @@ Gate бүрт backend/mobile/staff SHA, HTTPS environment, iPhone/Android model+
 - [ ] Жижиг дэлгэц/keyboard/safe area/200% font/VoiceOver/TalkBack
 - [ ] Mock/staging шошго бүх урсгалд; бодит төлбөр гэж харуулахгүй
 
-Гаднын blocker: батлагдсан content/regions/slots, hosting+HTTPS+UTF8 DB, private S3 bucket/IAM, signing+identifier, хоёр төхөөрөмж. Эдгээрийг зохиож нөхөхгүй.
+Гаднын blocker: approved content-ийн DB publication, бодит region geometry/slots, hosting+HTTPS+UTF8 DB, private S3 bucket/IAM, signing+identifier, хоёр төхөөрөмж. Эдгээрийг зохиож нөхөхгүй.

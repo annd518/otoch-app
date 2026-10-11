@@ -2,13 +2,13 @@
 
 ## Бодит төлөв
 
-Энэ хэрэгжүүлэлт кодын түвшний ахиц юм. Батлагдсан үнэ, эмнэлзүйн бичвэр, HTTPS staging, private bucket болон iPhone/Android acceptance байхгүй тул 1–5 бүгд **🟡** хэвээр. QPay зөвхөн mock; sandbox биелсэн гэж үзэхгүй. Store upload энэ ажлын хүрээнд байхгүй.
+Энэ хэрэгжүүлэлт кодын түвшний ахиц юм. Эзэмшигч v2.0-ийн бүх агуулгыг чатад баталсан; [эх сурвалж/approval тайлан](source/approval.md), approved JSON багцууд бэлэн. Зорилтот DB-д publication, HTTPS staging, private bucket болон iPhone/Android acceptance хүлээгдэж байгаа тул 1–5 бүгд **🟡** хэвээр. QPay зөвхөн mock; sandbox биелсэн гэж үзэхгүй. Store upload энэ ажлын хүрээнд байхгүй.
 
 | Шаардлага | Кодын нотолгоо | Ногоон болох үлдсэн gate |
 |---|---|---|
-| 1 Каталог | `serviceMetadata.ts`, `contentImport.ts`, `catalogController.ts`; DB metadata/approval/version, S01–S10/4 бүлэг | Эзэмшигч баталсан JSON нийтлэх; staging дээр 10 үйлчилгээ, хоёр товшилтын review |
+| 1 Каталог | `serviceMetadata.ts`, `contentImport.ts`, `catalogController.ts`; DB metadata/approval/version, S01–S10/4 бүлэг | Бэлэн approved JSON-ийг зорилтот DB-д нийтлэх; staging дээр 10 үйлчилгээ, хоёр товшилтын review |
 | 2 Захиалга | `orders.ts`, `paymentController.ts`, mobile `bookappointment.tsx`, consent catalogVersion/config guards | Батлагдсан бүс/slot; хоёр төхөөрөмжийн capacity/retry/resume acceptance |
-| 3 Red flag | version бүхий 6 асуултын import, одоогийн RF guards; шинэ каталог editable draft-ийн CLEAR-г хүчингүй болгоно | Эрх бүхий эмнэлгийн хариуцагчийн баталгаа, шинэ questionnaire-г каталогт холбох, төхөөрөмжийн 103 |
+| 3 Red flag | version бүхий 6 асуултын import, одоогийн RF guards; шинэ каталог editable draft-ийн CLEAR-г хүчингүй болгоно | Чатад батлагдсан questionnaire/catalog багцыг DB-д нийтлэх; төхөөрөмжийн 103 |
 | 4 Зураг | `s3Storage.ts`, `attachmentController.ts`, `BlobCleanupJob`, `blobCleanup.ts` | Бодит private bucket upload/read/delete; HEIC, камер/permission; provider timeout acceptance |
 | 5 Tracking | `/api/staff/orders`, `wclient/app/dashboard/orders/page.tsx`, mobile `orders/[id].tsx` | Staging staff→хоёр төхөөрөмжийн polling/foreground/offline acceptance |
 
@@ -22,7 +22,7 @@
 - catalog: яг S01–S10, дөрвөн GROUP_A–D; үнэ бүхэл MNT, хугацаа, questionnaire version, эрэмбэ, DB metadata (`includes`, `preparation`, `nurseSupplies`, `exclusions`, `formConfig`). Config approved:true, category/group/referral тохирно; S03/S06 window120, бусад60. Questionnaire эхэлж нийтлэгдсэн байна.
 - availability: батлагдсан zone bounds, slot эхлэл/төгсгөл/багтаамж; future ISO +08:00, нэг бүсийн цаг давхцахгүй. Өмнө нийтлэгдсэн slot-ийн хугацаа/capacity өөрчлөхгүй.
 
-Файлуудыг хариуцагчид бэлтгүүлнэ. Баталгаагүй жишээ файлыг approval:true болгон автоматаар хөрвүүлэх command байхгүй. `server/tests/content-import.test.ts` нь зөвхөн зохиомол тест payload-ийн жишээ; бодит import биш.
+v2.0-ийн approved файлууд `server/content/approved/` дотор бэлэн; эх сурвалжийн тайлантай тулгана. Баталгаагүй жишээ файлыг approval:true болгон автоматаар хөрвүүлэх command байхгүй. `server/tests/content-import.test.ts` нь зөвхөн зохиомол тест payload-ийн жишээ; бодит import биш.
 
 ```sh
 cd server
