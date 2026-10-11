@@ -29,6 +29,22 @@
 > API гэрээ: [l1-1-api.md](l1-1-api.md) (**санал, батлагдаагүй**).
 > Энэ баримтын заавар нь audit-ийн эх сурвалж. Гаднын үйлдэл (deploy, төлбөртэй resource, бодит QPay) хийх зөвшөөрөл **биш**.
 
+### 0.1 Явцын тэмдэглэл — 2026-10-13
+
+| Ажил | Төлөв | Нотолгоо |
+|---|---|---|
+| wclient auth шинэ гэрээнд нийцсэн (`data.user` объект, role routing, logout, хуучин `user_token`-д итгэхгүй, бүртгэлээс privileged role хассан) | ✅ + contract тест (7) | [wclient/lib/auth/session-core.ts](../wclient/lib/auth/session-core.ts), [tests/web-compat.test.ts](../server/tests/web-compat.test.ts) |
+| Mobile `88bbc22`-ийн кодыг (scratch-д экспортолж, App-ийг өөрчлөөгүй) бодит backend-тэй тулгасан | ✅ 6/6 (нэг удаагийн шалгалт, commit хийгээгүй) | [l1-1-api.md §1.2](l1-1-api.md) |
+| Нэгдсэн auth гэрээ: 401 `UNAUTHENTICATED` / **`TOKEN_EXPIRED`** / `INVALID_CREDENTIALS`, 403 `FORBIDDEN` | ✅ + тест | [middlwares/auth.ts](../server/src/middlwares/auth.ts), [l1-1-api.md §1.1.1](l1-1-api.md) |
+| Draft захиалга (`Order`, `OrderItem`, `OrderEvent`) — **D2 таамаг** | ✅ + тест | [orderController.ts](../server/src/controllers/orderController.ts) |
+| Red flag (`RedFlagQuestion` fixture, `RedFlagAnswer`), блок + guard | ✅ + тест | [services/orders.ts](../server/src/services/orders.ts) |
+| Quote: guard бодитоор ажилладаг, үнэ → 501 `NOT_IMPLEMENTED` | ✅ (хуурамч амжилтгүй) | |
+| Migration `20261013000000_add_draft_orders_red_flag`: зөвхөн шинэ хүснэгт/enum, одоогийн хүснэгтэд `ALTER` байхгүй | ✅ Хоосон UTF8 тест DB-д apply болсон. **Бодит/локал DB-д хийгээгүй** | [prisma/migrations](../server/prisma/migrations) |
+| Тест | ✅ **58/58** (auth 17, catalog 4, orders/red flag 21, visits 9, web-compat 7) | `npm test` |
+| Private upload гэрээ | 🟡 Эцэсэлсэн (санал), **хэрэгжээгүй** | [l1-1-api.md §5](l1-1-api.md) |
+| Staging | ❌ Эрх байхгүй (§10) | |
+| `next build` | ⚠️ Compile амжилттай, гэхдээ **өмнө нь байсан** хоосон `wclient/app/lab/reports/[id]/page.tsx` (0 byte, main болон upstream-д ч мөн адил) Next-ийн route type check-ийг унагаадаг. Auth-тай холбоогүй, өнөөдрийн хүрээнээс гадуур | |
+
 ---
 
 ## 1. Одоогийн төлөв (кодоор баталгаажсан)
@@ -314,7 +330,7 @@ model OrderEvent {
 | Өдөр | Ажил | Гаралт |
 |---|---|---|
 | **10.12 (Да)** ✅ | Signup эрх хаах, алдааны гэрээ, login/signup response, visit validation, log, catalog endpoint + fixture, migration SQL, тусгаарласан тест, Dockerfile. **Үлдсэн:** шийдвэрүүд (D1–D15), staging эрх | branch `work/backend-l1-1` |
-| **10.13 (Мя)** | **Staging эрх ирвэл эхний HTTPS API** (§10). wclient-ийн `data.user` засварыг зохицуулах (D15). `Order`, `OrderItem`, `OrderEvent` + `POST/PATCH /api/orders`, `GET /api/orders/:id`. Тест | PR #2 |
+| **10.13 (Мя)** ✅ | wclient auth засвар (D15), mobile тулгалт, auth гэрээ, draft order, red flag, quote guard, upload гэрээ. **Staging: эрх байхгүй** | branch `work/backend-l1-1` |
 | **10.14 (Лх)** | Red flag (асуулт, хариулт, блоклох). Attachment: private storage adapter (локал диск + S3-compatible interface), хэмжээ/төрлийн хязгаар, signed URL | PR #3 |
 | **10.15 (Пү)** | Quote (серверийн үнэ, хугацаа). QPay client: **sandbox/mock горим**, invoice, check, callback (idempotent, дахин баталгаажуулалттай) | PR #4 |
 | **10.16 (Ба)** | `PAID` → Visit үүсгэх, Visit ↔ Order төлөвийн sync. Rate limit, helmet, CORS allowlist. Staging (эрх байвал) | PR #5, staging |
@@ -381,7 +397,7 @@ model OrderEvent {
 
 ---
 
-## 10. Staging бэлэн байдал — 2026-10-12
+## 10. Staging бэлэн байдал — 2026-10-12 (10.13-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
 
 | Зүйл | Байгаа юу | Тэмдэглэл |
 |---|---|---|
@@ -389,7 +405,7 @@ model OrderEvent {
 | Домэйн + TLS | ❌ Үгүй | HTTPS нь QPay callback болон iOS-д заавал |
 | Managed PostgreSQL | ❌ Үгүй | UTF8 encoding-той, SSL, backup |
 | Private object storage | ❌ Үгүй | L1-1 attachment-д |
-| Docker | ⚠️ CLI байгаа, daemon хариу өгөхгүй (API 500) | Image build хийж шалгаагүй |
+| Docker | ⚠️ CLI байгаа, daemon хариу өгөхгүй (API 500). 10.13-нд дахин шалгахад мөн адил | Image build хийж шалгаагүй |
 | Container тохиргоо | ✅ Бэлэн (review хийх боломжтой) | [server/Dockerfile](../server/Dockerfile): `runtime` (`node dist/index.js`, healthcheck, `USER node`) ба `migrate` (`prisma migrate deploy`) target. [server/.dockerignore](../server/.dockerignore) нь `.env`, `.local-pg`, log-ийг оруулахгүй |
 | Migrations | ✅ Бэлэн | §3 |
 | Staging URL | ❌ Байхгүй | **Deploy хийгдээгүй** |
@@ -410,6 +426,37 @@ model OrderEvent {
 
 ---
 
+## 12. Локал DB-д хийх үйлдлийн төлөвлөгөө (ЗӨВШӨӨРӨЛ ХҮЛЭЭЖ БУЙ)
+
+Одоогийн `.local-pg` / `pariwar_care` (WIN1252)-д **хүрэхгүй**. Санал болгох арга нь **устгалгүй, буцааж болох**: тухайн cluster дотор шинэ UTF8 DB үүсгэнэ.
+
+| # | Үйлдэл | Команд (PowerShell, `server/` дотор) | Rollback |
+|---|---|---|---|
+| 1 | Backup (суулгасан PostgreSQL 18-ийн `pg_dump`, embedded PG 18.4-тэй нийцнэ) | `& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -p 5544 -U postgres -Fc -f ..\..\otoch-backup-pariwar_care.dump pariwar_care` (repo-оос гадна) | — |
+| 2 | Шинэ UTF8 DB | `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -p 5544 -U postgres -c "CREATE DATABASE otoch_dev ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C';"` | `DROP DATABASE otoch_dev;` (хуучин DB хөндөгдөхгүй) |
+| 3 | `.env`-ийн `DATABASE_URL`-ийг `…/otoch_dev?schema=public` болгох | гараар | хуучин URL руу буцаах |
+| 4 | Migration (хоосон DB тул baseline/resolve хэрэггүй) | `npx prisma migrate deploy` | DB-г drop хийх |
+| 5 | Зохиомол seed (demo хэрэглэгч, каталог, red flag fixture) | `npm run db:seed` | — |
+
+- Dev cluster-ийн `postgres` нууц үгийг command prompt дээр оруулна. **Log/тайланд хэвлэхгүй.**
+- ⚠️ `npm run dev:local` нь эхлэх бүрдээ `prisma db push` + seed ажиллуулдаг. `otoch_dev` нь migration-тай нийцэж байгаа тул `db push` өөрчлөлтгүй байх ёстой. `dev:local`-ийг `migrate deploy` руу шилжүүлэх эсэхийг тусад нь шийднэ.
+- Хуучин `pariwar_care` (WIN1252) DB-ийн өгөгдлийг шилжүүлэхгүй (зохиомол demo өгөгдөл). Шаардлагатай бол `pg_restore`-оор тусад нь.
+
+---
+
+## 13. 10.14-ний бэлэн байдал (QPay ба upload)
+
+| Ажил | Бэлэн зүйл | Блок |
+|---|---|---|
+| Quote (серверийн үнэ) | Guard (`assertOrderReadyForPricing`), `Order`/`OrderItem`, каталогийн `priceMnt`, catalogVersion | Үнийн дүрэм: унааны зардал, промо, НӨАТ (D3). Fixture үнээр л хийж болно |
+| QPay invoice/check/callback | Гэрээ (api §7), model санал (plan §2: `Payment`), idempotency дүрэм, `QPAY_*` env нэрс | **QPay sandbox merchant эрх, `invoice_code`** (D5), callback-д нийтийн **HTTPS** URL (staging) |
+| Private upload | Гэрээ (api §5), хэмжээ/тоо/төрлийн дүрэм, 10 MB upload хязгаар, adapter загвар (`s3`/`local-dev`/`memory`) | **Private bucket эрх** (D6). Эрхгүйгээр зөвхөн `local-dev`/`memory` adapter, түүнийг production гэж тайлагнахгүй |
+| PDF заалт | — | D12 шийдвэр |
+
+10.14-нд эрхгүй ч хийж болох ажил: quote-ийг fixture үнээр (`isFixture` тэмдэглэгээтэй), QPay client-ийн **mock** горим (`QPAY_MODE=mock`), `Payment` model + migration, upload-ийн `memory`/`local-dev` adapter ба magic-byte шалгалт, тест.
+
+---
+
 ## 9. Дутуу account / access / шийдвэр
 
 | Төрөл | Юу хэрэгтэй |
@@ -421,6 +468,8 @@ model OrderEvent {
 | Access | Staging hosting (платформ сонголт), домэйн + TLS, managed PostgreSQL |
 | Access | Private object storage bucket (D6) |
 | Баримт | `AGENTS.md` repo-д байхгүй (2026-10-12-ны байдлаар `origin/main`-д ч байхгүй). Mobile branch remote-д хараахан байхгүй |
-| Шийдвэр (10.12) | wclient-ийн `data.user` засварыг хэзээ, хэн хийх. Энэ branch-ийг түүнгүйгээр main-д нэгтгэвэл вэб самбарын нэвтрэлт эвдэрнэ (D15) |
+| ~~Шийдвэр (10.12)~~ | ~~wclient `data.user` засвар (D15)~~ — **10.13-нд хийсэн** |
+| Шийдвэр (10.13) | D2: тусдаа `Order` model-ийг батлах эсэх (таамгаар хэрэгжсэн) |
+| Зөвшөөрөл (10.13) | §12-ийн локал DB үйлдлүүд (backup → шинэ UTF8 DB → migrate deploy → seed) |
 | Шийдвэр (10.12) | Consent (D10), өвчтөний нэмэлт талбарууд (D11), PDF заалт (D12), цагийн цонх/багтаамж (D13) |
 | Зөвшөөрөл (10.12) | Локал DB-ийн encoding засвар (§11) болон baseline/migrate (§3.2)-ийг локал DB дээр ажиллуулах |

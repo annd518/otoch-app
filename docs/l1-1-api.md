@@ -1,7 +1,8 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-12, backend (`work/backend-l1-1`).
-> **10.12-нд хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** нэгдсэн алдааны гэрээ (§0.1), signup/login (§1.1), `GET /api/catalog/services` (§2).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-13, backend (`work/backend-l1-1`).
+> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4), quote guard (§6, үнэгүй 501).
+> **Таамаг:** захиалгыг тусдаа `Order` model-оор хийсэн (D2 батлагдаагүй). Red flag асуулт, каталог нь **fixture**.
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
 > Mobile тал эдгээрийг mock-оор хөгжүүлж болно. Бодит сервертэй холбохоос өмнө энэ гэрээг хоёр тал батлах ёстой.
 > Бүх жишээ өгөгдөл **зохиомол** (бодит хүн, өвчтөн, гүйлгээ биш).
@@ -59,8 +60,8 @@
 > ✅ **10.12: ХЭРЭГЖСЭН.** Бүх одоо байгаа endpoint (auth, parents, visits, review, users, analytics, catalog, auth/RBAC middleware) энэ хэлбэрт шилжсэн. Алдааг HTTP 200-аар буцаахаа больсон. Код: [server/src/utils/http.ts](../server/src/utils/http.ts), [server/src/middlwares/error.ts](../server/src/middlwares/error.ts).
 > 500 алдаанд дотоод мессеж (`error.message`) буцаахгүй, зөвхөн ерөнхий мессеж ба `INTERNAL_ERROR` буцна.
 
-**Одоо хэрэгжсэн `error.code` утгууд:** `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `ROLE_NOT_ALLOWED`, `NOT_FOUND`, `PARENT_NOT_FOUND`, `VISIT_NOT_FOUND`, `NURSE_NOT_FOUND`, `USER_NOT_FOUND`, `EMAIL_TAKEN`, `INVALID_STATUS`, `CONFLICT`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`.
-Хүснэгтийн бусад code (`ORDER_NOT_EDITABLE`, `QUOTE_EXPIRED` гэх мэт) нь шинэ endpoint-уудтай хамт нэмэгдэнэ.
+**Одоо хэрэгжсэн `error.code` утгууд:** `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `ROLE_NOT_ALLOWED`, `NOT_FOUND`, `PARENT_NOT_FOUND`, `VISIT_NOT_FOUND`, `NURSE_NOT_FOUND`, `USER_NOT_FOUND`, `EMAIL_TAKEN`, `INVALID_STATUS`, `CONFLICT`, `ORDER_NOT_FOUND`, `ORDER_NOT_EDITABLE`, `VERSION_CONFLICT`, `CATALOG_OUTDATED`, `ORDER_INCOMPLETE`, `RED_FLAG_REQUIRED`, `RED_FLAG_INCOMPLETE`, `RED_FLAG_BLOCKED`, `QUESTIONNAIRE_OUTDATED`, `QUESTIONNAIRE_UNAVAILABLE`, `REFERRAL_REQUIRED`, `NOT_IMPLEMENTED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`.
+Хүснэгтийн бусад code (`QUOTE_EXPIRED`, `UNSUPPORTED_MEDIA_TYPE`, `FILE_TOO_LARGE`, `PAYMENT_PROVIDER_ERROR` гэх мэт) нь тухайн endpoint-тэй хамт нэмэгдэнэ.
 
 `VALIDATION_ERROR`-ийн `error.fields` нь `{ "талбарын.зам": "Монгол мессеж" }` хэлбэртэй, талбар бүрд эхний алдааг харуулна.
 
@@ -113,13 +114,16 @@ Mobile-д `WAITING_APPROVAL` зэрэг дотоод эмнэлгийн төлв
 
 ## 1. Одоо байгаа (ХЭРЭГЖСЭН) endpoint-ууд — эвдэхгүй
 
-Бүгд `server/src/index.ts:62-68` дээр mount хийгдсэн.
+Бүгд [server/src/app.ts](../server/src/app.ts) дээр mount хийгдсэн.
 
 | Method | Path | Auth/role | Файл:мөр | Тэмдэглэл |
 |---|---|---|---|---|
 | POST | `/api/auth/signup` | Нээлттэй | [auth.routes.ts:27](../server/src/routes/auth.routes.ts#L27) | ✅ 10.12: зөвхөн CHILD үүсгэнэ, `data.token` + `data.user` (объект) буцаана. §1.1 |
 | POST | `/api/auth/login` | Нээлттэй | [auth.routes.ts:48](../server/src/routes/auth.routes.ts#L48) | ✅ 10.12: `data.user` нь **объект** болсон (өмнө JWT string байсан). §1.1 |
 | GET | `/api/catalog/services` | Нэвтэрсэн | [catalog.routes.ts](../server/src/routes/catalog.routes.ts) | ✅ 10.12: шинэ. §2 |
+| POST/GET | `/api/orders`, `GET/PATCH /api/orders/:id` | CHILD, өөрийн | [orders.routes.ts](../server/src/routes/orders.routes.ts) | ✅ 10.13: шинэ draft захиалга. §3 |
+| GET/PUT | `/api/orders/:id/red-flag-questions`, `/red-flag-answers` | CHILD, өөрийн | мөн дээрх | ✅ 10.13: §4 |
+| POST | `/api/orders/:id/quote` | CHILD, өөрийн | мөн дээрх | 🟡 10.13: guard ажилладаг, үнэ хэрэгжээгүй → 501. §6 |
 | GET | `/api/users` | ADMIN | [users.ts:12](../server/src/routes/users.ts#L12) | |
 | GET | `/api/users/:id` | Өөрөө эсвэл ADMIN | [users.ts:30](../server/src/routes/users.ts#L30) | |
 | POST/GET | `/api/parents` | Нэвтэрсэн | [parents.routes.ts:33,47](../server/src/routes/parents.routes.ts#L33) | Role шалгахгүй |
@@ -172,13 +176,32 @@ Response **201**:
 - JWT payload: `{ userId, email, role }`. Хугацааг `JWT_EXPIRES_IN` env-ээс авна (default `24h`). Өмнө нь `24h` код дотор шууд бичигдсэн байсан.
 - Имэйлийг том/жижиг үсэг ялгахгүй хайна. Шинэ бүртгэлийн имэйлийг жижиг үсгээр хадгална.
 
+#### 1.1.1 Нэгдсэн auth гэрээ (10.13) — status / `error.code`
+
+Дүрэм: **401 = "чи хэн бэ?"** (token байхгүй, хүчингүй, хугацаа дууссан, буруу нэвтрэлт) → клиент дахин нэвтрүүлнэ. **403 = "чамайг таньж байгаа ч эрхгүй"** → session-ийг устгахгүй.
+
+| Тохиолдол | HTTP | `error.code` | Клиентийн үйлдэл |
+|---|---|---|---|
+| Login: буруу имэйл эсвэл нууц үг | 401 | `INVALID_CREDENTIALS` | Мессеж харуулна. Хадгалсан session-д хүрэхгүй (login нь token-гүй хүсэлт) |
+| Login/signup: буруу body | 400 | `VALIDATION_ERROR` | `error.fields`-ийг талбар дээр харуулна |
+| `Authorization` header байхгүй | 401 | `UNAUTHENTICATED` | Login руу шилжүүлнэ |
+| Token хүчингүй (гарын үсэг буруу, хэлбэр буруу) | 401 | `UNAUTHENTICATED` | Session устгаад login руу шилжүүлнэ |
+| Token-ий хугацаа дууссан | 401 | **`TOKEN_EXPIRED`** | Session устгаад "Нэвтрэх хугацаа дууссан" гэж харуулна |
+| Token зөв, role тохирохгүй (жишээ нь CHILD → `/api/users`, NURSE → `/api/orders`) | 403 | `FORBIDDEN` | Session-ийг **устгахгүй**, "Хандах эрхгүй" |
+| Signup: `role` ≠ CHILD | 403 | `ROLE_NOT_ALLOWED` | Мессеж харуулна |
+| Өөр хэрэглэгчийн parent/order | 404 | `PARENT_NOT_FOUND` / `ORDER_NOT_FOUND` | Байгаа эсэхийг задлахгүй |
+
+- Token зөвхөн `Authorization: Bearer <token>` (эсвэл backend-ийн тавьсан httpOnly `token` cookie)-аар ирнэ.
+- **Log:** token, нууц үг, `Authorization` header, request body, эрүүл мэндийн мэдээлэл log-д хэвлэгдэхгүй. Алдааны log-д зөвхөн `name`/`code`/`model` гарна ([utils/logger.ts](../server/src/utils/logger.ts)). Prisma query log production-д унтраалттай.
+- Тестээр баталгаажсан: [tests/auth.test.ts](../server/tests/auth.test.ts), [tests/web-compat.test.ts](../server/tests/web-compat.test.ts).
+
 #### 1.2 Одоогийн хэрэглэгчдэд нөлөөлөх өөрчлөлт
 
 | Өөрчлөлт | Хэнд нөлөөлөх | Шаардлагатай арга хэмжээ |
 |---|---|---|
-| Login-ийн `data.user` JWT string-ээс **объект** болсон | **wclient**: `AuthContext` нь `data.user`-ийг `user_token` cookie-д хадгалж, `useRoleProtection`/`dashboard/layout` түүнийг JWT гэж decode хийдэг. Одоо **decode амжилтгүй болж, вэб самбар нэвтрэлтийг "Invalid session" гэж үзнэ** | wclient нь role-ийг `data.token`-оос decode хийх эсвэл `data.user.role`-ийг унших хэрэгтэй (1-2 мөр). Өнөөдөр wclient-ийг өөрчлөхгүй. **Энэ branch-ийг wclient засвартай хамт нэгтгэх ёстой** (D15) |
-| Mobile login/register | Mobile `data.token`-ийг хадгалдаг тул ажилласаар байна. `data.user` одоо зөв объект | Арга хэмжээ шаардлагагүй. Бүртгэлийн дараа шилжилт одоо ажиллана (token ирдэг болсон) |
-| Нийтийн signup-аар NURSE/ADMIN/MEDICAL_ADMIN үүсгэх боломжгүй | wclient бүртгэлийн хуудас role сонгуулдаг | Ажилтны эрхийг seed эсвэл admin-ий хамгаалагдсан урсгалаар үүсгэнэ (хэрэгжээгүй) |
+| Login-ийн `data.user` JWT string-ээс **объект** болсон | **wclient** | ✅ **10.13-нд зассан** (энэ branch дээр). Шинэ [lib/auth/session-core.ts](../wclient/lib/auth/session-core.ts) нь `data.user` объектыг шалгаж, token-ий claims-тэй тулгана. `auth_user` cookie-д хадгалж, role-оор чиглүүлнэ. Хуучин `user_token` (JWT)-д итгэхгүй, logout бүгдийг цэвэрлэнэ. Энэ branch нэгтгэгдсэний дараа хуучин session-тэй хэрэглэгч нэг удаа дахин нэвтэрнэ |
+| Mobile login/register | Mobile `88bbc22` нь хоёр хэлбэрийг хоёуланг нь хүлээж авдаг | ✅ **10.13-нд бодит backend-тэй тулгасан** (6/6, §10): login 1 хүсэлтээр `data.user` объектыг шууд ашиглана, signup шууд нэвтэрнэ. Mobile-д өөрчлөлт шаардлагагүй |
+| Нийтийн signup-аар NURSE/ADMIN/MEDICAL_ADMIN үүсгэх боломжгүй | wclient бүртгэлийн хуудас | ✅ 10.13: вэб бүртгэлээс role сонголтыг хассан (зөвхөн CHILD). Ажилтны эрхийг seed эсвэл admin-ий хамгаалагдсан урсгалаар үүсгэнэ (хэрэгжээгүй) |
 | Хүчингүй token 403-аас **401** болсон | wclient interceptor 401 үед login руу шилжүүлдэг. Энэ нь хүсэлтэй үйлдэл | — |
 | Өмнө нээлттэй signup-аар үүссэн privileged хэрэглэгчид | Хэрэв байгаа бол хэвээр үлдэнэ | Production/staging DB-д ADMIN/NURSE/MEDICAL_ADMIN жагсаалтыг гараар шалгах |
 
@@ -245,30 +268,34 @@ Response **200** (бодит хариунаас авсан бүтэц, утга 
 
 ---
 
-## 3. Draft захиалга — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 3. Draft захиалга — ✅ ХЭРЭГЖСЭН (10.13, branch дээр)
+
+> ⚠️ **Архитектурын таамаг (D2 батлагдаагүй):** захиалгыг тусдаа `Order` model-оор хэрэгжүүлсэн. Одоогийн `Visit` урсгал **хөндөгдөөгүй** (`POST /api/visits` хэвээр ажиллана). Төлбөрийн дараа Order-оос Visit үүсгэх хэсэг хэрэгжээгүй. D2 өөр шийдвэр гарвал энэ хэсэг өөрчлөгдөнө.
+
+Код: [orderController.ts](../server/src/controllers/orderController.ts), [services/orders.ts](../server/src/services/orders.ts). Тест: [tests/orders.test.ts](../server/tests/orders.test.ts).
+
+- **Auth:** зөвхөн **CHILD** (`requireRole(['CHILD'])`). Бусад role → 403 `FORBIDDEN`.
+- **Эзэмшил:** захиалга нь нэвтэрсэн хэрэглэгчид харьяална. Өөр хэрэглэгчийн захиалга, мөн байхгүй захиалга аль аль нь **404 `ORDER_NOT_FOUND`** (байгаа эсэхийг задлахгүй). Read, PATCH, red flag, quote бүгдэд хамаарна.
+- **Хадгалагдаагүй талбар:** server хүлээн авдаггүй талбаруудыг (жишээ нь `bloodGroup`, `phone`, `allergies`, `status`) **хадгалахгүй, хариунд буцаахгүй**. Тэдгээрийн нэрийг `data.ignoredFields`-д жагсаана. Mobile үүнийг "хадгалагдаагүй" гэж ойлгоно.
+- `quote` одоогоор үргэлж `null`. Хуурамч үнэ, хуурамч төлбөр буцаахгүй.
 
 ### 3.1 `POST /api/orders` — draft үүсгэх
-
-- **Auth:** CHILD (ADMIN туршилтад). Захиалга нь нэвтэрсэн хэрэглэгчид харьяална.
 
 Request:
 ```json
 {
   "parentId": "par_demo_001",
-  "items": [{ "serviceId": "svc_demo_basic", "quantity": 1 }],
-  "scheduledFor": "2026-10-20T09:00:00+08:00",
+  "items": [{ "serviceCode": "HOME_BASIC_CHECK", "quantity": 1 }],
+  "scheduledFor": "2026-10-16T09:00:00+08:00",
   "timeSlot": "09:00-11:00",
-  "address": {
-    "text": "Улаанбаатар, Туршилтын дүүрэг, 1-р хороо, 10-р байр",
-    "lat": 47.9,
-    "lng": 106.9
-  },
-  "notes": "Ирэхээсээ 10 минутын өмнө залгана уу",
-  "nurseGenderPreference": "ANY"
+  "address": { "text": "Улаанбаатар, Туршилтын дүүрэг, 1-р хороо, 10-р байр", "lat": 47.92, "lng": 106.92 },
+  "notes": "Ирэхээсээ өмнө залгана уу",
+  "catalogVersion": "2026-10-13T07:54:01.808Z",
+  "bloodGroup": "A+"
 }
 ```
 
-Response `201`:
+Response **201** (бодит хариунаас, ID ба огноо зохиомол):
 ```json
 {
   "success": true,
@@ -279,59 +306,70 @@ Response `201`:
       "status": "DRAFT",
       "version": 1,
       "parentId": "par_demo_001",
-      "items": [{ "serviceId": "svc_demo_basic", "quantity": 1, "name": "Гэрийн ердийн үзлэг" }],
-      "scheduledFor": "2026-10-20T01:00:00.000Z",
+      "catalogVersion": "2026-10-13T07:54:01.808Z",
+      "items": [{ "serviceCode": "HOME_BASIC_CHECK", "name": "Гэрийн ердийн үзлэг (тест)", "quantity": 1, "requiresReferral": false, "isFixture": true }],
+      "scheduledFor": "2026-10-16T01:00:00.000Z",
       "timeSlot": "09:00-11:00",
-      "address": { "text": "Улаанбаатар, Туршилтын дүүрэг, 1-р хороо, 10-р байр", "lat": 47.9, "lng": 106.9 },
-      "notes": "Ирэхээсээ 10 минутын өмнө залгана уу",
-      "nurseGenderPreference": "ANY",
-      "redFlag": { "status": "NOT_ANSWERED" },
-      "attachments": [],
+      "address": { "text": "Улаанбаатар, Туршилтын дүүрэг, 1-р хороо, 10-р байр", "lat": 47.92, "lng": 106.92 },
+      "notes": "Ирэхээсээ өмнө залгана уу",
+      "redFlag": { "status": "NOT_ANSWERED", "required": true, "questionnaires": ["GENERAL_V1"], "answeredAt": null },
+      "requirements": { "redFlagAnswers": true, "referralAttachment": false, "referralUploadAvailable": false },
       "quote": null,
-      "requirements": { "redFlagAnswers": true, "referralAttachment": false },
-      "createdAt": "2026-10-11T03:00:00.000Z",
-      "updatedAt": "2026-10-11T03:00:00.000Z"
-    }
+      "createdAt": "2026-10-13T07:54:01.912Z",
+      "updatedAt": "2026-10-13T07:54:01.912Z"
+    },
+    "ignoredFields": ["bloodGroup"]
   }
 }
 ```
 
-**Validation:**
+**Validation (сервер):**
 
-| Талбар | Дүрэм |
-|---|---|
-| `parentId` | Заавал. Нэвтэрсэн хэрэглэгчийн parent байх ёстой, үгүй бол 403 |
-| `items` | 1-ээс 5 ширхэг. `serviceId` идэвхтэй байх. `quantity` 1–3 |
-| `scheduledFor` | Заавал биш (draft). Илгээвэл ирээдүй, 90 хоногоос ихгүй |
-| `timeSlot` | `HH:MM-HH:MM` хэлбэр, серверийн зөвшөөрсөн цонхнуудаас |
-| `address.text` | Quote авахаас өмнө заавал, 5–300 тэмдэгт |
-| `notes` | ≤ 500 тэмдэгт |
-| `nurseGenderPreference` | `ANY` / `FEMALE` / `MALE` |
+| Талбар | Дүрэм | Алдаа |
+|---|---|---|
+| `parentId` | Заавал, өөрийн parent | 404 `PARENT_NOT_FOUND` |
+| `items` | 1–5 ширхэг, `serviceCode` давхардахгүй | 400 `VALIDATION_ERROR` (`items`) |
+| `items[].serviceCode` | `^[A-Z][A-Z0-9_]{1,59}$`, каталогт **идэвхтэй** | 400 (`items.N.serviceCode`) |
+| `items[].quantity` | 1–3 бүхэл тоо, default 1 | 400 |
+| `scheduledFor` | Заавал биш. ISO-8601 offset-тэй, ирээдүй, ≤ 90 хоног | 400 (`scheduledFor`) |
+| `timeSlot` | Заавал биш. `HH:MM-HH:MM`, эхлэх < дуусах. **Цонхны жагсаалт/багтаамжийг шалгахгүй (D13)** | 400 |
+| `address.text` | Заавал биш (draft). 5–300 тэмдэгт. `lat`/`lng` хүрээнд | 400 (`address.text`) |
+| `notes` | ≤ 500 тэмдэгт | 400 |
+| `catalogVersion` | Заавал биш. Илгээвэл одоогийн каталогийн хувилбартай таарах | 409 `CATALOG_OUTDATED` |
 
-**Status code:** 201, 400, 401, 403.
+- Validation хоёр шаттай: эхлээд хэлбэр, дараа нь каталог. Хэлбэрийн алдаа байвал үйлчилгээний кодыг шалгахгүй.
+- Сервер draft-ыг одоогийн `catalogVersion`-оор тэмдэглэнэ (хариунд буцна).
+- Кирилл текст UTF8 DB-д бүрэн хадгалагдана (тестээр баталгаажсан). Локал WIN1252 DB дээр хадгалагдахгүй (plan §11).
 
-### 3.2 `PATCH /api/orders/:id` — draft шинэчлэх
+### 3.2 `GET /api/orders/:id`, `GET /api/orders?status=DRAFT`
 
-- **Auth:** Захиалгын эзэн.
-- Зөвхөн `DRAFT` төлөвт засна. Бусад төлөвт **409 `ORDER_NOT_EDITABLE`**.
-- `version` заавал илгээнэ. Хуучин бол **409 `VERSION_CONFLICT`**. Ингэснээр давхар засвараас хамгаална.
-- `items`, `scheduledFor` эсвэл `address` өөрчлөгдвөл өмнөх quote **хүчингүй** болно (`quote: null`).
+`{ order }` (§3.1-тэй ижил хэлбэр) / `{ orders: [...] }`. Жагсаалт нь зөвхөн өөрийн, шинэ нь эхэндээ, ихдээ 20. `status` буруу бол 400.
+
+### 3.3 `PATCH /api/orders/:id` — draft шинэчлэх
 
 ```json
-{ "version": 1, "scheduledFor": "2026-10-21T13:00:00+08:00", "timeSlot": "13:00-15:00" }
+{ "version": 1, "timeSlot": "11:00-13:00", "notes": null }
 ```
 
-Response 200: §3.1-ийн `order` хэлбэр, `version: 2`.
+- `version` **заавал**. Таарахгүй бол **409 `VERSION_CONFLICT`**. Амжилттай бол `version` +1.
+- Засах боломжтой талбар: `items`, `scheduledFor`, `timeSlot`, `address`, `notes`, `catalogVersion`. `null` бол утгыг цэвэрлэнэ (`items`-аас бусад).
+- `status`, `redFlagStatus`, `childId`, `parentId` зэргийг **өөрчлөх боломжгүй**. Тэдгээр нь `ignoredFields`-д орно.
+- Зөвхөн `DRAFT` төлөвт засна. `BLOCKED_RED_FLAG` → **409 `RED_FLAG_BLOCKED`**, бусад → **409 `ORDER_NOT_EDITABLE`**.
+- `items` өөрчлөгдвөл red flag-ийн хариулт **устаж**, `redFlag.status` нь `NOT_ANSWERED` болно. Үйлчилгээ өөрчлөгдвөл асуулга өөр байж болох тул дахин хариулна.
 
-### 3.3 `POST /api/orders/:id/cancel` — цуцлах
+### 3.4 Цуцлах — 🟡 хэрэгжээгүй
 
-- `DRAFT`, `AWAITING_PAYMENT` төлөвт зөвшөөрнө. `PAID`-аас хойш цуцлах, буцаан олголт нь **шийдвэр шаардана** (§9).
+`POST /api/orders/:id/cancel` санал хэвээр (D9).
 
 ---
 
-## 4. Red flag асуулга — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 4. Red flag асуулга — ✅ ХЭРЭГЖСЭН (10.13), асуултууд нь FIXTURE
 
-> Асуултын агуулгыг **эмнэлгийн мэргэжилтэн батлах** ёстой. Доорх асуултууд зөвхөн бүтцийн жишээ.
+> ⚠️ **Асуултын бичвэр нь эмнэлзүйн бус placeholder** ("Туршилтын асуулт 1 (эмнэлзүйн бичвэр батлагдаагүй)"), `isFixture: true`. Блоклох үеийн мэдэгдэл мөн placeholder. Жинхэнэ асуулт болон дүрмийг эмнэлгийн мэргэжилтэн батлах ёстой (D4). Сервер зөвхөн **"нэг л 'Тийм' байвал блоклох"** механизмыг хэрэгжүүлсэн. Өөр эмнэлзүйн дүрэм зохиогоогүй.
+
+Код: `getRedFlagQuestions`, `putRedFlagAnswers` ([orderController.ts](../server/src/controllers/orderController.ts)). Fixture: [prisma/fixtures/redFlags.ts](../server/prisma/fixtures/redFlags.ts).
+
+**Хувилбар:** асуулгын код нь хувилбартай (`GENERAL_V1`). Бичвэр өөрчлөгдвөл шинэ код (`GENERAL_V2`) үүснэ. Захиалгын асуулгыг үйлчилгээ бүрийн `redFlagQuestionnaire`-ээс тодорхойлно.
 
 ### 4.1 `GET /api/orders/:id/red-flag-questions`
 
@@ -340,112 +378,108 @@ Response 200: §3.1-ийн `order` хэлбэр, `version: 2`.
   "success": true,
   "message": "Асуулга",
   "data": {
-    "questionnaire": "GENERAL_V1",
+    "orderId": "ord_demo_001",
+    "orderStatus": "DRAFT",
+    "redFlag": { "status": "NOT_ANSWERED" },
+    "questionnaires": ["GENERAL_V1"],
+    "containsFixtures": true,
     "questions": [
-      { "id": "rfq_demo_1", "code": "CHEST_PAIN", "text": "Одоо цээжээр өвдөж байна уу?", "type": "BOOLEAN", "required": true },
-      { "id": "rfq_demo_2", "code": "BREATHING", "text": "Амьсгал давчдаж байна уу?", "type": "BOOLEAN", "required": true },
-      { "id": "rfq_demo_3", "code": "CONSCIOUSNESS", "text": "Ухаан балартах шинж байна уу?", "type": "BOOLEAN", "required": true }
+      { "id": "rfq_demo_1", "questionnaire": "GENERAL_V1", "code": "TEST_Q1", "text": "Туршилтын асуулт 1 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true },
+      { "id": "rfq_demo_2", "questionnaire": "GENERAL_V1", "code": "TEST_Q2", "text": "Туршилтын асуулт 2 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true },
+      { "id": "rfq_demo_3", "questionnaire": "GENERAL_V1", "code": "TEST_Q3", "text": "Туршилтын асуулт 3 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true }
     ]
   }
 }
 ```
 
-### 4.2 `PUT /api/orders/:id/red-flag-answers`
+Асуулга DB-д байхгүй (seed/migration хийгдээгүй) бол **503 `QUESTIONNAIRE_UNAVAILABLE`**.
 
-- Зөвхөн `DRAFT` төлөвт. Бүх `required` асуултад хариулна. Дахин илгээвэл өмнөх хариулт солигдож, түүх `OrderEvent`-д үлдэнэ.
+### 4.2 `PUT /api/orders/:id/red-flag-answers` — бүх хариултыг солих
 
 ```json
-{ "answers": [
-  { "questionId": "rfq_demo_1", "value": false },
-  { "questionId": "rfq_demo_2", "value": false },
-  { "questionId": "rfq_demo_3", "value": false }
-] }
+{
+  "questionnaires": ["GENERAL_V1"],
+  "answers": [
+    { "questionId": "rfq_demo_1", "value": false },
+    { "questionId": "rfq_demo_2", "value": false },
+    { "questionId": "rfq_demo_3", "value": false }
+  ]
+}
 ```
 
-Response 200 (аюулгүй):
-```json
-{ "success": true, "message": "Хариулт хадгалагдлаа",
-  "data": { "redFlag": { "status": "CLEAR", "answeredAt": "2026-10-11T03:05:00.000Z" }, "orderStatus": "DRAFT" } }
-```
+| Тохиолдол | Хариу |
+|---|---|
+| Бүгд `false` | **200**, `{ "redFlag": { "status": "CLEAR", "answeredAt": "…" }, "orderStatus": "DRAFT", "version": 3 }` |
+| Нэг нь ч гэсэн `true` | **200**, `redFlag.status: "FLAGGED"`, `orderStatus: "BLOCKED_RED_FLAG"`, `advice: { text: "Туршилтын мэдэгдэл: …", isFixture: true }` |
+| Асуулт дутуу | **400 `RED_FLAG_INCOMPLETE`**, `error.fields`: `{ "<questionId>": "Хариулаагүй" }` |
+| `value` нь boolean биш (`"false"` гэх мэт), өөр захиалгын асуулт, давхардсан | **400 `VALIDATION_ERROR`** |
+| `questionnaires` нь серверийнхтэй таарахгүй (хуучин асуулга) | **409 `QUESTIONNAIRE_OUTDATED`** |
+| Захиалга аль хэдийн `BLOCKED_RED_FLAG` | **409 `RED_FLAG_BLOCKED`**. Хариултыг "Үгүй" болгож блокийг арилгах боломжгүй |
+| Захиалга `DRAFT` биш | **409 `ORDER_NOT_EDITABLE`** |
 
-Response 200 (аюул илэрсэн). Захиалга `BLOCKED_RED_FLAG` төлөвт шилжинэ:
-```json
-{ "success": true, "message": "Яаралтай тусламж шаардлагатай байж болзошгүй",
-  "data": {
-    "redFlag": { "status": "FLAGGED", "triggeredCodes": ["CHEST_PAIN"] },
-    "orderStatus": "BLOCKED_RED_FLAG",
-    "advice": { "text": "Яаралтай тусламжийн 103 дугаарт залгана уу.", "phone": "103" }
-  } }
-```
-
-- **Status code:** 200, 400 (дутуу хариулт), 409 (draft биш), 403.
-- **Шийдвэр шаардсан:** Асуултын агуулга, `FLAGGED` үед захиалгыг бүрэн хаах эсэх, яаралтай дугаар, `BLOCKED_RED_FLAG`-аас буцаах боломж.
+**Хамгаалалт (тестээр баталгаажсан):**
+- Төлөвийг зөвхөн сервер хариултаас тооцоолно. Клиент `status`/`redFlagStatus` илгээх боломжгүй (§3.3).
+- Блоклогдсон захиалгыг хариулт солих, PATCH, үйлчилгээ солих, quote руу шууд үсрэх зэргээр **тойрох боломжгүй**.
+- Quote болон цаашдын төлбөр, submit алхам бүр `assertOrderReadyForPricing` guard-ыг **дахин** ажиллуулна ([services/orders.ts](../server/src/services/orders.ts)).
+- Audit (`OrderEvent`) нь зөвхөн `RED_FLAG_CLEAR`/`RED_FLAG_FLAGGED` үр дүнг хадгална. **Аль асуултад "Тийм" гэснийг log, event, analytics-д бичихгүй.** Хариултууд зөвхөн `RedFlagAnswer` хүснэгтэд байна.
 
 ---
 
-## 5. Заалтын зураг (attachment) — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 5. Заалтын зураг (private upload) — 🟡 ГЭРЭЭ ЭЦЭСЛЭСЭН (санал), ХЭРЭГЖЭЭГҮЙ
 
-### 5.1 `POST /api/orders/:id/attachments`
+> Storage эрх байхгүй тул **ажилладаг production upload байхгүй**. Одоо `requirements.referralUploadAvailable: false` буцна. `requiresReferral` үйлчилгээтэй захиалга quote алхамд **422 `REFERRAL_REQUIRED`** авна.
 
-- **Auth:** Захиалгын эзэн. Зөвхөн `DRAFT` төлөвт.
-- **Content-Type:** `multipart/form-data`. Талбарууд: `file` (заавал), `kind=REFERRAL`.
-- **Хязгаар (санал):** Нэг файл ≤ 10 MB, нэг захиалгад ≤ 5 файл.
-- **L1-1 хүрээ: зөвхөн ЗУРАГ** — `image/jpeg`, `image/png`. iPhone-ийн HEIC зургийг mobile тал upload хийхээс өмнө JPEG болгоно (санал). Сервер файлын MIME-г header-ээс биш агуулгаас (magic bytes) шалгана.
-- **PDF: ШИЙДВЭР ГАРААГҮЙ (D12).** L1-1-д `application/pdf` хүлээж авахгүй, **415 `UNSUPPORTED_MEDIA_TYPE`** буцаана. PDF-ийг дэмжвэл хортой контентын шалгалт, preview, хэмжээ зэргийг нэмж шийдэх шаардлагатай.
-- **Хадгалалт:** **Private storage.** Нийтэд нээлттэй `/uploads/...` static зам ([index.ts:42-43](../server/src/index.ts#L42-L43)) **ашиглахгүй**.
+### 5.1 `POST /api/orders/:id/attachments` (multipart/form-data)
 
-Response 201:
-```json
-{ "success": true, "message": "Файл хадгалагдлаа",
-  "data": { "attachment": {
-    "id": "att_demo_001", "kind": "REFERRAL", "mimeType": "image/jpeg",
-    "sizeBytes": 524288, "originalName": "zaalt.jpg", "createdAt": "2026-10-11T03:06:00.000Z"
-  } } }
-```
+| Зүйл | Гэрээ |
+|---|---|
+| Auth / эзэмшил | CHILD, **өөрийн** захиалга (бусад → 404 `ORDER_NOT_FOUND`) |
+| Төлөв | Зөвхөн `DRAFT` (`BLOCKED_RED_FLAG` → 409 `RED_FLAG_BLOCKED`, бусад → 409 `ORDER_NOT_EDITABLE`) |
+| Талбар | `file` (заавал, 1 файл), `kind` = `REFERRAL` |
+| Төрөл | **Зөвхөн `image/jpeg`, `image/png`.** Header биш, файлын эхний байтаар (magic bytes) шалгана. HEIC-ийг mobile JPEG болгоно. **PDF хүлээж авахгүй (D12)** |
+| Хэмжээ | Нэг файл **≤ 10 MB** (`express-fileupload` хязгаар 10 MB аль хэдийн тохируулагдсан) |
+| Тоо | Нэг захиалгад **≤ 5** идэвхтэй файл |
+| Хадгалалт | Private bucket, `storageKey = orders/<orderId>/<uuid>.<ext>`. Анхны нэрийг зөвхөн metadata-д. EXIF/GPS-ийг серверт арилгах (санал). **`/uploads` нийтийн static замд хэзээ ч хадгалахгүй** |
+| Холбоос | `Attachment.orderId`. Захиалгын `requirements.referralAttachment` хангагдсан эсэхийг сервер тооцно |
+
+Response **201**: `{ attachment: { id, kind, mimeType, sizeBytes, createdAt } }` (URL буцаахгүй).
+
+| Алдаа | HTTP / code |
+|---|---|
+| Файл байхгүй, `kind` буруу | 400 `VALIDATION_ERROR` |
+| JPEG/PNG биш, PDF | 415 `UNSUPPORTED_MEDIA_TYPE` |
+| 10 MB-аас их | 413 `FILE_TOO_LARGE` |
+| 5-аас олон | 409 `ATTACHMENT_LIMIT` |
+| Storage тохируулаагүй | 503 `STORAGE_UNAVAILABLE` (хуурамч амжилт буцаахгүй) |
 
 ### 5.2 `GET /api/orders/:id/attachments/:attachmentId/url`
 
-Богино хугацааны (жишээ нь 5 мин) signed URL буцаана: `{ "url": "https://…", "expiresAt": "…" }`. Mobile URL-ыг кэшлэхгүй.
+Эзэмшигчид ≤ 5 минутын signed URL: `{ url, expiresAt }`. Mobile URL-ыг хадгалахгүй.
 
 ### 5.3 `DELETE /api/orders/:id/attachments/:attachmentId`
 
-`DRAFT` төлөвт зөвшөөрнө (soft delete). 204.
+`DRAFT` төлөвт soft delete хийнэ, **204** буцна.
 
-- **Status code:** 201, 400, 403, 404, 409, 413, 415.
-- **Дүрэм:** `requiresReferral: true` үйлчилгээтэй захиалгад REFERRAL attachment-гүй бол quote авах үед **422 `REFERRAL_REQUIRED`**.
+### 5.4 Storage adapter (хэрэгжүүлэх төлөвлөгөө)
+
+| Adapter | Хэзээ | Тэмдэглэл |
+|---|---|---|
+| `s3` (S3-compatible private bucket) | staging/production | Эрх байхгүй (D6) |
+| `local-dev` | Зөвхөн `NODE_ENV=development`, `STORAGE_DRIVER=local-dev` | `server/.local-uploads/` (gitignore). Production-д ажиллуулахаас **татгалзана**. Хариунд `storage: "local-dev"` гэж ил тэмдэглэнэ |
+| `memory` | Зөвхөн тест | Тусгаарласан тестэд |
 
 ---
 
-## 6. Серверийн үнийн quote — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 6. Серверийн үнийн quote — 🟡 GUARD ХЭРЭГЖСЭН, ҮНЭ ХЭРЭГЖЭЭГҮЙ
 
 ### `POST /api/orders/:id/quote`
 
-- **Auth:** Захиалгын эзэн. `DRAFT` төлөвт.
-- **Урьдчилсан нөхцөл:** `items`, `scheduledFor`, `address.text` бөглөгдсөн, `redFlag.status = CLEAR`, шаардлагатай бол REFERRAL attachment байх.
-- Request body хоосон, эсвэл `{ "promoCode": "DEMO10" }`. **Үнийн талбар хүлээж авахгүй.**
+Одоо хийгддэг зүйл:
+1. Эзэмшил (404 `ORDER_NOT_FOUND`).
+2. `assertOrderReadyForPricing`: блоклогдсон → **422 `RED_FLAG_BLOCKED`**. `DRAFT` биш → 409 `ORDER_NOT_EDITABLE`. Red flag хариулаагүй/`CLEAR` биш → **422 `RED_FLAG_REQUIRED`**. Огноо/хаяг дутуу, өнгөрсөн огноо, идэвхгүй үйлчилгээ → **422 `ORDER_INCOMPLETE`** (`error.fields`). Заалт шаардлагатай → **422 `REFERRAL_REQUIRED`**.
+3. Бүх guard давсан бол → **501 `NOT_IMPLEMENTED`** ("Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна"). **Хуурамч үнэ буцаахгүй.**
 
-Response 200:
-```json
-{ "success": true, "message": "Үнийн санал",
-  "data": { "quote": {
-    "id": "quo_demo_001",
-    "currency": "MNT",
-    "lines": [
-      { "serviceId": "svc_demo_basic", "name": "Гэрийн ердийн үзлэг", "quantity": 1, "unitPriceMnt": 45000, "amountMnt": 45000 },
-      { "code": "TRAVEL_FEE", "name": "Унааны зардал", "amountMnt": 5000 },
-      { "code": "DISCOUNT", "name": "Хөнгөлөлт (DEMO10)", "amountMnt": -4500 }
-    ],
-    "subtotalMnt": 45000,
-    "travelFeeMnt": 5000,
-    "discountMnt": 4500,
-    "totalMnt": 45500,
-    "pricingVersion": "2026-10-11.1",
-    "expiresAt": "2026-10-11T03:22:00.000Z"
-  } } }
-```
-
-- **Status code:** 200, 409 (`QUOTE_EXPIRED` эсвэл draft биш), 422 (`RED_FLAG_BLOCKED`, `REFERRAL_REQUIRED`, `VALIDATION_ERROR`).
-- **Шийдвэр шаардсан:** Унааны зардлын дүрэм (бүс/зай), промо код, НӨАТ/и-баримт, quote-ын хүчинтэй хугацаа (санал: 15 мин).
+Санал хэвээр (хэрэгжээгүй): амжилттай үед `{ quote: { id, currency: "MNT", lines[], subtotalMnt, travelFeeMnt, discountMnt, totalMnt, pricingVersion, expiresAt } }`. Үнийг зөвхөн сервер каталогоос тооцно, body-д үнийн талбар хүлээж авахгүй. Хүчинтэй хугацаа 15 мин (санал). Шийдвэр: унааны зардал, промо, НӨАТ/и-баримт (D3).
 
 ---
 
@@ -502,7 +536,9 @@ Response 201:
 
 ---
 
-## 8. Захиалгын дэлгэрэнгүй ба status — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 8. Захиалгын дэлгэрэнгүй ба status — 🟡 ХЭСЭГЧЛЭН (10.13)
+
+> 10.13: `GET /api/orders/:id` ба `GET /api/orders` нь **draft хэлбэрээр** хэрэгжсэн (§3.2). Доорх `payment`, `assignment`, `tracking`, `timeline`, `statusLabel` талбарууд **санал хэвээр, хэрэгжээгүй**. Төлбөр ба Visit холболт хийгдсэний дараа нэмэгдэнэ.
 
 ### 8.1 `GET /api/orders/:id`
 
@@ -607,7 +643,7 @@ Response 201:
 
 | Огноо | Зорилт | Нөхцөл / блок |
 |---|---|---|
-| **10.13** | Mobile ашиглах **эхний HTTPS API** (auth, parents, visits, catalog), зөвхөн зохиомол өгөгдөл | **Блок:** hosting, managed PostgreSQL, домэйн/TLS эрх одоогоор байхгүй. Эрх 10.13-ны өглөө ирвэл тухайн өдөртөө боломжтой (Dockerfile бэлэн, migration бэлэн) |
+| **10.13** | Mobile ашиглах **эхний HTTPS API** (auth, parents, visits, catalog, orders, red flag), зөвхөн зохиомол өгөгдөл | ❌ **Хийгдээгүй.** 10.13-ны байдлаар hosting, managed PostgreSQL, домэйн/TLS, storage эрх ирээгүй. Эрх ирсэн өдөртөө боломжтой (Dockerfile, migration бэлэн). Шинэ хамгийн эрт огноо: эрх ирсэн өдөр |
 | 10.14 | Staging-д migration-ийн урсгал (`migrate deploy`), seed (fixture), log/health шалгалт | 10.13 амжилттай болсон бол |
 | 10.15 | QPay **sandbox** callback URL (HTTPS) тохиргоо, private storage bucket | QPay sandbox эрх, storage эрх |
 | 10.16 | Staging-д бүрэн L1-1 урсгалын smoke test (mobile-тай) | Дээрх бүгд |
@@ -621,7 +657,7 @@ Response 201:
 | # | Асуудал | Нөлөө |
 |---|---|---|
 | D1 | **Технологийн зөрүү:** гэрээнд Flutter/NestJS заасан бол одоогийн код React Native (Expo) + Express. Бид шилжүүлэхгүй, гэхдээ гэрээтэй зөрж байгааг баталгаажуулах шаардлагатай | Бүх ажлын хүрээ |
-| D2 | Order-ыг шинэ model болгох уу (санал), эсвэл одоогийн `Visit`-ийг өргөтгөх үү | §3, migration |
+| D2 | Order-ыг шинэ model болгох уу, эсвэл одоогийн `Visit`-ийг өргөтгөх үү. **10.13: тусдаа `Order` model-оор таамаглан хэрэгжүүлсэн** (нэмэлт, буцааж болох). Батлах эсвэл өөрчлөх шийдвэр хэрэгтэй | §3, migration |
 | D3 | Каталог, үнэ, унааны зардал, промо, валют (MNT) | §2, §6 |
 | D4 | Red flag асуултын агуулга ба эмнэлгийн баталгаажуулалт, яаралтай дугаар | §4 |
 | D5 | QPay merchant эрх, sandbox credential, `invoice_code`, буцаан олголт, и-баримт | §7 |
@@ -634,7 +670,8 @@ Response 201:
 | D12 | Заалтын **PDF** дэмжих эсэх (одоогоор зөвхөн JPEG/PNG) | §5 |
 | D13 | Цагийн цонх, багтаамж, ажлын цаг | §11 |
 | D14 | Staging hosting/DB/домэйн/storage сонголт ба эрх | §14 |
-| D15 | Login `data.user` объект болсон тул wclient-ийн засварыг хэзээ хийх (branch-ийг main-д нэгтгэхээс өмнө заавал) | §1.2 |
+| D15 | ~~Login `data.user` объект болсон тул wclient засвар~~. **10.13-нд энэ branch дээр зассан, тестэлсэн** | §1.2 |
+| D16 | Draft захиалгад `nurseGenderPreference`, төлбөрийн хэрэгсэл, промо код хадгалах эсэх (одоо `ignoredFields`) | §3 |
 
 ---
 
@@ -648,4 +685,11 @@ Response 201:
    - Login: `data.user` нь объект `{id,name,email,role,createdAt}` болсон. Буруу нэвтрэлт **401 `INVALID_CREDENTIALS`**.
    - Signup: `role` илгээхгүй эсвэл `"CHILD"` илгээнэ. Хариунд `data.token` ирдэг болсон.
    - Каталог (§2) **бодит endpoint-оор** ажиллана, гэхдээ өгөгдөл нь зохиомол (`isFixture: true`).
-6. Token, хувийн/эрүүл мэндийн мэдээллийг `console.log`-д бүү хэвлэ. Одоо [login.tsx:39](../App/app/auth/login.tsx#L39) нь login response-ийг (token-той) log хийдэг.
+6. Token, хувийн/эрүүл мэндийн мэдээллийг `console.log`-д бүү хэвлэ. Red flag-ийн хариултыг analytics/log-д бүү илгээ.
+7. **10.13: Захиалгын урсгал (бодит endpoint):** `GET /api/catalog/services` → `POST /api/orders` (`serviceCode`, `catalogVersion`, `+08:00` огноо) → `GET /api/orders/:id/red-flag-questions` → `PUT …/red-flag-answers` (`questionnaires` + **бүх** асуултын boolean хариулт) → `POST …/quote`.
+   - Quote одоогоор **501 `NOT_IMPLEMENTED`** буцаана. Үүнийг амжилт гэж харуулахгүй, "Үнийн санал удахгүй" гэж харуулна.
+   - `orderStatus: BLOCKED_RED_FLAG` болвол урсгалыг зогсоож `advice.text`-ийг харуулна (placeholder). Дахин хариулах, засах товчийг идэвхгүй болгоно.
+   - `ignoredFields`-д орсон талбарыг (цусны бүлэг, харшил, утас) "хадгалагдсан" гэж бүү харуул.
+   - `requirements.referralUploadAvailable: false` үед заалт шаардах үйлчилгээг сонгох боломжгүй, эсвэл "удахгүй" гэж харуулна.
+   - `409 VERSION_CONFLICT` → захиалгыг дахин ачаална. `409 CATALOG_OUTDATED` → каталогийг дахин ачаална. `409 QUESTIONNAIRE_OUTDATED` → асуултыг дахин ачаална.
+   - `401 TOKEN_EXPIRED` → "Нэвтрэх хугацаа дууссан". `403 FORBIDDEN` дээр session-ийг бүү устга.
