@@ -45,6 +45,37 @@
 | Staging | ❌ Эрх байхгүй (§10) | |
 | `next build` | ⚠️ Compile амжилттай, гэхдээ **өмнө нь байсан** хоосон `wclient/app/lab/reports/[id]/page.tsx` (0 byte, main болон upstream-д ч мөн адил) Next-ийн route type check-ийг унагаадаг. Auth-тай холбоогүй, өнөөдрийн хүрээнээс гадуур | |
 
+### 0.2 Явцын тэмдэглэл — 2026-10-14
+
+**Өдрийн эхэнд мэдэгдсэн blocker:** staging hosting, домэйн/TLS, managed PostgreSQL, private bucket, QPay sandbox credential — **аль нь ч байхгүй**. Docker daemon хариу өгөхгүй хэвээр.
+
+| Ажил | Төлөв (fixture / mock / sandbox / real) | Нотолгоо |
+|---|---|---|
+| `POST /api/orders` Idempotency-Key (user+scope, 24 цаг, DB unique) | ✅ **Real** (код + DB constraint). Тест: давталт, өөр payload 409, 8 зэрэг хүсэлт → 1 order, timeout-ийн дараах retry, хугацаа дуусалт | [services/idempotency.ts](../server/src/services/idempotency.ts) |
+| Эрт "Тийм" → серверт BLOCKED (дутуу хариутай ч) | ✅ **Real** логик. Асуултууд **fixture** | [orderController.ts](../server/src/controllers/orderController.ts) |
+| Асуулгын гэрээ: `approved` талбар, тоо нь гэрээ биш | ✅ Docs + код | [l1-1-api.md §4](l1-1-api.md) |
+| Quote | ✅ **Real** тооцоо (order/catalog version, guard, integer MNT). **Үнэ fixture**, хураамж тооцохгүй | [services/orders.ts](../server/src/services/orders.ts) |
+| Private upload | ✅ **Real** урсгал (magic bytes, 10 MB, 5, owner, random key, soft delete). Storage: **memory (тест) / local-dev (dev)**. **S3/staging bucket хэрэгжээгүй, эрхгүй** | [attachmentController.ts](../server/src/controllers/attachmentController.ts), [services/storage.ts](../server/src/services/storage.ts) |
+| Payment + QPay | ✅ **Mock** горим бүрэн тестлэгдсэн (давхар callback → 1 PAID, дүн зөрвөл PAID болохгүй, хугацаа дуусалт). **Sandbox код бий, нэг ч удаа ажиллуулаагүй (credential байхгүй).** Production идэвхгүй | [paymentController.ts](../server/src/controllers/paymentController.ts), [services/qpay.ts](../server/src/services/qpay.ts) |
+| Migration `20261014000000_add_idempotency_quote_attachment_payment` | ✅ Зөвхөн шинэ хүснэгт/enum. Хоосон UTF8 тест DB-д apply болсон. **Бодит/локал DB-д хийгээгүй** | [prisma/migrations](../server/prisma/migrations) |
+| `wclient/app/lab/reports/[id]/page.tsx` (0 byte) | ✅ Хамгийн бага placeholder ("хэрэгжээгүй, демо"). **Production lab feature биш.** `next build` амжилттай (14/14) | |
+| `catalogVersion: null` (mobile) | ✅ "Илгээгээгүй"-тэй адил хүлээн авна (integration-аар илэрсэн) | |
+| Server тест | ✅ **85/85** (null catalogVersion шалгалт одоо байгаа тест дотор) | `npm test` |
+| Integration (`tmp/integration-1014` = backend + mobile `6f46d17`, локал түр branch, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **106/106**, server **85/85**. Mobile service функцуудыг бодит backend-тэй тулгасан **5/5** (идемпотент draft, эрт "Тийм", CLEAR+PATCH, upload/delete, PDF 415) | §14 |
+| Staging | ❌ Эрх байхгүй | §10 |
+
+---
+
+## 14. Integration шалгалт — 2026-10-14
+
+- **Арга:** `git worktree` scratch хавтсанд, локал түр branch `tmp/integration-1014`: `work/backend-l1-1` + `origin/work/mobile-l1-1` (`6f46d17`). Өөрийн branch болон main-д нэгтгээгүй, push хийгээгүй. `node_modules`-ийг junction-оор холбосон (install хийгээгүй).
+- **Git conflict байхгүй.** Энэ нь ажиллагааны нийцлийн нотолгоо биш тул доорх тестүүдийг ажиллуулсан:
+  - Mobile unit тест (`App: npm test`): 106/106.
+  - Server тест (тусгаарласан UTF8 DB): 85/85.
+  - Mobile `App/services/{orders,authFlow,catalog,redFlag,httpClient}.ts`-ийн бодит функцууд → backend (тусгаарласан DB, mock QPay, memory storage): 5/5.
+- **Илэрсэн зөрүү ба шийдэл:** mobile `catalogVersion: null` илгээдэг байсан бол сервер 400 буцааж байсан. Засагдсан (`6253cf3`).
+- **Шалгаагүй:** mobile UI/дэлгэц, бодит төхөөрөмж, mobile-ийн quote/payment дэлгэц (mobile-д хараахан байхгүй), HTTPS staging.
+
 ---
 
 ## 1. Одоогийн төлөв (кодоор баталгаажсан)
@@ -362,8 +393,8 @@ model OrderEvent {
 | Үндсэн | `NODE_ENV`, `PORT`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (✅ кодонд), `LOG_LEVEL`, `TRUST_PROXY` (✅ кодонд), `PRISMA_LOG_QUERIES` (✅ кодонд, staging/prod-д тохируулахгүй) |
 | DB | `DATABASE_URL`, `DATABASE_SSL_MODE` |
 | Auth | `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_BOOTSTRAP_EMAIL` |
-| Storage | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `ATTACHMENT_MAX_BYTES`, `SIGNED_URL_TTL_SECONDS` |
-| QPay | `QPAY_MODE` (`mock`/`sandbox`/`production`), `QPAY_BASE_URL`, `QPAY_USERNAME`, `QPAY_PASSWORD`, `QPAY_INVOICE_CODE`, `QPAY_CALLBACK_URL`, `QPAY_CALLBACK_SECRET` |
+| Storage | `STORAGE_DRIVER` (✅ кодонд: `memory` тест, `local-dev` dev; `s3` хэрэгжээгүй), `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SIGNED_URL_TTL_SECONDS` |
+| QPay | `QPAY_MODE` (✅ кодонд: `mock`/`sandbox`; `production` идэвхгүй), `QPAY_BASE_URL`, `QPAY_USERNAME`, `QPAY_PASSWORD`, `QPAY_INVOICE_CODE`, `QPAY_CALLBACK_SECRET`, `PUBLIC_BASE_URL` (callback URL-ийг эндээс угсарна) |
 | Үнэ/дүрэм | `QUOTE_TTL_SECONDS`, `PAYMENT_TTL_SECONDS`, `EMERGENCY_PHONE` |
 | Имэйл (заавал биш) | `EMAIL_USER`, `EMAIL_PASS` |
 | Rate limit | `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX` |
@@ -397,7 +428,7 @@ model OrderEvent {
 
 ---
 
-## 10. Staging бэлэн байдал — 2026-10-12 (10.13-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
+## 10. Staging бэлэн байдал — 2026-10-12 (10.13, 10.14-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
 
 | Зүйл | Байгаа юу | Тэмдэглэл |
 |---|---|---|

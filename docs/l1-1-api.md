@@ -1,7 +1,7 @@
 # OTOCH L1-1 — API гэрээний САНАЛ (mobile ↔ backend)
 
-> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-13, backend (`work/backend-l1-1`).
-> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4), quote guard (§6, үнэгүй 501).
+> **Статус: САНАЛ. Батлагдаагүй.** Анх 2026-10-11, шинэчилсэн 2026-10-14, backend (`work/backend-l1-1`).
+> **Хэрэгжсэн (branch дээр, main-д нэгтгэгдээгүй):** 10.12 — алдааны гэрээ (§0.1), signup/login (§1.1), каталог (§2). 10.13 — нэгдсэн auth гэрээ + `TOKEN_EXPIRED` (§1.1), draft захиалга (§3), red flag (§4). 10.14 — `Idempotency-Key` (§0.3), эрт "Тийм"-ийг блоклох (§4.2), серверийн quote (§6), private upload (§5, storage: memory/local-dev), QPay **mock** (§7; sandbox шалгагдаагүй).
 > **Таамаг:** захиалгыг тусдаа `Order` model-оор хийсэн (D2 батлагдаагүй). Red flag асуулт, каталог нь **fixture**.
 > Энэ баримтад "санал болгосон, хэрэгжээгүй" гэж тэмдэглэсэн endpoint-ууд **одоогоор кодонд байхгүй**.
 > Mobile тал эдгээрийг mock-оор хөгжүүлж болно. Бодит сервертэй холбохоос өмнө энэ гэрээг хоёр тал батлах ёстой.
@@ -60,8 +60,7 @@
 > ✅ **10.12: ХЭРЭГЖСЭН.** Бүх одоо байгаа endpoint (auth, parents, visits, review, users, analytics, catalog, auth/RBAC middleware) энэ хэлбэрт шилжсэн. Алдааг HTTP 200-аар буцаахаа больсон. Код: [server/src/utils/http.ts](../server/src/utils/http.ts), [server/src/middlwares/error.ts](../server/src/middlwares/error.ts).
 > 500 алдаанд дотоод мессеж (`error.message`) буцаахгүй, зөвхөн ерөнхий мессеж ба `INTERNAL_ERROR` буцна.
 
-**Одоо хэрэгжсэн `error.code` утгууд:** `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `ROLE_NOT_ALLOWED`, `NOT_FOUND`, `PARENT_NOT_FOUND`, `VISIT_NOT_FOUND`, `NURSE_NOT_FOUND`, `USER_NOT_FOUND`, `EMAIL_TAKEN`, `INVALID_STATUS`, `CONFLICT`, `ORDER_NOT_FOUND`, `ORDER_NOT_EDITABLE`, `VERSION_CONFLICT`, `CATALOG_OUTDATED`, `ORDER_INCOMPLETE`, `RED_FLAG_REQUIRED`, `RED_FLAG_INCOMPLETE`, `RED_FLAG_BLOCKED`, `QUESTIONNAIRE_OUTDATED`, `QUESTIONNAIRE_UNAVAILABLE`, `REFERRAL_REQUIRED`, `NOT_IMPLEMENTED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`.
-Хүснэгтийн бусад code (`QUOTE_EXPIRED`, `UNSUPPORTED_MEDIA_TYPE`, `FILE_TOO_LARGE`, `PAYMENT_PROVIDER_ERROR` гэх мэт) нь тухайн endpoint-тэй хамт нэмэгдэнэ.
+**Одоо хэрэгжсэн `error.code` утгууд:** `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHENTICATED`, `TOKEN_EXPIRED`, `INVALID_CREDENTIALS`, `FORBIDDEN`, `ROLE_NOT_ALLOWED`, `NOT_FOUND`, `PARENT_NOT_FOUND`, `VISIT_NOT_FOUND`, `NURSE_NOT_FOUND`, `USER_NOT_FOUND`, `EMAIL_TAKEN`, `INVALID_STATUS`, `CONFLICT`, `ORDER_NOT_FOUND`, `ORDER_NOT_EDITABLE`, `VERSION_CONFLICT`, `CATALOG_OUTDATED`, `ORDER_INCOMPLETE`, `RED_FLAG_REQUIRED`, `RED_FLAG_INCOMPLETE`, `RED_FLAG_BLOCKED`, `QUESTIONNAIRE_OUTDATED`, `QUESTIONNAIRE_UNAVAILABLE`, `REFERRAL_REQUIRED`, `NOT_IMPLEMENTED`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR`, 10.14: `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_KEY_REUSED`, `UNSUPPORTED_MEDIA_TYPE`, `FILE_TOO_LARGE`, `ATTACHMENT_LIMIT`, `ATTACHMENT_NOT_FOUND`, `STORAGE_UNAVAILABLE`, `QUOTE_NOT_FOUND`, `QUOTE_EXPIRED`, `QUOTE_MISMATCH`, `PAYMENT_NOT_FOUND`, `PAYMENT_IN_PROGRESS`, `PAYMENT_PROVIDER_ERROR`, `PAYMENT_UNAVAILABLE`.
 
 `VALIDATION_ERROR`-ийн `error.fields` нь `{ "талбарын.зам": "Монгол мессеж" }` хэлбэртэй, талбар бүрд эхний алдааг харуулна.
 
@@ -84,6 +83,21 @@
 | `DELETE /api/parents/:id` үзлэгтэй parent | 400 (Prisma мессеж) | **409** `CONFLICT` |
 | Malformed JSON | 400 HTML/текст | **400** `INVALID_JSON` |
 | Байхгүй `/api/*` зам | 404 HTML | **404** `NOT_FOUND` |
+
+### 0.3 `Idempotency-Key` — ✅ ХЭРЭГЖСЭН (10.14)
+
+| Endpoint | Заавал эсэх | Scope |
+|---|---|---|
+| `POST /api/orders` | Заавал биш (хуучин клиентийг эвдэхгүйн тулд). **Mobile үргэлж илгээнэ** | хэрэглэгч + `orders.create` |
+| `POST /api/orders/:id/attachments` | Заавал биш | хэрэглэгч + тухайн захиалга |
+| `POST /api/orders/:id/payments/qpay` | **Заавал** (байхгүй → 400 `IDEMPOTENCY_KEY_REQUIRED`) | тухайн захиалга |
+
+- **Хэлбэр:** 8–128 тэмдэгт, `[A-Za-z0-9_-:.]` (UUID v4 санал болгоно). Буруу бол 400 `VALIDATION_ERROR`.
+- **Ижил key + ижил payload** → анхны үр дүн (**201**, header `Idempotent-Replayed: true`, `data.idempotentReplay: true`). Захиалгын одоогийн төлөвийг буцаана.
+- **Ижил key + өөр payload** → **409 `IDEMPOTENCY_KEY_REUSED`**, юу ч үүсэхгүй. Payload-ыг JSON түлхүүрийн дарааллаас үл хамааран (canonical) харьцуулна.
+- **Зэрэг хүсэлт:** DB-ийн unique constraint (`userId, scope, key`) болон transaction-оор хамгаална. 8 зэрэг хүсэлтэд нэг л захиалга үүссэн (тестлэгдсэн).
+- **Хадгалах хугацаа:** 24 цаг. Дууссаны дараа ижил key шинэ хүсэлт гэж тооцогдоно.
+- **Retry гэрээ (mobile):** нэг "хадгалах" оролдлогод нэг key үүсгэнэ. Timeout, сүлжээний алдаа, 5xx үед **ижил key, ижил body**-оор дахин илгээнэ. Хэрэглэгч өгөгдлөө өөрчилсөн бол **шинэ key** үүсгэнэ. 4xx (400/404/409/422) нь дахин оролдоход өөрчлөгдөхгүй тул retry хийхгүй.
 
 ### 0.2 Захиалгын төлөв (Order status) — санал
 
@@ -123,7 +137,10 @@ Mobile-д `WAITING_APPROVAL` зэрэг дотоод эмнэлгийн төлв
 | GET | `/api/catalog/services` | Нэвтэрсэн | [catalog.routes.ts](../server/src/routes/catalog.routes.ts) | ✅ 10.12: шинэ. §2 |
 | POST/GET | `/api/orders`, `GET/PATCH /api/orders/:id` | CHILD, өөрийн | [orders.routes.ts](../server/src/routes/orders.routes.ts) | ✅ 10.13: шинэ draft захиалга. §3 |
 | GET/PUT | `/api/orders/:id/red-flag-questions`, `/red-flag-answers` | CHILD, өөрийн | мөн дээрх | ✅ 10.13: §4 |
-| POST | `/api/orders/:id/quote` | CHILD, өөрийн | мөн дээрх | 🟡 10.13: guard ажилладаг, үнэ хэрэгжээгүй → 501. §6 |
+| POST | `/api/orders/:id/quote` | CHILD, өөрийн | мөн дээрх | ✅ 10.14: серверийн үнэ (fixture). §6 |
+| POST/GET/DELETE | `/api/orders/:id/attachments[/:attId[/content]]` | CHILD, өөрийн | [attachmentController.ts](../server/src/controllers/attachmentController.ts) | ✅ 10.14: private upload. §5 |
+| POST/GET | `/api/orders/:id/payments/qpay`, `/payments/:paymentId` | CHILD, өөрийн | [paymentController.ts](../server/src/controllers/paymentController.ts) | ✅ 10.14: **mock** горим. §7 |
+| GET/POST | `/api/payments/qpay/callback/:secret` | Нээлттэй (нууц зам) | мөн дээрх | ✅ 10.14: зөвхөн provider check өдөөнө. §7.3 |
 | GET | `/api/users` | ADMIN | [users.ts:12](../server/src/routes/users.ts#L12) | |
 | GET | `/api/users/:id` | Өөрөө эсвэл ADMIN | [users.ts:30](../server/src/routes/users.ts#L30) | |
 | POST/GET | `/api/parents` | Нэвтэрсэн | [parents.routes.ts:33,47](../server/src/routes/parents.routes.ts#L33) | Role шалгахгүй |
@@ -277,7 +294,8 @@ Response **200** (бодит хариунаас авсан бүтэц, утга 
 - **Auth:** зөвхөн **CHILD** (`requireRole(['CHILD'])`). Бусад role → 403 `FORBIDDEN`.
 - **Эзэмшил:** захиалга нь нэвтэрсэн хэрэглэгчид харьяална. Өөр хэрэглэгчийн захиалга, мөн байхгүй захиалга аль аль нь **404 `ORDER_NOT_FOUND`** (байгаа эсэхийг задлахгүй). Read, PATCH, red flag, quote бүгдэд хамаарна.
 - **Хадгалагдаагүй талбар:** server хүлээн авдаггүй талбаруудыг (жишээ нь `bloodGroup`, `phone`, `allergies`, `status`) **хадгалахгүй, хариунд буцаахгүй**. Тэдгээрийн нэрийг `data.ignoredFields`-д жагсаана. Mobile үүнийг "хадгалагдаагүй" гэж ойлгоно.
-- `quote` одоогоор үргэлж `null`. Хуурамч үнэ, хуурамч төлбөр буцаахгүй.
+- `quote` нь одоогийн `version`-д хүчинтэй quote байвал л буцна, үгүй бол `null` (§6). `attachments[]` (§5).
+- 10.14: `Idempotency-Key` дэмжинэ (§0.3). Хариунд `data.idempotentReplay` (true/false).
 
 ### 3.1 `POST /api/orders` — draft үүсгэх
 
@@ -369,6 +387,8 @@ Response **201** (бодит хариунаас, ID ба огноо зохиом
 
 Код: `getRedFlagQuestions`, `putRedFlagAnswers` ([orderController.ts](../server/src/controllers/orderController.ts)). Fixture: [prisma/fixtures/redFlags.ts](../server/prisma/fixtures/redFlags.ts).
 
+**Fixture ба гэрээ (10.14):** Асуултын **тоо гэрээний нэг хэсэг биш**. Сервер 3 fixture асуулттай, mobile mock 5 асуулттай байгаа нь хоёулаа батлагдаагүй туршилтын өгөгдөл. 3 ч, 5 ч production шаардлага биш. Клиент серверийн буцаасан асуулт бүрийг харуулж, бүгдэд нь хариулна. Mobile mock нь **хэлбэрийг** (`questionnaires`, `approved`, `containsFixtures`, `questions[].{id, questionnaire, code, text, isFixture, approved}`) дагана, тоог биш. Эмнэлгийн мэргэжилтэн баталсан бичвэр ирэхэд шинэ код (`GENERAL_V2` гэх мэт) `isFixture: false`, `approved: true`-тэй нэмэгдэнэ (D4).
+
 **Хувилбар:** асуулгын код нь хувилбартай (`GENERAL_V1`). Бичвэр өөрчлөгдвөл шинэ код (`GENERAL_V2`) үүснэ. Захиалгын асуулгыг үйлчилгээ бүрийн `redFlagQuestionnaire`-ээс тодорхойлно.
 
 ### 4.1 `GET /api/orders/:id/red-flag-questions`
@@ -382,9 +402,10 @@ Response **201** (бодит хариунаас, ID ба огноо зохиом
     "orderStatus": "DRAFT",
     "redFlag": { "status": "NOT_ANSWERED" },
     "questionnaires": ["GENERAL_V1"],
+    "approved": false,
     "containsFixtures": true,
     "questions": [
-      { "id": "rfq_demo_1", "questionnaire": "GENERAL_V1", "code": "TEST_Q1", "text": "Туршилтын асуулт 1 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true },
+      { "id": "rfq_demo_1", "questionnaire": "GENERAL_V1", "code": "TEST_Q1", "text": "Туршилтын асуулт 1 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true, "approved": false },
       { "id": "rfq_demo_2", "questionnaire": "GENERAL_V1", "code": "TEST_Q2", "text": "Туршилтын асуулт 2 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true },
       { "id": "rfq_demo_3", "questionnaire": "GENERAL_V1", "code": "TEST_Q3", "text": "Туршилтын асуулт 3 (эмнэлзүйн бичвэр батлагдаагүй)", "isFixture": true }
     ]
@@ -409,9 +430,9 @@ Response **201** (бодит хариунаас, ID ба огноо зохиом
 
 | Тохиолдол | Хариу |
 |---|---|
-| Бүгд `false` | **200**, `{ "redFlag": { "status": "CLEAR", "answeredAt": "…" }, "orderStatus": "DRAFT", "version": 3 }` |
-| Нэг нь ч гэсэн `true` | **200**, `redFlag.status: "FLAGGED"`, `orderStatus: "BLOCKED_RED_FLAG"`, `advice: { text: "Туршилтын мэдэгдэл: …", isFixture: true }` |
-| Асуулт дутуу | **400 `RED_FLAG_INCOMPLETE`**, `error.fields`: `{ "<questionId>": "Хариулаагүй" }` |
+| **Аль нэг асуултад `true`** (10.14: бусад асуулт хариулаагүй, буруу id эсвэл хуучин `questionnaires` байсан ч) | **200**, `redFlag.status: "FLAGGED"`, `orderStatus: "BLOCKED_RED_FLAG"`, `advice: { text: "Туршилтын мэдэгдэл: …", isFixture: true }`. Тухайн захиалгын асуултад өгсөн хариултууд хадгалагдана |
+| Бүгд `false`, бүрэн, id зөв | **200**, `{ "redFlag": { "status": "CLEAR", "answeredAt": "…" }, "orderStatus": "DRAFT", "version": 3 }` |
+| `true` байхгүй, асуулт дутуу | **400 `RED_FLAG_INCOMPLETE`**, `error.fields`: `{ "<questionId>": "Хариулаагүй" }`. Юу ч хадгалагдахгүй |
 | `value` нь boolean биш (`"false"` гэх мэт), өөр захиалгын асуулт, давхардсан | **400 `VALIDATION_ERROR`** |
 | `questionnaires` нь серверийнхтэй таарахгүй (хуучин асуулга) | **409 `QUESTIONNAIRE_OUTDATED`** |
 | Захиалга аль хэдийн `BLOCKED_RED_FLAG` | **409 `RED_FLAG_BLOCKED`**. Хариултыг "Үгүй" болгож блокийг арилгах боломжгүй |
@@ -419,120 +440,115 @@ Response **201** (бодит хариунаас, ID ба огноо зохиом
 
 **Хамгаалалт (тестээр баталгаажсан):**
 - Төлөвийг зөвхөн сервер хариултаас тооцоолно. Клиент `status`/`redFlagStatus` илгээх боломжгүй (§3.3).
+- **Эрт "Тийм" (10.14):** mobile "Тийм" дармагц **тухайн нэг хариултыг** (`[{questionId, value:true}]`) илгээнэ. Сервер шууд блоклоно. Restart, дахин нэвтрэлт, өөр төхөөрөмж ашиглаж тойрох боломжгүй (тестлэгдсэн). Сүлжээ тасарвал mobile дахин илгээнэ (PUT нь idempotent: дахин блоклогдсон захиалга 409 `RED_FLAG_BLOCKED` буцаана, mobile үүнийг "блоклогдсон" гэж үзнэ).
+- `advice.phone` буцаахгүй (эмнэлзүйн шийдвэр, D4). Mobile өөрийн 103 дэлгэцийг ашиглана.
 - Блоклогдсон захиалгыг хариулт солих, PATCH, үйлчилгээ солих, quote руу шууд үсрэх зэргээр **тойрох боломжгүй**.
 - Quote болон цаашдын төлбөр, submit алхам бүр `assertOrderReadyForPricing` guard-ыг **дахин** ажиллуулна ([services/orders.ts](../server/src/services/orders.ts)).
 - Audit (`OrderEvent`) нь зөвхөн `RED_FLAG_CLEAR`/`RED_FLAG_FLAGGED` үр дүнг хадгална. **Аль асуултад "Тийм" гэснийг log, event, analytics-д бичихгүй.** Хариултууд зөвхөн `RedFlagAnswer` хүснэгтэд байна.
 
 ---
 
-## 5. Заалтын зураг (private upload) — 🟡 ГЭРЭЭ ЭЦЭСЛЭСЭН (санал), ХЭРЭГЖЭЭГҮЙ
+## 5. Заалтын зураг (private upload) — ✅ ХЭРЭГЖСЭН (10.14). Storage: зөвхөн `memory` (тест) / `local-dev` (dev). Staging bucket байхгүй
 
-> Storage эрх байхгүй тул **ажилладаг production upload байхгүй**. Одоо `requirements.referralUploadAvailable: false` буцна. `requiresReferral` үйлчилгээтэй захиалга quote алхамд **422 `REFERRAL_REQUIRED`** авна.
+Код: [attachmentController.ts](../server/src/controllers/attachmentController.ts), [services/storage.ts](../server/src/services/storage.ts). Тест: [tests/l1-flow.test.ts](../server/tests/l1-flow.test.ts).
+
+> ⚠️ **Storage-ийн төлөв:** `memory` adapter нь зөвхөн тестэд, `local-dev` нь зөвхөн `NODE_ENV=development` үед (`server/.local-uploads/`, gitignore-д орсон, static-аар үйлчлэхгүй) ажиллана. **`s3` (staging/production private bucket) хэрэгжээгүй, bucket эрх байхгүй (D6).** Staging-д storage тохируулаагүй бол upload **503 `STORAGE_UNAVAILABLE`** буцаана, хуурамч амжилт өгөхгүй. Хариунд `storage: "memory" | "local-dev"` гэж ил харагдана.
 
 ### 5.1 `POST /api/orders/:id/attachments` (multipart/form-data)
 
 | Зүйл | Гэрээ |
 |---|---|
-| Auth / эзэмшил | CHILD, **өөрийн** захиалга (бусад → 404 `ORDER_NOT_FOUND`) |
-| Төлөв | Зөвхөн `DRAFT` (`BLOCKED_RED_FLAG` → 409 `RED_FLAG_BLOCKED`, бусад → 409 `ORDER_NOT_EDITABLE`) |
-| Талбар | `file` (заавал, 1 файл), `kind` = `REFERRAL` |
-| Төрөл | **Зөвхөн `image/jpeg`, `image/png`.** Header биш, файлын эхний байтаар (magic bytes) шалгана. HEIC-ийг mobile JPEG болгоно. **PDF хүлээж авахгүй (D12)** |
-| Хэмжээ | Нэг файл **≤ 10 MB** (`express-fileupload` хязгаар 10 MB аль хэдийн тохируулагдсан) |
-| Тоо | Нэг захиалгад **≤ 5** идэвхтэй файл |
-| Хадгалалт | Private bucket, `storageKey = orders/<orderId>/<uuid>.<ext>`. Анхны нэрийг зөвхөн metadata-д. EXIF/GPS-ийг серверт арилгах (санал). **`/uploads` нийтийн static замд хэзээ ч хадгалахгүй** |
-| Холбоос | `Attachment.orderId`. Захиалгын `requirements.referralAttachment` хангагдсан эсэхийг сервер тооцно |
+| Auth / эзэмшил | CHILD, **өөрийн** захиалга. Бусад → 404 `ORDER_NOT_FOUND` |
+| Төлөв | Зөвхөн `DRAFT`. Блоклогдсон → 409 `RED_FLAG_BLOCKED`, бусад → 409 `ORDER_NOT_EDITABLE` |
+| Талбар | `file` (1 файл), `kind` = `REFERRAL` (default) |
+| Төрөл | **JPEG/PNG, файлын эхний байтаар (magic bytes) шалгана.** Нэр, өргөтгөл, Content-Type-д итгэхгүй. PDF, HEIC, бусад → 415 |
+| Хэмжээ | ≤ 10 MB (10 485 760 byte). Илүү → 413 `FILE_TOO_LARGE` |
+| Тоо | Нэг захиалгад ≤ 5 `ACTIVE` файл. Зэрэг upload-д ч мөрдөнө (order row lock) → 409 `ATTACHMENT_LIMIT` |
+| Хадгалалт | Санамсаргүй key: `orders/<orderId>/<uuid>.jpg\|png`. Анхны файлын нэрийг хадгалахгүй. EXIF/GPS-ийг **арилгадаггүй** (хийгдээгүй) |
+| Retry | `Idempotency-Key` заавал биш: ижил key + ижил файл → ижил attachment (201, replay). Ижил key + өөр файл → 409 `IDEMPOTENCY_KEY_REUSED` |
+| Нөлөө | Захиалгын `version` +1 → хуучин quote хүчингүй болно |
 
-Response **201**: `{ attachment: { id, kind, mimeType, sizeBytes, createdAt } }` (URL буцаахгүй).
+Response **201**: `{ attachment: { id, kind, mimeType, sizeBytes, createdAt }, storage: "local-dev", idempotentReplay: false }`. URL буцаахгүй.
 
-| Алдаа | HTTP / code |
-|---|---|
-| Файл байхгүй, `kind` буруу | 400 `VALIDATION_ERROR` |
-| JPEG/PNG биш, PDF | 415 `UNSUPPORTED_MEDIA_TYPE` |
-| 10 MB-аас их | 413 `FILE_TOO_LARGE` |
-| 5-аас олон | 409 `ATTACHMENT_LIMIT` |
-| Storage тохируулаагүй | 503 `STORAGE_UNAVAILABLE` (хуурамч амжилт буцаахгүй) |
+### 5.2 Унших — `GET /api/orders/:id/attachments/:attachmentId/content`
 
-### 5.2 `GET /api/orders/:id/attachments/:attachmentId/url`
+Зөвхөн эзэмшигч (бусад 404, token-гүй 401). Хариу нь binary, `Content-Type` = бодит төрөл, `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`. Mobile `Authorization` header-тэй татна. Signed URL нь `s3` adapter-тай хамт (хэрэгжээгүй).
 
-Эзэмшигчид ≤ 5 минутын signed URL: `{ url, expiresAt }`. Mobile URL-ыг хадгалахгүй.
+`GET /api/orders/:id/attachments` → `{ attachments: [...] }` (зөвхөн `ACTIVE`).
 
 ### 5.3 `DELETE /api/orders/:id/attachments/:attachmentId`
 
-`DRAFT` төлөвт soft delete хийнэ, **204** буцна.
+`DRAFT` төлөвт **204** буцна. Бичлэг `DELETED` төлөвт шилжиж (soft delete), blob storage-оос **устна**. Дахин устгавал 404 `ATTACHMENT_NOT_FOUND`. `version` +1.
 
-### 5.4 Storage adapter (хэрэгжүүлэх төлөвлөгөө)
-
-| Adapter | Хэзээ | Тэмдэглэл |
-|---|---|---|
-| `s3` (S3-compatible private bucket) | staging/production | Эрх байхгүй (D6) |
-| `local-dev` | Зөвхөн `NODE_ENV=development`, `STORAGE_DRIVER=local-dev` | `server/.local-uploads/` (gitignore). Production-д ажиллуулахаас **татгалзана**. Хариунд `storage: "local-dev"` гэж ил тэмдэглэнэ |
-| `memory` | Зөвхөн тест | Тусгаарласан тестэд |
+Захиалгын хариунд (`GET /api/orders/:id`): `attachments[]`, `requirements.referralAttachment` (шаардлагатай ба хараахан байхгүй бол `true`), `requirements.referralUploadAvailable` (storage тохируулагдсан эсэх).
 
 ---
 
-## 6. Серверийн үнийн quote — 🟡 GUARD ХЭРЭГЖСЭН, ҮНЭ ХЭРЭГЖЭЭГҮЙ
+## 6. Серверийн үнийн quote — ✅ ХЭРЭГЖСЭН (10.14). Үнэ нь FIXTURE
 
 ### `POST /api/orders/:id/quote`
 
-Одоо хийгддэг зүйл:
-1. Эзэмшил (404 `ORDER_NOT_FOUND`).
-2. `assertOrderReadyForPricing`: блоклогдсон → **422 `RED_FLAG_BLOCKED`**. `DRAFT` биш → 409 `ORDER_NOT_EDITABLE`. Red flag хариулаагүй/`CLEAR` биш → **422 `RED_FLAG_REQUIRED`**. Огноо/хаяг дутуу, өнгөрсөн огноо, идэвхгүй үйлчилгээ → **422 `ORDER_INCOMPLETE`** (`error.fields`). Заалт шаардлагатай → **422 `REFERRAL_REQUIRED`**.
-3. Бүх guard давсан бол → **501 `NOT_IMPLEMENTED`** ("Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна"). **Хуурамч үнэ буцаахгүй.**
+Request: `{ "orderVersion": 4 }` (**заавал**). Захиалгын одоогийн `version`-тэй таарахгүй бол **409 `VERSION_CONFLICT`**.
 
-Санал хэвээр (хэрэгжээгүй): амжилттай үед `{ quote: { id, currency: "MNT", lines[], subtotalMnt, travelFeeMnt, discountMnt, totalMnt, pricingVersion, expiresAt } }`. Үнийг зөвхөн сервер каталогоос тооцно, body-д үнийн талбар хүлээж авахгүй. Хүчинтэй хугацаа 15 мин (санал). Шийдвэр: унааны зардал, промо, НӨАТ/и-баримт (D3).
+Шалгалтын дараалал: эзэмшил → `orderVersion` → `assertOrderReadyForPricing` (red flag, төлөв, огноо/хаяг, идэвхгүй үйлчилгээ, заалт) → захиалгын `catalogVersion` одоогийн каталогтой таарах (үгүй бол **409 `CATALOG_OUTDATED`**: үйлчилгээгээ PATCH-аар дахин сонгоно).
+
+Response **201**:
+```json
+{ "success": true, "message": "Үнийн санал (төлбөр биш)",
+  "data": { "orderStatus": "DRAFT", "quote": {
+    "id": "quo_demo_001", "orderVersion": 4, "catalogVersion": "2026-10-14T03:00:00.000Z",
+    "pricingVersion": "LIST_PRICE_ONLY_V1", "currency": "MNT",
+    "lines": [{ "type": "SERVICE", "serviceCode": "HOME_BASIC_CHECK", "name": "Гэрийн ердийн үзлэг (тест)", "quantity": 2, "unitPriceMnt": 45000, "amountMnt": 90000, "isFixture": true }],
+    "subtotalMnt": 90000, "totalMnt": 90000,
+    "excludes": ["TRAVEL_FEE", "DISCOUNT", "VAT"],
+    "isFixture": true, "expiresAt": "2026-10-14T03:15:00.000Z", "isPayment": false } } }
+```
+
+- Үнэ = каталогийн `priceMnt` × тоо, **бүхэл MNT**. Унааны зардал, хөнгөлөлт, НӨАТ батлагдаагүй тул **тооцохгүй**, `excludes`-д жагсаана (D3). `promoCode` хүлээж авахгүй.
+- `isFixture: true` бол үнэ зохиомол. Mobile "Туршилтын үнэ" гэж харуулна.
+- **Quote нь төлбөр биш, захиалгыг баталгаажуулахгүй**: `isPayment: false`, захиалга `DRAFT` хэвээр үлдэнэ.
+- Хүчинтэй хугацаа 15 мин (санал). Draft-ыг засах, хариулах, upload хийх бүрд `version` өсдөг тул хуучин quote **автоматаар хүчингүй** болно: `GET /api/orders/:id`-ийн `quote` → `null`, төлбөрт → 409 `QUOTE_MISMATCH`.
 
 ---
 
-## 7. QPay төлбөр — 🟡 САНАЛ БОЛГОСОН, ХЭРЭГЖЭЭГҮЙ
+## 7. QPay төлбөр — ✅ MOCK горимд хэрэгжсэн. Sandbox код бий, **ШАЛГАГДААГҮЙ** (credential байхгүй)
 
-> Backend нь QPay merchant API-тай **серверээс сервер** рүү холбогдоно. Credential зөвхөн backend env-д байна. Бодит гүйлгээг **sandbox баталгаажсаны дараа л** идэвхжүүлнэ.
+Код: [paymentController.ts](../server/src/controllers/paymentController.ts), [services/qpay.ts](../server/src/services/qpay.ts).
 
-### 7.1 `POST /api/orders/:id/payments/qpay` — invoice үүсгэх
+| Горим (`QPAY_MODE`) | Төлөв |
+|---|---|
+| `mock` | ✅ Тестлэгдсэн. **QPay биш**, процесс доторх хуурамч нэхэмжлэх. Хариунд `mode: "mock"`, `isMock: true`, `qrText: "MOCK_QR_NOT_PAYABLE:…"`. Production-д ажиллахаас татгалзана |
+| `sandbox` | 🟡 QPay v2 API-ийн нийтэд мэдэгдэж буй тайлбараар (`/v2/auth/token`, `/v2/invoice`, `/v2/payment/check`) бичсэн. **Sandbox credential байхгүй тул нэг ч удаа ажиллуулж шалгаагүй** (D5). HTTPS `QPAY_BASE_URL`, `PUBLIC_BASE_URL`, `QPAY_CALLBACK_SECRET` шаардлагатай |
+| `production` | ❌ Идэвхгүй (L1-1-д бодит мөнгө хөдлөхгүй) |
 
-- **Auth:** Захиалгын эзэн.
-- **Header:** `Idempotency-Key: <uuid>` заавал. Ижил key-ээр давтан дуудвал ижил invoice буцна.
-- **Body:** `{ "quoteId": "quo_demo_001" }`. Дүнг сервер quote-оос авна.
-- Амжилттай бол захиалга `AWAITING_PAYMENT` төлөвт шилжиж, draft түгжигдэнэ.
+### 7.1 `POST /api/orders/:id/payments/qpay`
 
-Response 201:
-```json
-{ "success": true, "message": "Нэхэмжлэх үүслээ",
-  "data": { "payment": {
-    "id": "pay_demo_001",
-    "provider": "QPAY",
-    "status": "PENDING",
-    "amountMnt": 45500,
-    "qrText": "DEMO_QR_TEXT_NOT_REAL",
-    "qrImageBase64": "iVBORw0KGgo…(зохиомол)",
-    "deeplinks": [
-      { "name": "Khan bank", "logo": "https://…", "link": "khanbank://q?qPay_QRcode=DEMO" }
-    ],
-    "expiresAt": "2026-10-11T03:30:00.000Z"
-  } } }
-```
+- Header **`Idempotency-Key` заавал** (байхгүй → 400 `IDEMPOTENCY_KEY_REQUIRED`). Ижил key + ижил `quoteId` → ижил payment (replay). Өөр `quoteId` → 409 `IDEMPOTENCY_KEY_REUSED`.
+- Body: `{ "quoteId": "quo_…" }`. **Дүнг клиентээс авахгүй.**
+- Шалгалт: red flag ба бүх guard **дахин** (блоклогдсон → 422), quote тухайн захиалгынх, `quote.orderVersion === order.version` (үгүй → 409 `QUOTE_MISMATCH`), хугацаа (409 `QUOTE_EXPIRED`), каталогийн хувилбар, **quote-ийн дүнг каталогоос дахин тооцож тулгана**, валют MNT.
+- Нэг захиалгад нэг `PENDING` төлбөр. Өөр key-ээр давхар оролдвол → 409 `PAYMENT_IN_PROGRESS` (`error.fields.paymentId`).
+- Амжилттай бол захиалга **`AWAITING_PAYMENT`** болж түгжигдэнэ (PATCH, хариулт, upload → 409).
+- Provider алдаа → 502 `PAYMENT_PROVIDER_ERROR`, payment `FAILED`, захиалга `DRAFT` руу буцна. Тохиргоогүй → 503 `PAYMENT_UNAVAILABLE`.
 
-- **Status code:** 201, 200 (idempotent давталт), 409 (`QUOTE_EXPIRED`, буруу төлөв), 422, 502 (`PAYMENT_PROVIDER_ERROR`).
+Response **201**: `{ payment: { id, provider: "QPAY", mode, isMock, status: "PENDING", amountMnt, currency: "MNT", qrText, qrImageBase64, deeplinks, expiresAt, paidAt: null, failureCode: null }, orderStatus: "AWAITING_PAYMENT" }`.
 
-### 7.2 `GET /api/orders/:id/payments/:paymentId` — төлөв шалгах
+### 7.2 `GET /api/orders/:id/payments/:paymentId`
 
-- Сервер өөрийн DB-гээ шалгана. `PENDING` бол QPay `payment/check`-ээр баталгаажуулна (rate limit-тэй).
-- **Mobile polling:** 3–5 сек тутам, дээд тал нь `expiresAt` хүртэл. Мөн app foreground-д буцаж ирэхэд дахин шалгана.
+Эзэмшигч. `PENDING` бол provider-ийн `payment/check`-ийг дуудна (2 сек throttle). Шилжилт:
+- Төлөгдсөн, дүн тэнцүү → `PAID`, захиалга `PAID`.
+- Төлөгдсөн, дүн зөрүүтэй → `PENDING` хэвээр, `failureCode: "AMOUNT_MISMATCH"`. **PAID болгохгүй.**
+- Хугацаа (30 мин) дууссан → `EXPIRED`, захиалга `DRAFT` (шинэ quote авна).
 
-```json
-{ "success": true, "message": "Төлбөрийн төлөв",
-  "data": { "payment": { "id": "pay_demo_001", "status": "PAID", "amountMnt": 45500, "paidAt": "2026-10-11T03:12:00.000Z" },
-            "orderStatus": "PAID" } }
-```
+### 7.3 Callback — `GET|POST /api/payments/qpay/callback/:secret?paymentId=…` (QPay → backend)
 
-`payment.status`: `PENDING` / `PAID` / `FAILED` / `EXPIRED` / `CANCELLED`.
+- Нууц path segment (`QPAY_CALLBACK_SECRET`, constant-time харьцуулалт). Буруу бол 404.
+- **Callback өөрөө төлбөрийг батлахгүй.** Зөвхөн provider-ийн `payment/check`-ийг өдөөнө.
+- Нөхцөлт шилжилт (`status = PENDING` үед л) хийгддэг тул давхар, зэрэг callback ирсэн ч нэг л `PAID`, нэг л event үүснэ (тестлэгдсэн).
+- Хариу үргэлж `200 { success: true }`.
 
-### 7.3 `POST /api/payments/qpay/callback` — QPay → backend (**mobile дуудахгүй**)
+### 7.4 Dev/mock туслах
 
-- Нууц token-той URL ашиглана. Callback-ийн агуулгад **итгэхгүй**: сервер QPay `payment/check`-ээр заавал дахин баталгаажуулна.
-- Idempotent: давтан callback ирэхэд давхар `PAID` үүсгэхгүй.
-- Дүн quote-той таарахгүй бол `PAID` болгохгүй, alert үүсгэнэ.
-
-**Шийдвэр шаардсан:** QPay merchant эрх (sandbox/prod), `invoice_code`, буцаан олголтын бодлого, и-баримт.
+`POST /api/dev/qpay-mock/orders/:id/payments/:paymentId/pay`: зөвхөн `QPAY_MODE=mock` болон production биш үед ажиллана (бусад үед 404). Mock нэхэмжлэхийг "төлөгдсөн" гэж тэмдэглэнэ. Үүний дараа §7.2-оор шалгана. **QPay sandbox биш.**
 
 ---
 
@@ -643,7 +659,7 @@ Response 201:
 
 | Огноо | Зорилт | Нөхцөл / блок |
 |---|---|---|
-| **10.13** | Mobile ашиглах **эхний HTTPS API** (auth, parents, visits, catalog, orders, red flag), зөвхөн зохиомол өгөгдөл | ❌ **Хийгдээгүй.** 10.13-ны байдлаар hosting, managed PostgreSQL, домэйн/TLS, storage эрх ирээгүй. Эрх ирсэн өдөртөө боломжтой (Dockerfile, migration бэлэн). Шинэ хамгийн эрт огноо: эрх ирсэн өдөр |
+| **10.13** | Mobile ашиглах **эхний HTTPS API** (auth, parents, visits, catalog, orders, red flag), зөвхөн зохиомол өгөгдөл | ❌ **Хийгдээгүй.** 10.14-ний өглөөний байдлаар hosting, managed PostgreSQL, домэйн/TLS, storage, QPay sandbox эрх ирээгүй (өдрийн эхэнд мэдэгдсэн). Эрх ирсэн өдөртөө боломжтой (Dockerfile, 4 migration бэлэн) |
 | 10.14 | Staging-д migration-ийн урсгал (`migrate deploy`), seed (fixture), log/health шалгалт | 10.13 амжилттай болсон бол |
 | 10.15 | QPay **sandbox** callback URL (HTTPS) тохиргоо, private storage bucket | QPay sandbox эрх, storage эрх |
 | 10.16 | Staging-д бүрэн L1-1 урсгалын smoke test (mobile-тай) | Дээрх бүгд |
@@ -693,3 +709,11 @@ Response 201:
    - `requirements.referralUploadAvailable: false` үед заалт шаардах үйлчилгээг сонгох боломжгүй, эсвэл "удахгүй" гэж харуулна.
    - `409 VERSION_CONFLICT` → захиалгыг дахин ачаална. `409 CATALOG_OUTDATED` → каталогийг дахин ачаална. `409 QUESTIONNAIRE_OUTDATED` → асуултыг дахин ачаална.
    - `401 TOKEN_EXPIRED` → "Нэвтрэх хугацаа дууссан". `403 FORBIDDEN` дээр session-ийг бүү устга.
+8. **10.14 өөрчлөлт (mobile-д):**
+   - **GAP-15 шийдэгдсэн:** `POST /api/orders` нь `Idempotency-Key`-ийг хүндэтгэнэ. Retry гэрээ: §0.3.
+   - **GAP-13 шийдэгдсэн:** "Тийм" дармагц `PUT …/red-flag-answers`-д **зөвхөн тэр хариултыг** илгээнэ. Сервер `BLOCKED_RED_FLAG` болгоно. Төхөөрөмж дээрх түгжээ нэмэлт хамгаалалт болж үлдэнэ.
+   - Асуулгын хариунд `approved` (дээд түвшин ба асуулт бүрт) нэмэгдсэн. Асуултын тоонд найдахгүй.
+   - `catalogVersion: null` илгээж болно (илгээгээгүйтэй адил).
+   - **Quote бодит:** `POST …/quote` body `{ orderVersion }` (заавал) → 201 `quote`. `isFixture`, `excludes`, `isPayment: false`-ийг харуул. Нийт дүн нь `quote.totalMnt`.
+   - **Upload бодит** (dev: `local-dev` storage). `referralUploadAvailable` нь storage-оос хамаарна. Staging-д bucket гартал `false` эсвэл 503 `STORAGE_UNAVAILABLE` байна. Зургийг `GET …/attachments/:id/content`-ээр token-той татна.
+   - **QPay mock:** `payment.mode === "mock"` эсвэл `isMock: true` бол "Туршилтын төлбөр (QPay биш)" гэж харуул. Dev-д `POST /api/dev/qpay-mock/…/pay`-аар "төлөгдсөн" болгоод `GET …/payments/:id`-ээр шалгана.
