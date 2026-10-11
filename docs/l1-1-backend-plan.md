@@ -130,6 +130,7 @@
 | Production fixture | ⚠️ Олдвор: production seed fixture үнэ/`approved:false` асуулга үүсгэж, тэдгээрээр quote/invoice хийх боломжтой байсан. ✅ `49f0f65`: production-д 503 `FIXTURE_DATA_NOT_ALLOWED`, seed нь `ALLOW_FIXTURE_DATA=true`-гүй бол юу ч үүсгэхгүй. **Fixture байгаа тул production-ready биш** |
 | Integration (`tmp/integration-1017` = `49f0f65` + mobile `0200821`) | ✅ 14/14 (DONE/WAIT/CONTACT_SUPPORT/NEW_QUOTE, QR-гүй pending polling, давхар invoice 0, эзэмшил, red flag, upload retry). Mobile unit 143/143 |
 | Server | 100/100, `tsc`, `prisma validate` OK |
+| Mobile `4b711da` (өдрийн төгсгөлд push хийгдсэн, H1–H5) | ✅ `tmp/integration-1017b` = backend `db8837e` + mobile `4b711da`: **14/14**, mobile unit **149/149**. `recoverPayment` → `paid` / `unconfirmed` / `new_quote` / `reconciliation` |
 | Хүлээлгэн өгөх баримт | [l1-1-handover-backend.md](l1-1-handover-backend.md) |
 | Access | ❌ Өөрчлөлтгүй (staging, DB, bucket, QPay sandbox байхгүй) |
 

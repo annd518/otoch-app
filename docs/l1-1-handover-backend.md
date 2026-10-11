@@ -13,11 +13,11 @@
 |---|---|
 | Repository | https://github.com/annd518/otoch-app |
 | Branch | `work/backend-l1-1` |
-| Тестэлсэн код | **`49f0f65`** (дараагийн commit нь зөвхөн docs) |
+| Тестэлсэн backend | **`db8837e`** (код `49f0f65`-аас хойш өөрчлөгдөөгүй; дараагийн commit-ууд зөвхөн docs) |
 | Суурь | `main` = `901bb91` |
 | PR | **#5** https://github.com/annd518/otoch-app/pull/5 → `main`. **Merge хийгээгүй** |
-| Mobile | `work/mobile-l1-1` = **`0200821`** (PR #4) |
-| Хамтатган тестэлсэн | backend `49f0f65` + mobile `0200821` (локал түр branch `tmp/integration-1017`, push хийгээгүй) |
+| Mobile | `work/mobile-l1-1` = **`4b711da`** (PR #4) |
+| Хамтатган тестэлсэн (эцсийн) | backend **`db8837e`** + mobile **`4b711da`** (локал түр branch `tmp/integration-1017b`, push хийгээгүй). Өмнө нь `49f0f65` + `0200821` (`tmp/integration-1017`) |
 
 PR-ийн commit-ууд (`main`-аас хойш): `f302020` wclient build · `c0761be` orders/red flag/quote/upload/QPay · `6253cf3` null catalogVersion · `76b7e9e` docs · `d0bd64a` mobile quote нийцэл · `28590ee` env template · `d74e524` payment recovery, prod seed · `81ce53d`, `8f6309f` docs · `49f0f65` production fixture хамгаалалт.
 
@@ -37,7 +37,9 @@ PR-ийн commit-ууд (`main`-аас хойш): `f302020` wclient build · `c0
 
 ## 3. Payment recovery — mobile хөгжүүлэгчид (H1–H5)
 
-`ORDER_NOT_EDITABLE`-ийн асуудал **`d74e524`-д шийдэгдсэн**. Өөр key-ээр давтан invoice хүсэхэд одоо `409 PAYMENT_IN_PROGRESS` + `paymentId` буцна. Mobile `0200821`-ийн `inProgressPaymentId`/`recoverPayment`-аар integration-д шалгасан (шинэ төхөөрөмж → ижил invoice).
+`ORDER_NOT_EDITABLE`-ийн асуудал **`d74e524`-д шийдэгдсэн**. Өөр key-ээр давтан invoice хүсэхэд одоо `409 PAYMENT_IN_PROGRESS` + `paymentId` буцна. Mobile `0200821` болон `4b711da`-ийн `recoverPayment`-аар integration-д шалгасан (шинэ төхөөрөмж → ижил invoice).
+
+Mobile **`4b711da`** (`17cbfa9`) H1–H5-ийг `error.fields.recovery`-гоор хэрэгжүүлсэн. Доорх "4b711da" баганыг integration (`db8837e` + `4b711da`) баталгаажуулсан.
 
 Бүх төлбөрийн алдаа (409/502) ижил `error.fields` хэлбэртэй:
 
@@ -45,17 +47,17 @@ PR-ийн commit-ууд (`main`-аас хойш): `f302020` wclient build · `c0
 { "paymentId": "pay_demo_001", "paymentStatus": "PENDING", "recovery": "RESUME", "expiresAt": "2026-10-17T03:30:00.000Z" }
 ```
 
-| `error.code` | HTTP | `recovery` | Mobile `0200821` одоо | Хийх (handoff) |
-|---|---|---|---|---|
-| `PAYMENT_IN_PROGRESS` | 409 | `RESUME` | ✅ `paymentId`-аар сэргээнэ | — |
-| `PAYMENT_ALREADY_PAID` | 409 | `DONE` | ❌ `error` | **H1:** `fields.paymentId` → `getInvoice` → `paid` |
-| `PAYMENT_UNCONFIRMED` | 502 | `WAIT` | ❌ `error` | **H2:** QR-гүй. `getPaymentState`-ээр `expiresAt` хүртэл polling, "хүлээж байна" |
-| `PAYMENT_IN_PROGRESS` | 409 | `WAIT` | ⚠️ сэргээх гэж оролдоод `getInvoice` унана (`qrText` байхгүй) | **H2:** мөн адил, `getInvoice` биш `getPaymentState` |
-| `PAYMENT_RECONCILIATION_REQUIRED` | 409 | `CONTACT_SUPPORT` | ❌ `error` | **H3:** дахин оролдуулахгүй, тусламж руу |
-| `ORDER_NOT_EDITABLE` (төлбөрийн үед) | — | — | `unknown_pending` салбар | **H4:** шинэ backend төлбөрт буцаахгүй. Хуучин серверийн fallback болгож үлдээж болно |
-| `PAYMENT_PROVIDER_ERROR` | 502 | `NEW_QUOTE` | ❌ `error`. Ижил key-ээр давтвал ижил 502 | **H5:** шинэ quote + шинэ key |
+| `error.code` | HTTP | `recovery` | Mobile `0200821` | Handoff | Mobile `4b711da` (шалгасан) |
+|---|---|---|---|---|---|
+| `PAYMENT_IN_PROGRESS` | 409 | `RESUME` | ✅ `paymentId`-аар сэргээнэ | — | ✅ `pending` |
+| `PAYMENT_ALREADY_PAID` | 409 | `DONE` | ❌ `error` | **H1:** `fields.paymentId` → `getInvoice` → `paid` | ✅ `paid` (шинэ төхөөрөмж) |
+| `PAYMENT_UNCONFIRMED` | 502 | `WAIT` | ❌ `error` | **H2:** QR-гүй. `getPaymentState`-ээр `expiresAt` хүртэл polling, "хүлээж байна" | ✅ `unconfirmed`, QR байхгүй |
+| `PAYMENT_IN_PROGRESS` | 409 | `WAIT` | ⚠️ сэргээх гэж оролдоод `getInvoice` унана (`qrText` байхгүй) | **H2:** мөн адил, `getInvoice` биш `getPaymentState` | ✅ `unconfirmed` (хадгалсан id ба шинэ төхөөрөмж) |
+| `PAYMENT_RECONCILIATION_REQUIRED` | 409 | `CONTACT_SUPPORT` | ❌ `error` | **H3:** дахин оролдуулахгүй, тусламж руу | ✅ `reconciliation` |
+| `ORDER_NOT_EDITABLE` (төлбөрийн үед) | — | — | `unknown_pending` салбар | **H4:** шинэ backend төлбөрт буцаахгүй. Хуучин серверийн fallback болгож үлдээж болно | fallback хэвээр (шинэ backend-д хүрэхгүй) |
+| `PAYMENT_PROVIDER_ERROR` | 502 | `NEW_QUOTE` | ❌ `error`. Ижил key-ээр давтвал ижил 502 | **H5:** шинэ quote + шинэ key | ✅ `new_quote` |
 
-Бүх тохиолдолд одоогийн mobile давхар invoice үүсгэдэггүй, хуурамч амжилт харуулдаггүй (integration-аар шалгасан). Дутагдал нь зөвхөн UX-ийн хувьд.
+Хоёр mobile хувилбарт ч давхар invoice үүсээгүй, хуурамч амжилт харагдаагүй (integration-аар шалгасан). UX-ийн дутагдлыг `4b711da` нөхсөн. Дэлгэцийн харагдацыг төхөөрөмж дээр шалгаагүй.
 
 **Жишээ хариунууд** (зохиомол, mock):
 
@@ -135,11 +137,12 @@ Migration-ууд (бүгд **зөвхөн нэмэлт**, одоо байгаа 
 |---|---|---|
 | Server `npm test` (тусдаа устдаг UTF8 PostgreSQL, 4 migration хоосон DB-д) | `49f0f65` | **100/100** |
 | `tsc --noEmit`, `prisma validate` | `49f0f65` | OK |
-| Mobile unit (`App`, integration tree) | `0200821` | **143/143** |
-| Mobile service функц → backend | `49f0f65` + `0200821` | **14/14** |
+| Mobile unit (`App`, integration tree) | `4b711da` | **149/149** (`0200821`: 143/143) |
+| Mobile service функц → backend (эцсийн) | `db8837e` + `4b711da` | **14/14** |
+| Mobile service функц → backend | `49f0f65` + `0200821` | 14/14 |
 | wclient `next build` | wclient `28590ee`-аас хойш өөрчлөгдөөгүй (10.16-нд шалгасан) | 14/14 |
 
-Integration 14 тест: auth (локал болон серверийн token хугацаа дуусалт), role 403, draft зэрэг хүсэлт + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED` ба PATCH/quote/payment тойрох боломжгүй, quote version/хугацаа/fixture/`excludes`, upload retry/унших/устгах/эзэмшил, invoice → mock PAID → `DONE`, provider timeout, `recoverPayment` (хадгалсан id, ижил key, шинэ төхөөрөмж), unconfirmed, `NEW_QUOTE`, `WAIT` (QR-гүй pending polling → expired), `CONTACT_SUPPORT`, payment эзэмшил (`paymentId` задрахгүй). Бүгд **mock QPay** ба memory storage.
+Integration 14 тест: auth (локал болон серверийн token хугацаа дуусалт), role 403, draft зэрэг хүсэлт + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED` ба PATCH/quote/payment тойрох боломжгүй, quote version/хугацаа/fixture/`excludes`, upload retry/унших/устгах/эзэмшил, invoice → mock PAID → `DONE`, provider timeout, `recoverPayment` (хадгалсан id, ижил key, шинэ төхөөрөмж), unconfirmed, `NEW_QUOTE`, `WAIT` (QR-гүй pending polling → expired), `CONTACT_SUPPORT`, payment эзэмшил (`paymentId` задрахгүй). `4b711da`-тай үед `recoverPayment`-ийн үр дүн: `paid` / `unconfirmed` / `new_quote` / `reconciliation` гэж тус тусад нь шалгасан. Бүгд **mock QPay** ба memory storage.
 
 ## 6. Staging / private storage / QPay sandbox — бодит төлөв
 
@@ -165,10 +168,10 @@ Integration 14 тест: auth (локал болон серверийн token х
 3. Private bucket upload, restart-ийн дараах хадгалалт **шалгаагүй** (S3 байхгүй).
 4. Үнэ, хураамж, red flag асуулт **fixture** → production-д хаалттай (`FIXTURE_DATA_NOT_ALLOWED`). Батлагдсан өгөгдөл ирэх хүртэл бодит захиалга авах боломжгүй.
 5. Payment reconciliation-ийн operator хэрэгсэл байхгүй.
-6. Mobile H1–H5 (UX) хийгдээгүй.
+6. Mobile H1–H5 нь service түвшинд хийгдсэн (`4b711da`). Дэлгэцийг бодит төхөөрөмж дээр шалгаагүй.
 7. PR #5 merge хийгдээгүй (review болон шийдвэр хүлээж байна).
 
 ## 9. Локалд үлдсэн зүйл
 
 - Gitignore хийсэн, commit хийгээгүй: `server/.env`, `wclient/.env.local`, `server/.local-pg/` (WIN1252 dev DB, хөндөөгүй), log, build/cache.
-- Түр integration worktree (scratch хавтсанд, push хийгээгүй): `tmp/integration-1014`, `-1015`, `-1016`, `-1016b`, `-1017`. Зөвшөөрөл авсны дараа устгана.
+- Түр integration worktree (scratch хавтсанд, push хийгээгүй): `tmp/integration-1014`, `-1015`, `-1016`, `-1016b`, `-1017`, `-1017b`. Зөвшөөрөл авсны дараа устгана.
