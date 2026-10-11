@@ -231,3 +231,49 @@ Account нээх, төлбөр хийх, cloud build эхлүүлэх, store р�
 - Backend HTTPS staging URL өгмөгц `eas.json`-ийн `env`-д эсвэл EAS environment variable-д оруулна.
 - Release build `http://` хаяг, хоосон утгыг татгалзаж тохиргооны алдаа харуулна.
 - Локал хөгжүүлэлтэд `App/.env.example`-ийг `.env.local` болгон хуулж ашиглана. `.env`, `.env.local` git-д орохгүй.
+
+## 10. 2026-10-13: native build бэлтгэл
+
+### 10.1 Энэ өдөр бэлэн болсон тохиргоо
+
+| Файл | Өөрчлөлт | Төлөв |
+|---|---|---|
+| `App/app.json` | `expo-image-picker` plugin: iOS камер, зургийн сангийн тайлбар (монгол), микрофон хаалттай | Бэлэн |
+| `App/app.json` | SDK 57-д хүчингүй болсон `newArchEnabled`, `android.edgeToEdgeEnabled`-ийг хассан. Хоёулаа SDK 57-д заавал асаалттай. | Бэлэн. `expo-doctor` 21/21. |
+| `App/eas.json` | `preview` (internal, Android APK), `staging` (store, `autoIncrement`) профайл. `appVersionSource: remote`. API URL-ийг EAS-ийн `preview` environment хувьсагчаас авна. Identifier, project ID, URL бичээгүй. | Бэлэн, хэрэглэхэд account шаардлагатай |
+| `App/package.json`, lockfile | `expo-image-picker@57.0.20` (+ `expo-image-loader@57.0.1`) | Бэлэн. `npm ci` 858 package. |
+
+### 10.2 Native permission (`expo config --type introspect`)
+
+- **iOS.** `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription` орсон. Микрофоны тайлбар байхгүй.
+- **Android.** `RECORD_AUDIO`-г `tools:node="remove"`-ээр хаасан. `CAMERA` нь image picker-ийн manifest-ээс нэмэгдэнэ. Storage permission нь `maxSdkVersion=32` хүртэл хязгаарлагдсан. `READ_MEDIA_IMAGES` байхгүй, Android 13+ дээр системийн photo picker ашиглана.
+- **Шийдвэр шаардлагатай.** Expo template-ийн `SYSTEM_ALERT_WINDOW`, `VIBRATE` permission үндсэн manifest-д орж байна. L1-1-д хэрэггүй бол `android.blockedPermissions`-оор хаахыг Play Console-ийн permission шалгалтаас өмнө шийднэ.
+- **Identifier.** Introspect `com.placeholder.appid` гэж харуулсан. Энэ нь Expo-ийн орлуулагч утга бөгөөд жинхэнэ bundle ID, package одоо ч байхгүйг харуулж байна.
+
+### 10.3 Android газрын зураг
+
+Захиалгын дэлгэцээс ажиллагаагүй `MapView`-г хассан. L1-1-ийн урсгалд газрын зураг харуулах дэлгэц одоо байхгүй тул Google Maps API key шаардлагагүй. Иймээс key-гүй Android build-д энэ шалтгаанаар апп унах эрсдэл арилсан. `react-native-maps` dependency-г lockfile өөрчлөхгүйн тулд үлдээсэн. Түүний Android manifest permission нэмдэггүй. Газрын зургийг дахин нэмбэл 9.3-ийн key ба хязгаарлалт хэрэгтэй.
+
+### 10.4 Үлдсэн blocker
+
+| # | Blocker | Хэнээс |
+|---|---|---|
+| 1 | iOS bundle ID, Android package батлагдаагүй | Бүтээгдэхүүний эзэн |
+| 2 | Staging HTTPS API URL байхгүй. Release build түүнгүйгээр API дуудахгүй (тохиргооны алдаа харуулна). Backend-ийн §14: hosting, DB, домэйны эрх байхгүй. | Backend, эзэмшигч |
+| 3 | Expo account, project ID (`eas init`) | Account эзэмшигч |
+| 4 | Apple Developer, App Store Connect эрх, signing | Apple account эзэмшигч |
+| 5 | Google Play Console эрх, Play App Signing, анхны AAB-ийг гараар upload хийх | Play account эзэмшигч |
+| 6 | Брэндийн app icon (одоо Expo template) | Бүтээгдэхүүний эзэн |
+| 7 | Orders, red flag, attachment endpoint backend-д хэрэгжээгүй. Store build дээр урсгал зөвхөн "хэрэгжээгүй" гэж харагдана. | Backend |
+
+### 10.5 Хийх яг үйлдэл (зөвшөөрөл авсны дараа)
+
+1. Эзэмшигч identifier-ийг бичгээр баталгаажуулна. Mobile `app.json`-д `ios.bundleIdentifier`, `android.package`-ийг тусдаа PR-ээр нэмнэ.
+2. Account эзэмшигч Expo-д нэвтэрнэ: `npx eas-cli@latest login`.
+3. `npx eas-cli@latest init` ажиллуулна. Энэ нь `app.json`-д `extra.eas.projectId`, `owner` бичнэ. Тусдаа PR.
+4. Staging URL ирмэгц: `npx eas-cli@latest env:create --environment preview --name EXPO_PUBLIC_API_URL --value <https staging URL> --visibility plaintext`.
+5. **Төлбөр, quota-ийн зөвшөөрөлтэйгээр:** `npx eas-cli@latest build --profile preview --platform android`. Гарсан APK-г бодит Android утсанд суулгаж smoke test хийнэ.
+6. iOS: Apple account эзэмшигч EAS-д credential үүсгэх эрх өгнө. `npx eas-cli@latest build --profile staging --platform ios`.
+7. **Тусдаа зөвшөөрөлтэйгээр:** `eas submit`-ээр TestFlight, Play internal руу илгээнэ. Play-ийн анхны AAB-ийг Play Console-д гараар upload хийнэ.
+
+Энэ өдөр эдгээр алхмын аль нь ч хийгдээгүй. Account холбоогүй, cloud build эхлүүлээгүй, store руу юу ч илгээгээгүй.
