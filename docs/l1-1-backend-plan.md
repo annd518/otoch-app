@@ -89,7 +89,7 @@
 
 ### 0.5 Явцын тэмдэглэл — 2026-10-16
 
-Эхлэх SHA: main `901bb91`, backend `28590ee`, mobile `bd7d9f9`.
+Эхлэх SHA: main `901bb91`, backend `28590ee`, mobile `bd7d9f9`. Ажлын явцад mobile `0200821` (payment recovery) болж шинэчлэгдсэн тул түүнтэй дахин тулгасан.
 
 | Ажил | Төлөв |
 |---|---|
@@ -97,9 +97,20 @@
 | Provider timeout | ✅ Тодорхойгүй үр дүн → payment `PENDING` (`PROVIDER_UNCONFIRMED`), захиалга түгжээтэй, хугацаа дуустал шинэ invoice үүсэхгүй. Тодорхой татгалзал → `FAILED`, `DRAFT`. Автомат reconciliation **байхгүй** (хязгаарыг §7.1.1-д бичсэн) |
 | Аюулгүй байдлын regression | ✅ Signup зөвхөн CHILD, password/hash response-д байхгүй, logger мессеж/Prisma args хэвлэхгүй, order/payment/attachment ownership 404, upload magic-byte/10MB/5 файл (бүгд тесттэй). **Шинэ засвар:** `seed` нь `NODE_ENV=production` үед demo хэрэглэгч (нийтэд мэдэгдэж буй нууц үгтэй ADMIN гэх мэт) үүсгэдэг байсан → одоо зөвхөн fixture. Production config тест: mock QPay, memory/local-dev storage production-д ажиллахгүй |
 | Fixture | Каталог `isFixture: true`, red flag `approved: false` хэвээр. Үнэ, эмнэлзүйн бичвэрийг батлаагүй |
-| Integration (`tmp/integration-1016` = `d74e524` + mobile `bd7d9f9`, локал, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **132/132**. Mobile функцууд → backend **8/8**: auth (expired token локал ба серверийн 401), role 403 session хадгална, draft concurrent + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED_RED_FLAG` ба PATCH/quote/payment тойрох боломжгүй, quote version/expiry/fixture, upload retry/read/delete/ownership, payment recovery (`inProgressPaymentId`), provider timeout |
+| Integration — эцсийн (`tmp/integration-1016b` = backend `81ce53d` + mobile `0200821`, локал, push хийгээгүй) | ✅ Git conflict байхгүй. Mobile unit **143/143**. Mobile функцууд → backend **10/10** (доорх 8 + mobile `recoverPayment`: хадгалсан `paymentId`, ижил key replay, **шинэ төхөөрөмж (өөр key) → `PAYMENT_IN_PROGRESS` → ижил invoice**; unconfirmed үед төлөх боломжтой invoice харагдахгүй). Тестийн дараа remote mobile `0200821` хэвээр |
+| Integration — эхний (`tmp/integration-1016` = `d74e524` + mobile `bd7d9f9`) | ✅ Git conflict байхгүй. Mobile unit **132/132**. Mobile функцууд → backend **8/8**: auth (expired token локал ба серверийн 401), role 403 session хадгална, draft concurrent + timeout retry → 1 order, хэсэгчилсэн "Тийм" → `BLOCKED_RED_FLAG` ба PATCH/quote/payment тойрох боломжгүй, quote version/expiry/fixture, upload retry/read/delete/ownership, payment recovery (`inProgressPaymentId`), provider timeout |
 | Server | 98/98, `tsc`, `prisma validate` OK. wclient `next build` 14/14 |
 | Access (өдрийн эхэнд шалгасан) | ❌ Hosting/HTTPS, UTF8 managed PostgreSQL, private bucket, QPay sandbox credential/`invoice_code` байхгүй. Docker daemon API 500 |
+
+**Mobile handoff (backend засвар шаардлагагүй, mobile талд):**
+
+| # | Олдвор (`0200821`) | Нотолгоо | Санал |
+|---|---|---|---|
+| H1 | `recoverPayment` зөвхөн `PAYMENT_IN_PROGRESS`-ийн `paymentId`-г дагадаг. `PAYMENT_ALREADY_PAID` (шинэ төхөөрөмж, төлөгдсөн захиалга) → `error` | `App/services/payment.ts` `inProgressPaymentId`, `recoverPayment`; integration "HANDOFF paid/new device -> error" | `PAYMENT_ALREADY_PAID`-ийн `error.fields.paymentId`-аар `getInvoice` → `paid` |
+| H2 | `PAYMENT_UNCONFIRMED` (502) ба `recovery: WAIT` → `error`. `getInvoice`/`parseInvoice` `qrText` шаарддаг тул QR-гүй payment-ийг уншиж чадахгүй | integration "HANDOFF unconfirmed -> [error, error]". Давхар invoice үүсээгүй (аюулгүй) | `recovery: WAIT` үед `getPaymentState`-ээр `expiresAt` хүртэл polling, "Төлбөрийн төлөв тодорхойгүй, давхар төлбөрөөс сэргийлж хүлээж байна" гэж харуулах |
+| H3 | `PAYMENT_RECONCILIATION_REQUIRED` (`recovery: CONTACT_SUPPORT`) | api §7.1.1 | Дахин оролдуулахгүй, тусламж руу чиглүүлэх |
+| H4 | `ORDER_NOT_EDITABLE` → `unknown_pending` салбар төлбөрт хэрэггүй болсон (backend `d74e524`-аас `PAYMENT_IN_PROGRESS`) | `recoverPayment`, `payment.tsx` | Хуучин сервертэй нийцлийн fallback болгож үлдээж болно |
+| H5 | `PAYMENT_PROVIDER_ERROR` + `recovery: NEW_QUOTE` үед ижил key-ээр давтвал ижил 502 буцна | api §7.1.1 | Шинэ quote + шинэ key руу шилжих |
 
 **10.17-нд биелэхгүй үлдэх L1-1 шалгуур (одоогийн мэдээллээр):**
 
