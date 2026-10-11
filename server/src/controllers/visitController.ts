@@ -1,6 +1,8 @@
 import { Request, Response } from 'express'
 import { z } from 'zod'
 import prisma from '../db/db.config'
+import { ApiError, ok, validationError } from '../utils/http'
+import { logError } from '../utils/logger'
 
 interface AuthenticatedRequest extends Request {
     user?: {
@@ -11,13 +13,15 @@ interface AuthenticatedRequest extends Request {
 }
 
 const visitSchema = z.object({
-    parentId: z.string().min(1, 'Parent ID is required'),
-    scheduledFor: z.string().datetime('Invalid date format'),
-    visitType: z.enum(['BASIC', 'FULL'])
+    parentId: z.string().trim().min(1, 'Эцэг/эхийг сонгоно уу'),
+    // ISO-8601; both "…Z" (current mobile) and "+08:00" offsets are accepted
+    scheduledFor: z.string().datetime({ offset: true, message: 'Огноо ISO-8601 хэлбэртэй байна' })
+        .refine((value) => new Date(value).getTime() > Date.now(), 'Ирээдүйн огноо сонгоно уу'),
+    visitType: z.enum(['BASIC', 'FULL'], { message: 'visitType нь BASIC эсвэл FULL байна' })
 })
 
 const assignNurseSchema = z.object({
-    nurseId: z.string().min(1, 'Nurse ID is required')
+    nurseId: z.string().trim().min(1, 'Сувилагчийг сонгоно уу')
 })
 
 const vitalsSchema = z.object({
@@ -30,429 +34,279 @@ const vitalsSchema = z.object({
     medicines: z.string().optional()
 })
 
+const VISIT_NOT_FOUND = () => new ApiError(404, 'VISIT_NOT_FOUND', 'Үзлэг олдсонгүй')
+
 // POST /visits - Schedule appointment
 export const scheduleVisit = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const validatedData = visitSchema.safeParse(req.body)
-        if (!validatedData.success) {
-            res.json({
-                message: "Буруу өгөгдөл"
-            })
-            return
-        }
+    const parsed = visitSchema.safeParse(req.body ?? {})
+    if (!parsed.success) throw validationError(parsed.error)
 
-        const { parentId, scheduledFor, visitType } = validatedData.data
+    const { parentId, scheduledFor, visitType } = parsed.data
 
-        // Check if parent belongs to the logged-in child
-        const parent = await prisma.parent.findFirst({
-            where: {
-                id: parentId,
-                children: {
-                    some: { id: req.user!.userId }
-                }
+    // Parent must belong to the logged-in child. Unknown and foreign parents
+    // get the same 404 so other users' parent IDs cannot be probed.
+    const parent = await prisma.parent.findFirst({
+        where: {
+            id: parentId,
+            children: {
+                some: { id: req.user!.userId }
             }
-        })
-
-        if (!parent) {
-            res.json({
-                message: "Эцэг/эх олдсонгүй эсвэл хандах эрхгүй"
-            })
-            return
         }
+    })
 
-        const visit = await prisma.visit.create({
-            data: {
-                parentId,
-                scheduledFor: new Date(scheduledFor),
-                visitType,
-                status: 'PENDING'
-            },
-            include: {
-                Parent: {
-                    select: {
-                        name: true,
-                        address: true
-                    }
-                }
-            }
-        })
-
-        res.status(201).json({
-            success: true,
-            message: 'Үзлэг амжилттай товлогдлоо',
-            data: { visit }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Үзлэг товлож чадсангүй'
-        })
+    if (!parent) {
+        throw new ApiError(404, 'PARENT_NOT_FOUND', 'Эцэг/эх олдсонгүй эсвэл хандах эрхгүй', { parentId: 'Олдсонгүй' })
     }
+
+    const visit = await prisma.visit.create({
+        data: {
+            parentId,
+            scheduledFor: new Date(scheduledFor),
+            visitType,
+            status: 'PENDING'
+        },
+        include: {
+            Parent: {
+                select: {
+                    name: true,
+                    address: true
+                }
+            }
+        }
+    })
+
+    return ok(res, { visit }, 'Үзлэг амжилттай товлогдлоо', 201)
 }
 
 // GET /visits/child - Get child's visits
 export const getChildVisits = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const visits = await prisma.visit.findMany({
-            where: {
-                Parent: {
-                    children: {
-                        some: { id: req.user!.userId }
-                    }
-                },
-                // Hide WAITING_APPROVAL and REVISION_REQUIRED from children
-                status: {
-                    notIn: ['WAITING_APPROVAL', 'REVISION_REQUIRED']
+    const visits = await prisma.visit.findMany({
+        where: {
+            Parent: {
+                children: {
+                    some: { id: req.user!.userId }
                 }
             },
-            include: {
-                Parent: {
-                    select: {
-                        name: true,
-                        address: true
-                    }
-                },
-                Nurse: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                },
-                // Only include vitals for APPROVED visits
-                vitals: {
-                    where: {
-                        Visit: {
-                            status: 'APPROVED'
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                scheduledFor: 'desc'
+            // Hide WAITING_APPROVAL and REVISION_REQUIRED from children
+            status: {
+                notIn: ['WAITING_APPROVAL', 'REVISION_REQUIRED']
             }
-        })
+        },
+        include: {
+            Parent: {
+                select: {
+                    name: true,
+                    address: true
+                }
+            },
+            Nurse: {
+                select: {
+                    name: true,
+                    email: true
+                }
+            },
+            // Only include vitals for APPROVED visits
+            vitals: {
+                where: {
+                    Visit: {
+                        status: 'APPROVED'
+                    }
+                }
+            }
+        },
+        orderBy: {
+            scheduledFor: 'desc'
+        }
+    })
 
-        res.status(200).json({
-            success: true,
-            message: 'Үзлэгүүдийг амжилттай авлаа',
-            data: { visits }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Үзлэгүүдийг авч чадсангүй'
-        })
-    }
+    return ok(res, { visits }, 'Үзлэгүүдийг амжилттай авлаа')
 }
 
 // GET /nurses - Get list of nurses
 export const getNurses = async (req: Request, res: Response) => {
-    try {
-        const nurses = await prisma.user.findMany({
-            where: {
-                role: 'NURSE'
-            },
-            select: {
-                id: true,
-                name: true,
-                email: true
-            }
-        })
+    const nurses = await prisma.user.findMany({
+        where: {
+            role: 'NURSE'
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true
+        }
+    })
 
-        res.status(200).json({
-            success: true,
-            message: 'Сувилагчдын жагсаалтыг амжилттай авлаа',
-            data: { nurses }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Сувилагчдын жагсаалтыг авч чадсангүй'
-        })
-    }
+    return ok(res, { nurses }, 'Сувилагчдын жагсаалтыг амжилттай авлаа')
 }
 
 // POST /visits/:id/assign - Assign nurse to visit
 export const assignNurseToVisit = async (req: Request, res: Response) => {
-    try {
-        const visitId = req.params.id
-        const validatedData = assignNurseSchema.safeParse(req.body)
-        
-        if (!validatedData.success) {
-            res.json({
-                message: "Буруу өгөгдөл"
-            })
-            return
+    const visitId = req.params.id
+    const parsed = assignNurseSchema.safeParse(req.body ?? {})
+    if (!parsed.success) throw validationError(parsed.error)
+
+    const { nurseId } = parsed.data
+
+    // Check if visit exists
+    const visit = await prisma.visit.findUnique({
+        where: { id: visitId }
+    })
+
+    if (!visit) throw VISIT_NOT_FOUND()
+
+    // Check if nurse exists and has NURSE role
+    const nurse = await prisma.user.findFirst({
+        where: {
+            id: nurseId,
+            role: 'NURSE'
         }
+    })
 
-        const { nurseId } = validatedData.data
+    if (!nurse) {
+        throw new ApiError(404, 'NURSE_NOT_FOUND', 'Сувилагч олдсонгүй', { nurseId: 'Олдсонгүй' })
+    }
 
-        // Check if visit exists
-        const visit = await prisma.visit.findUnique({
-            where: { id: visitId }
-        })
-
-        if (!visit) {
-            res.json({
-                message: "Үзлэг олдсонгүй"
-            })
-            return
-        }
-
-        // Check if nurse exists and has NURSE role
-        const nurse = await prisma.user.findFirst({
-            where: {
-                id: nurseId,
-                role: 'NURSE'
-            }
-        })
-
-        if (!nurse) {
-            res.json({
-                message: "Сувилагч олдсонгүй"
-            })
-            return
-        }
-
-        // Assign nurse to visit
-        const updatedVisit = await prisma.visit.update({
-            where: { id: visitId },
-            data: {
-                nurseId,
-                status: 'ASSIGNED'
+    // Assign nurse to visit
+    const updatedVisit = await prisma.visit.update({
+        where: { id: visitId },
+        data: {
+            nurseId,
+            status: 'ASSIGNED'
+        },
+        include: {
+            Parent: {
+                select: {
+                    name: true,
+                    address: true
+                }
             },
-            include: {
-                Parent: {
-                    select: {
-                        name: true,
-                        address: true
-                    }
-                },
-                Nurse: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
+            Nurse: {
+                select: {
+                    name: true,
+                    email: true
                 }
             }
-        })
+        }
+    })
 
-        res.status(200).json({
-            success: true,
-            message: 'Сувилагч амжилттай томилогдлоо',
-            data: { visit: updatedVisit }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Сувилагч томилж чадсангүй'
-        })
-    }
+    return ok(res, { visit: updatedVisit }, 'Сувилагч амжилттай томилогдлоо')
 }
 
 // GET /visits/nurse - Get nurse's assigned visits
 export const getNurseVisits = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const visits = await prisma.visit.findMany({
-            where: {
-                nurseId: req.user!.userId
-            },
-            include: {
-                Parent: {
-                    select: {
-                        name: true,
-                        age: true,
-                        address: true,
-                        diseases: true,
-                        medications: true,
-                        emergencyContact: true
-                    }
+    const visits = await prisma.visit.findMany({
+        where: {
+            nurseId: req.user!.userId
+        },
+        include: {
+            Parent: {
+                select: {
+                    name: true,
+                    age: true,
+                    address: true,
+                    diseases: true,
+                    medications: true,
+                    emergencyContact: true
                 }
-            },
-            orderBy: {
-                scheduledFor: 'asc'
             }
-        })
+        },
+        orderBy: {
+            scheduledFor: 'asc'
+        }
+    })
 
-        res.status(200).json({
-            success: true,
-            message: 'Сувилагчийн үзлэгүүдийг амжилттай авлаа',
-            data: { visits }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Сувилагчийн үзлэгүүдийг авч чадсангүй'
-        })
+    return ok(res, { visits }, 'Сувилагчийн үзлэгүүдийг амжилттай авлаа')
+}
+
+// Loads a visit assigned to the current nurse and checks its status
+async function findNurseVisitWithStatus(visitId: string, nurseId: string, expected: string[]) {
+    const visit = await prisma.visit.findFirst({
+        where: { id: visitId, nurseId },
+        include: { Parent: true }
+    })
+    if (!visit) throw new ApiError(404, 'VISIT_NOT_FOUND', 'Үзлэг олдсонгүй эсвэл танд томилогдоогүй байна')
+    if (!expected.includes(visit.status)) {
+        throw new ApiError(409, 'INVALID_STATUS', `Үзлэгийн одоогийн төлөв (${visit.status}) энэ үйлдлийг зөвшөөрөхгүй`)
     }
+    return visit
 }
 
 // POST /visits/:id/start - Start visit
 export const startVisit = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const visitId = req.params.id
+    const visitId = req.params.id
+    await findNurseVisitWithStatus(visitId, req.user!.userId, ['ASSIGNED'])
 
-        const visit = await prisma.visit.findFirst({
-            where: {
-                id: visitId,
-                nurseId: req.user!.userId,
-                status: 'ASSIGNED'
-            }
-        })
+    const updatedVisit = await prisma.visit.update({
+        where: { id: visitId },
+        data: { status: 'STARTED' }
+    })
 
-        if (!visit) {
-            res.json({
-                message: "Үзлэг олдсонгүй эсвэл танд томилогдоогүй байна"
-            })
-            return
-        }
-
-        const updatedVisit = await prisma.visit.update({
-            where: { id: visitId },
-            data: { status: 'STARTED' }
-        })
-
-        res.status(200).json({
-            success: true,
-            message: 'Үзлэг амжилттай эхэллээ',
-            data: { visit: updatedVisit }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Үзлэг эхлүүлж чадсангүй'
-        })
-    }
+    return ok(res, { visit: updatedVisit }, 'Үзлэг амжилттай эхэллээ')
 }
 
 // POST /visits/:id/vitals - Submit vitals
 export const submitVitals = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const visitId = req.params.id
-        const validatedData = vitalsSchema.safeParse(req.body)
-        
-        if (!validatedData.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Амин үзүүлэлтийн өгөгдөл буруу байна',
-                errors: validatedData.error.format()
-            })
+    const visitId = req.params.id
+    const parsed = vitalsSchema.safeParse(req.body ?? {})
+    if (!parsed.success) throw validationError(parsed.error)
+
+    const visit = await findNurseVisitWithStatus(visitId, req.user!.userId, ['STARTED', 'ASSIGNED'])
+
+    const vitals = await prisma.vitals.upsert({
+        where: { visitId },
+        create: {
+            visitId,
+            ...parsed.data
+        },
+        update: {
+            ...parsed.data
         }
+    })
 
-        const visit = await prisma.visit.findFirst({
-            where: {
-                id: visitId,
-                nurseId: req.user!.userId
+    const updatedVisit = await prisma.visit.update({
+        where: { id: visitId },
+        data: {
+            status: 'WAITING_APPROVAL',
+            notes: parsed.data.notes ?? visit.notes
+        },
+        include: {
+            Parent: {
+                select: { name: true, address: true, emergencyContact: true }
             },
-            include: { Parent: true }
-        })
-
-        if (!visit) {
-            return res.status(404).json({
-                success: false,
-                message: 'Үзлэг олдсонгүй эсвэл танд томилогдоогүй байна'
-            })
+            Nurse: {
+                select: { id: true, name: true, email: true }
+            },
+            vitals: true
         }
+    })
 
-        if (visit.status !== 'STARTED' && visit.status !== 'ASSIGNED') {
-            return res.status(400).json({
-                success: false,
-                message: `Амин үзүүлэлт илгээхийн тулд үзлэг STARTED төлөвтэй байх ёстой. Одоогийн төлөв: ${visit.status}`
-            })
-        }
-
-        const vitals = await prisma.vitals.upsert({
-            where: { visitId },
-            create: {
-                visitId,
-                ...validatedData.data
-            },
-            update: {
-                ...validatedData.data
-            }
-        })
-
-        const updatedVisit = await prisma.visit.update({
-            where: { id: visitId },
-            data: {
-                status: 'WAITING_APPROVAL',
-                notes: validatedData.data.notes ?? visit.notes
-            },
-            include: {
-                Parent: {
-                    select: { name: true, address: true, emergencyContact: true }
-                },
-                Nurse: {
-                    select: { id: true, name: true, email: true }
-                },
-                vitals: true
-            }
-        })
-
-        return res.status(200).json({
-            success: true,
-            message: 'Амин үзүүлэлт илгээгдэж, эмнэлгийн хяналтад шилжлээ',
-            data: { visit: updatedVisit, vitals }
-        })
-    } catch (error: any) {
-        console.error(error)
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Амин үзүүлэлт илгээж чадсангүй'
-        })
-    }
+    return ok(res, { visit: updatedVisit, vitals }, 'Амин үзүүлэлт илгээгдэж, эмнэлгийн хяналтад шилжлээ')
 }
 
 // POST /visits/:id/complete - Complete visit
 export const completeVisit = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const visitId = req.params.id
+    const visitId = req.params.id
+    await findNurseVisitWithStatus(visitId, req.user!.userId, ['STARTED'])
 
-        const visit = await prisma.visit.findFirst({
-            where: {
-                id: visitId,
-                nurseId: req.user!.userId,
-                status: 'STARTED'
-            }
-        })
-
-        if (!visit) {
-            res.json({
-                message: "Үзлэг олдсонгүй эсвэл эхлээгүй байна"
-            })
-            return
-        }
-
-        const updatedVisit = await prisma.visit.update({
-            where: { id: visitId },
-            data: {
-                status: 'COMPLETED',
-                completedAt: new Date()
-            },
-            include: {
-                vitals: true,
-                Parent: {
-                    select: {
-                        name: true,
-                        address: true
-                    }
+    const updatedVisit = await prisma.visit.update({
+        where: { id: visitId },
+        data: {
+            status: 'COMPLETED',
+            completedAt: new Date()
+        },
+        include: {
+            vitals: true,
+            Parent: {
+                select: {
+                    name: true,
+                    address: true
                 }
             }
-        })
+        }
+    })
 
-        // Send email notification to children
-        const { sendVisitCompletionEmail } = await import('../utils/sendEmail')
-        sendVisitCompletionEmail(visitId).catch(console.error)
+    // Send email notification to children
+    const { sendVisitCompletionEmail } = await import('../utils/sendEmail')
+    sendVisitCompletionEmail(visitId).catch((err) => logError('sendVisitCompletionEmail', err))
 
-        res.status(200).json({
-            success: true,
-            message: 'Үзлэг амжилттай дууслаа',
-            data: { visit: updatedVisit }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Үзлэгийг дуусгаж чадсангүй'
-        })
-    }
+    return ok(res, { visit: updatedVisit }, 'Үзлэг амжилттай дууслаа')
 }

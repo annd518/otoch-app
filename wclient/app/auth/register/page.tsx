@@ -11,7 +11,6 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { useAuth } from "@/lib/context/AuthContext";
-import { UserRole } from "@/lib/services/auth";
 import toast from "react-hot-toast";
 
 export default function RegisterPage() {
@@ -21,7 +20,6 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "CHILD" as UserRole,
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -44,7 +42,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await signup(form.name, form.email, form.password, form.role);
+      await signup(form.name, form.email, form.password);
       // Navigation is handled in AuthContext after successful signup
     } catch (error) {
       // Error handling is done in AuthContext with toast notifications
@@ -96,23 +94,9 @@ export default function RegisterPage() {
               />
             </div>
 
-            <div>
-              <label className="text-gray-700 text-sm font-semibold">
-                Үүрэг
-              </label>
-              <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                required
-              >
-                <option value="CHILD">Хүүхэд (өвчтөний ар гэр)</option>
-                <option value="NURSE">Сувилагч (асран хамгаалагч)</option>
-                <option value="ADMIN">Админ</option>
-                <option value="MEDICAL_ADMIN">Эмнэлгийн админ</option>
-              </select>
-            </div>
+            <p className="text-xs text-gray-500">
+              Энэ бүртгэлээр гэр бүлийн (хүүхдийн) эрх үүснэ. Ажилтны эрхийг админ олгоно.
+            </p>
 
             <div>
               <label className="text-gray-700 text-sm font-semibold">

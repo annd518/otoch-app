@@ -1,8 +1,49 @@
 # OTOCH L1-1 — Backend төлөвлөгөө
 
 > 2026-10-11, branch `work/backend-l1-1`, суурь commit `aacfaad`. Хүлээлгэн өгөх хугацаа: **2026-10-17**.
+> **10.12-ны явц:** §0-ийг үзнэ үү.
+
+---
+
+## 0. Явцын тэмдэглэл — 2026-10-12
+
+| Ажил | Төлөв | Нотолгоо |
+|---|---|---|
+| Нийтийн signup зөвхөн CHILD үүсгэнэ, бусад role → 403 `ROLE_NOT_ALLOWED` | ✅ Хэрэгжсэн + тест | [authController.ts](../server/src/controllers/authController.ts), [tests/auth.test.ts](../server/tests/auth.test.ts) |
+| Login/signup: зөв 4xx, бүртгэлтэй эсэхийг задлахгүй (401 ижил мессеж, timing) | ✅ + тест | мөн дээрх |
+| `data.token` (string) + `data.user` (объект) тусдаа | ✅ + тест. **wclient-д нөлөөлнө** ([l1-1-api.md §1.2](l1-1-api.md)) | |
+| Visit үүсгэх: invalid → 400, өөрийн бус parent → 404, өнгөрсөн огноо → 400 | ✅ + тест | [visitController.ts](../server/src/controllers/visitController.ts), [tests/visits.test.ts](../server/tests/visits.test.ts) |
+| Нэгдсэн алдааны гэрээ, global error handler, 404 handler | ✅ Бүх controller/middleware | [utils/http.ts](../server/src/utils/http.ts), [middlwares/error.ts](../server/src/middlwares/error.ts) |
+| Prisma query log: production-д үргэлж унтраалттай, dev-д `PRISMA_LOG_QUERIES=true` үед л асна | ✅ | [db.config.ts](../server/src/db/db.config.ts) |
+| Алдааны log: Prisma алдаанаас зөвхөн name/code/model, production-д мессеж хэвлэхгүй | ✅ | [utils/logger.ts](../server/src/utils/logger.ts) |
+| **Шинэ олдвор F16:** `rejectVisit` хариунд сувилагчийн **нууц үгийн hash** ордог байсан (`Nurse: true`) | ✅ Засагдсан + тест | [reviewController.ts](../server/src/controllers/reviewController.ts) |
+| `ServiceCatalogItem` model + `GET /api/catalog/services` (зохиомол fixture) | ✅ + тест | [catalogController.ts](../server/src/controllers/catalogController.ts), [prisma/fixtures/catalog.ts](../server/prisma/fixtures/catalog.ts) |
+| Migrations version control-д оруулах | ✅ SQL үүсгэсэн, **ямар ч бодит/локал DB-д apply/resolve хийгээгүй** (§3.1) | [prisma/migrations](../server/prisma/migrations) |
+| Тусгаарласан тест (түр PostgreSQL, ажилласны дараа устгана) | ✅ 28/28 pass | [scripts/test-isolated.mjs](../server/scripts/test-isolated.mjs) |
+| `npm run build` гаралтыг `dist/index.js` (`npm start`-тай таарах) болгосон, дотор нь `npm install` хийхгүй (F14) | ✅ | [tsconfig.build.json](../server/tsconfig.build.json) |
+| CORS production allowlist (`CORS_ORIGINS`), `TRUST_PROXY`, JSON 1 MB, upload 10 MB хязгаар (F8, F10 хэсэгчлэн) | ✅ | [app.ts](../server/src/app.ts) |
+| Staging Dockerfile (provider-agnostic) | 🟡 Бичсэн, **build хийгээгүй** (Docker daemon ажиллахгүй байсан), deploy хийгээгүй | [server/Dockerfile](../server/Dockerfile) |
+| **Шинэ олдвор F17:** локал embedded PostgreSQL нь **WIN1252** encoding-той. Кирилл (Монгол) нэр/хаяг хадгалахад алдаа өгнө | 🟡 Шинэ cluster-уудад UTF8 болгосон. **Одоогийн локал DB-д зөвшөөрөл хэрэгтэй** (§11) | [scripts/dev-local.mjs](../server/scripts/dev-local.mjs) |
+| Rate limit, helmet (F9) | ⏳ Хийгээгүй | |
+| F7 (vitals-ийн дараа `COMPLETED` болохгүй) | ⏳ Хийгээгүй, урсгалын шийдвэр хэрэгтэй | |
 > API гэрээ: [l1-1-api.md](l1-1-api.md) (**санал, батлагдаагүй**).
 > Энэ баримтын заавар нь audit-ийн эх сурвалж. Гаднын үйлдэл (deploy, төлбөртэй resource, бодит QPay) хийх зөвшөөрөл **биш**.
+
+### 0.1 Явцын тэмдэглэл — 2026-10-13
+
+| Ажил | Төлөв | Нотолгоо |
+|---|---|---|
+| wclient auth шинэ гэрээнд нийцсэн (`data.user` объект, role routing, logout, хуучин `user_token`-д итгэхгүй, бүртгэлээс privileged role хассан) | ✅ + contract тест (7) | [wclient/lib/auth/session-core.ts](../wclient/lib/auth/session-core.ts), [tests/web-compat.test.ts](../server/tests/web-compat.test.ts) |
+| Mobile `88bbc22`-ийн кодыг (scratch-д экспортолж, App-ийг өөрчлөөгүй) бодит backend-тэй тулгасан | ✅ 6/6 (нэг удаагийн шалгалт, commit хийгээгүй) | [l1-1-api.md §1.2](l1-1-api.md) |
+| Нэгдсэн auth гэрээ: 401 `UNAUTHENTICATED` / **`TOKEN_EXPIRED`** / `INVALID_CREDENTIALS`, 403 `FORBIDDEN` | ✅ + тест | [middlwares/auth.ts](../server/src/middlwares/auth.ts), [l1-1-api.md §1.1.1](l1-1-api.md) |
+| Draft захиалга (`Order`, `OrderItem`, `OrderEvent`) — **D2 таамаг** | ✅ + тест | [orderController.ts](../server/src/controllers/orderController.ts) |
+| Red flag (`RedFlagQuestion` fixture, `RedFlagAnswer`), блок + guard | ✅ + тест | [services/orders.ts](../server/src/services/orders.ts) |
+| Quote: guard бодитоор ажилладаг, үнэ → 501 `NOT_IMPLEMENTED` | ✅ (хуурамч амжилтгүй) | |
+| Migration `20261013000000_add_draft_orders_red_flag`: зөвхөн шинэ хүснэгт/enum, одоогийн хүснэгтэд `ALTER` байхгүй | ✅ Хоосон UTF8 тест DB-д apply болсон. **Бодит/локал DB-д хийгээгүй** | [prisma/migrations](../server/prisma/migrations) |
+| Тест | ✅ **58/58** (auth 17, catalog 4, orders/red flag 21, visits 9, web-compat 7) | `npm test` |
+| Private upload гэрээ | 🟡 Эцэсэлсэн (санал), **хэрэгжээгүй** | [l1-1-api.md §5](l1-1-api.md) |
+| Staging | ❌ Эрх байхгүй (§10) | |
+| `next build` | ⚠️ Compile амжилттай, гэхдээ **өмнө нь байсан** хоосон `wclient/app/lab/reports/[id]/page.tsx` (0 byte, main болон upstream-д ч мөн адил) Next-ийн route type check-ийг унагаадаг. Auth-тай холбоогүй, өнөөдрийн хүрээнээс гадуур | |
 
 ---
 
@@ -254,6 +295,26 @@ model OrderEvent {
 
 ## 3. Migration ба backward compatibility
 
+### 3.1 10.12-ны байдал (бэлтгэл, apply хийгээгүй)
+
+- `server/.gitignore`-оос `/prisma/migrations`-ийг хассан. Migrations одоо commit хийгдэнэ.
+- `prisma/migrations/0_init/migration.sql`: 10.11-ний schema-аас (`3b1bc42`) `prisma migrate diff --from-empty`-ээр үүсгэсэн baseline. `DROP`, `TRUNCATE`, `DELETE` байхгүй.
+- `prisma/migrations/20261012000000_add_service_catalog/migration.sql`: зөвхөн `CREATE TABLE "ServiceCatalogItem"` ба 2 index. Одоогийн хүснэгтүүдэд хүрэхгүй.
+- Хоёулаа **хоосон, тусгаарласан тест DB-д** `migrate deploy`-оор амжилттай apply болсон (тест бүрд).
+- **Локал DB (`.local-pg`, port 5544) болон бусад DB-д apply/resolve хийгээгүй.**
+
+### 3.2 Одоо байгаа DB-г baseline хийх журам (зөвшөөрөл авсны дараа, DB бүрд)
+
+1. DB-ийн backup авах.
+2. `npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --script` (DB-г **өөрчлөхгүй**, зөвхөн уншиж зөрүүг SQL-ээр харуулна). Гаралт нь `20261012000000_add_service_catalog/migration.sql`-тэй **яг ижил** байх ёстой. Өөр зөрүү гарвал DB нь `0_init`-ээс зөрсөн гэсэн үг: зогсож шалгана.
+3. Зөрүүгүй бол: `npx prisma migrate resolve --applied 0_init`.
+4. `npx prisma migrate deploy` → catalog хүснэгт үүснэ.
+5. Шинэ (хоосон) DB-д (staging): шууд `migrate deploy`.
+
+⚠️ `npm run dev:local` нь эхлэх бүрдээ `prisma db push` + seed ажиллуулдаг. Дараагийн удаа ажиллуулахад локал DB-д `ServiceCatalogItem` хүснэгт **нэмэгдэж**, зохиомол каталог seed хийгдэнэ (нэмэлт, өгөгдөл устгахгүй). Энэ нь migration history бичихгүй. Baseline хийсний дараа dev-д `migrate deploy` руу шилжих эсэхийг шийднэ.
+
+### 3.3 Ерөнхий төлөвлөгөө
+
 1. **Migrations-ийг git-д оруулах.** `server/.gitignore:8`-аас `/prisma/migrations`-ийг хасна. Энэ нь backend-ийн config тул миний хариуцах хүрээнд багтана. Шалтгаан: staging/production-д `db push` биш, `migrate deploy` ашиглах.
 2. **Baseline:** одоогийн schema-аас `0_init` migration үүсгэнэ (`prisma migrate diff --from-empty --to-schema-datamodel …`). Одоо байгаа DB-д `prisma migrate resolve --applied 0_init` хийж тэмдэглэнэ. Локал DB-д ажиллуулахаас өмнө хэлэлцэнэ.
 3. **L1-1 migration:** зөвхөн шинэ хүснэгт болон nullable/default-тэй талбар нэмнэ. `ALTER ... DROP` хийхгүй.
@@ -268,8 +329,8 @@ model OrderEvent {
 
 | Өдөр | Ажил | Гаралт |
 |---|---|---|
-| **10.12 (Да)** | Гэрээний шийдвэр (D1–D9) авах. Signup-ийн ADMIN эрхийг хаах (§5). Migrations baseline. `ServiceCatalogItem` + `GET /api/catalog/services`. Prisma query log-ийг dev-д л идэвхжүүлэх | PR #1 |
-| **10.13 (Мя)** | `Order`, `OrderItem`, `OrderEvent`. `POST/PATCH /api/orders`, cancel, `GET /api/orders/:id`, list. Validation + зөв status code. Unit/integration тест | PR #2 |
+| **10.12 (Да)** ✅ | Signup эрх хаах, алдааны гэрээ, login/signup response, visit validation, log, catalog endpoint + fixture, migration SQL, тусгаарласан тест, Dockerfile. **Үлдсэн:** шийдвэрүүд (D1–D15), staging эрх | branch `work/backend-l1-1` |
+| **10.13 (Мя)** ✅ | wclient auth засвар (D15), mobile тулгалт, auth гэрээ, draft order, red flag, quote guard, upload гэрээ. **Staging: эрх байхгүй** | branch `work/backend-l1-1` |
 | **10.14 (Лх)** | Red flag (асуулт, хариулт, блоклох). Attachment: private storage adapter (локал диск + S3-compatible interface), хэмжээ/төрлийн хязгаар, signed URL | PR #3 |
 | **10.15 (Пү)** | Quote (серверийн үнэ, хугацаа). QPay client: **sandbox/mock горим**, invoice, check, callback (idempotent, дахин баталгаажуулалттай) | PR #4 |
 | **10.16 (Ба)** | `PAID` → Visit үүсгэх, Visit ↔ Order төлөвийн sync. Rate limit, helmet, CORS allowlist. Staging (эрх байвал) | PR #5, staging |
@@ -298,7 +359,7 @@ model OrderEvent {
 
 | Бүлэг | Нэр |
 |---|---|
-| Үндсэн | `NODE_ENV`, `PORT`, `PUBLIC_BASE_URL`, `CORS_ORIGINS`, `LOG_LEVEL`, `TRUST_PROXY` |
+| Үндсэн | `NODE_ENV`, `PORT`, `PUBLIC_BASE_URL`, `CORS_ORIGINS` (✅ кодонд), `LOG_LEVEL`, `TRUST_PROXY` (✅ кодонд), `PRISMA_LOG_QUERIES` (✅ кодонд, staging/prod-д тохируулахгүй) |
 | DB | `DATABASE_URL`, `DATABASE_SSL_MODE` |
 | Auth | `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_BOOTSTRAP_EMAIL` |
 | Storage | `STORAGE_DRIVER`, `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `ATTACHMENT_MAX_BYTES`, `SIGNED_URL_TTL_SECONDS` |
@@ -336,6 +397,66 @@ model OrderEvent {
 
 ---
 
+## 10. Staging бэлэн байдал — 2026-10-12 (10.13-нд дахин шалгасан: өөрчлөлтгүй, эрх ирээгүй)
+
+| Зүйл | Байгаа юу | Тэмдэглэл |
+|---|---|---|
+| Hosting (container/PaaS) эрх | ❌ Үгүй | Энэ компьютерт fly/railway/render/vercel/az/gcloud/aws/doctl/heroku CLI, холбогдох env/credential олдсонгүй |
+| Домэйн + TLS | ❌ Үгүй | HTTPS нь QPay callback болон iOS-д заавал |
+| Managed PostgreSQL | ❌ Үгүй | UTF8 encoding-той, SSL, backup |
+| Private object storage | ❌ Үгүй | L1-1 attachment-д |
+| Docker | ⚠️ CLI байгаа, daemon хариу өгөхгүй (API 500). 10.13-нд дахин шалгахад мөн адил | Image build хийж шалгаагүй |
+| Container тохиргоо | ✅ Бэлэн (review хийх боломжтой) | [server/Dockerfile](../server/Dockerfile): `runtime` (`node dist/index.js`, healthcheck, `USER node`) ба `migrate` (`prisma migrate deploy`) target. [server/.dockerignore](../server/.dockerignore) нь `.env`, `.local-pg`, log-ийг оруулахгүй |
+| Migrations | ✅ Бэлэн | §3 |
+| Staging URL | ❌ Байхгүй | **Deploy хийгдээгүй** |
+
+**Эрх ирэхэд (≈1–2 цаг):** managed PostgreSQL (UTF8) үүсгэх → secret store-д §6-ийн env тохируулах → `migrate` target-ийг нэг удаа ажиллуулах → `runtime` deploy → `/api/health` + auth/catalog smoke test → fixture seed (зөвхөн зохиомол) → URL-ийг [l1-1-api.md §14](l1-1-api.md)-д нэмэх. Төлбөртэй resource үүсгэхээс өмнө зөвшөөрөл авна.
+
+---
+
+## 11. Локал DB-ийн encoding (F17)
+
+- Хэмжилт (зөвхөн уншсан): локал `.local-pg` DB нь `server_encoding = WIN1252`, collation `English_United States.1252`.
+- Үр дагавар: mobile-аас Кирилл үсэгтэй нэр/хаяг хадгалахад PostgreSQL `22P05` алдаа өгч, API 500 буцаана. Тусгаарласан тест эхэндээ яг энэ алдаагаар унасан. `initdbFlags: ['--encoding=UTF8', '--locale=C']` нэмсний дараа давсан.
+- Засвар: `dev-local.mjs` болон тестийн скрипт **шинээр үүсгэх** cluster-ийг UTF8 болгоно. **Одоо байгаа `.local-pg`-д нөлөөлөхгүй.**
+- Одоо байгаа локал DB-ийн сонголтууд (**аль нь ч зөвшөөрөлгүйгээр хийгдэхгүй**):
+  1. Нэг cluster дотор шинэ `UTF8` database үүсгэж (`TEMPLATE template0`), `DATABASE_URL`-ийг түүн рүү шилжүүлэх. Хуучин DB хэвээр үлдэнэ.
+  2. `.local-pg`-ийг нөөцөлж (нэрийг өөрчилж), шинэ UTF8 cluster үүсгэх. Demo өгөгдөл seed-ээр дахин үүснэ, гараар оруулсан өгөгдөл шилжихгүй.
+- Staging/production DB-г заавал UTF8-аар үүсгэнэ.
+
+---
+
+## 12. Локал DB-д хийх үйлдлийн төлөвлөгөө (ЗӨВШӨӨРӨЛ ХҮЛЭЭЖ БУЙ)
+
+Одоогийн `.local-pg` / `pariwar_care` (WIN1252)-д **хүрэхгүй**. Санал болгох арга нь **устгалгүй, буцааж болох**: тухайн cluster дотор шинэ UTF8 DB үүсгэнэ.
+
+| # | Үйлдэл | Команд (PowerShell, `server/` дотор) | Rollback |
+|---|---|---|---|
+| 1 | Backup (суулгасан PostgreSQL 18-ийн `pg_dump`, embedded PG 18.4-тэй нийцнэ) | `& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -p 5544 -U postgres -Fc -f ..\..\otoch-backup-pariwar_care.dump pariwar_care` (repo-оос гадна) | — |
+| 2 | Шинэ UTF8 DB | `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -p 5544 -U postgres -c "CREATE DATABASE otoch_dev ENCODING 'UTF8' TEMPLATE template0 LC_COLLATE 'C' LC_CTYPE 'C';"` | `DROP DATABASE otoch_dev;` (хуучин DB хөндөгдөхгүй) |
+| 3 | `.env`-ийн `DATABASE_URL`-ийг `…/otoch_dev?schema=public` болгох | гараар | хуучин URL руу буцаах |
+| 4 | Migration (хоосон DB тул baseline/resolve хэрэггүй) | `npx prisma migrate deploy` | DB-г drop хийх |
+| 5 | Зохиомол seed (demo хэрэглэгч, каталог, red flag fixture) | `npm run db:seed` | — |
+
+- Dev cluster-ийн `postgres` нууц үгийг command prompt дээр оруулна. **Log/тайланд хэвлэхгүй.**
+- ⚠️ `npm run dev:local` нь эхлэх бүрдээ `prisma db push` + seed ажиллуулдаг. `otoch_dev` нь migration-тай нийцэж байгаа тул `db push` өөрчлөлтгүй байх ёстой. `dev:local`-ийг `migrate deploy` руу шилжүүлэх эсэхийг тусад нь шийднэ.
+- Хуучин `pariwar_care` (WIN1252) DB-ийн өгөгдлийг шилжүүлэхгүй (зохиомол demo өгөгдөл). Шаардлагатай бол `pg_restore`-оор тусад нь.
+
+---
+
+## 13. 10.14-ний бэлэн байдал (QPay ба upload)
+
+| Ажил | Бэлэн зүйл | Блок |
+|---|---|---|
+| Quote (серверийн үнэ) | Guard (`assertOrderReadyForPricing`), `Order`/`OrderItem`, каталогийн `priceMnt`, catalogVersion | Үнийн дүрэм: унааны зардал, промо, НӨАТ (D3). Fixture үнээр л хийж болно |
+| QPay invoice/check/callback | Гэрээ (api §7), model санал (plan §2: `Payment`), idempotency дүрэм, `QPAY_*` env нэрс | **QPay sandbox merchant эрх, `invoice_code`** (D5), callback-д нийтийн **HTTPS** URL (staging) |
+| Private upload | Гэрээ (api §5), хэмжээ/тоо/төрлийн дүрэм, 10 MB upload хязгаар, adapter загвар (`s3`/`local-dev`/`memory`) | **Private bucket эрх** (D6). Эрхгүйгээр зөвхөн `local-dev`/`memory` adapter, түүнийг production гэж тайлагнахгүй |
+| PDF заалт | — | D12 шийдвэр |
+
+10.14-нд эрхгүй ч хийж болох ажил: quote-ийг fixture үнээр (`isFixture` тэмдэглэгээтэй), QPay client-ийн **mock** горим (`QPAY_MODE=mock`), `Payment` model + migration, upload-ийн `memory`/`local-dev` adapter ба magic-byte шалгалт, тест.
+
+---
+
 ## 9. Дутуу account / access / шийдвэр
 
 | Төрөл | Юу хэрэгтэй |
@@ -346,4 +467,9 @@ model OrderEvent {
 | Access | QPay merchant **sandbox** credential + `invoice_code` (D5) |
 | Access | Staging hosting (платформ сонголт), домэйн + TLS, managed PostgreSQL |
 | Access | Private object storage bucket (D6) |
-| Баримт | `AGENTS.md` repo-д байхгүй (2026-10-11-ний байдлаар `origin/main`-д ч байхгүй) |
+| Баримт | `AGENTS.md` repo-д байхгүй (2026-10-12-ны байдлаар `origin/main`-д ч байхгүй). Mobile branch remote-д хараахан байхгүй |
+| ~~Шийдвэр (10.12)~~ | ~~wclient `data.user` засвар (D15)~~ — **10.13-нд хийсэн** |
+| Шийдвэр (10.13) | D2: тусдаа `Order` model-ийг батлах эсэх (таамгаар хэрэгжсэн) |
+| Зөвшөөрөл (10.13) | §12-ийн локал DB үйлдлүүд (backup → шинэ UTF8 DB → migrate deploy → seed) |
+| Шийдвэр (10.12) | Consent (D10), өвчтөний нэмэлт талбарууд (D11), PDF заалт (D12), цагийн цонх/багтаамж (D13) |
+| Зөвшөөрөл (10.12) | Локал DB-ийн encoding засвар (§11) болон baseline/migrate (§3.2)-ийг локал DB дээр ажиллуулах |

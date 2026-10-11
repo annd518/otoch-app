@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { fail } from '../utils/http'
 
 type Role = 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN'
 
@@ -13,19 +14,13 @@ interface AuthRequest extends Request {
 export const requireRole = (allowedRoles: Role[]) => {
     return (req: AuthRequest, res: Response, next: NextFunction) => {
         if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                message: 'Нэвтрэх шаардлагатай'
-            })
+            return fail(res, 401, 'UNAUTHENTICATED', 'Нэвтрэх шаардлагатай')
         }
-        
+
         if (!allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                message: 'Хандах эрх хүрэлцэхгүй байна'
-            })
+            return fail(res, 403, 'FORBIDDEN', 'Хандах эрх хүрэлцэхгүй байна')
         }
-        
+
         next()
     }
 }

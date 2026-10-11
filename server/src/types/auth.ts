@@ -1,4 +1,4 @@
-type Role = 'CHILD' | 'NURSE' | 'ADMIN'
+type Role = 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN'
 
 export interface JWTPayload {
     userId: string

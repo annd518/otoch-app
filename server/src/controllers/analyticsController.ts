@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import prisma from '../db/db.config'
+import { ApiError, ok } from '../utils/http'
 
 interface AuthenticatedRequest extends Request {
     user?: {
@@ -10,53 +11,33 @@ interface AuthenticatedRequest extends Request {
 }
 
 export const getParentTrends = async (req: AuthenticatedRequest, res: Response) => {
-    try {
-        const parentId = req.params.id
-        const period = req.query.period as string || 'weekly'
+    const parentId = req.params.id
+    const period = req.query.period as string || 'weekly'
 
-        const parent = await prisma.parent.findFirst({
-            where: {
-                id: parentId,
-                children: {
-                    some: { id: req.user!.userId }
-                }
+    const parent = await prisma.parent.findFirst({
+        where: {
+            id: parentId,
+            children: {
+                some: { id: req.user!.userId }
             }
-        })
-
-        if (!parent) {
-            res.json({
-                message: "Эцэг/эх олдсонгүй эсвэл хандах эрхгүй"
-            })
-            return
         }
+    })
 
-        const visits = await prisma.visit.findMany({
-            where: {
-                parentId,
-                status: 'COMPLETED',
-                vitals: { isNot: null }
-            },
-            include: { vitals: true },
-            orderBy: { completedAt: 'asc' }
-        })
+    if (!parent) throw new ApiError(404, 'PARENT_NOT_FOUND', 'Эцэг/эх олдсонгүй эсвэл хандах эрхгүй')
 
-        const trends = aggregateVitals(visits, period)
+    const visits = await prisma.visit.findMany({
+        where: {
+            parentId,
+            status: 'COMPLETED',
+            vitals: { isNot: null }
+        },
+        include: { vitals: true },
+        orderBy: { completedAt: 'asc' }
+    })
 
-        res.status(200).json({
-            success: true,
-            message: 'Эрүүл мэндийн хандлагыг амжилттай авлаа',
-            data: {
-                parentId,
-                period,
-                vitalsTrend: trends
-            }
-        })
-    } catch (error: any) {
-        res.status(400).json({
-            success: false,
-            message: error.message || 'Эрүүл мэндийн хандлагыг авч чадсангүй'
-        })
-    }
+    const trends = aggregateVitals(visits, period)
+
+    return ok(res, { parentId, period, vitalsTrend: trends }, 'Эрүүл мэндийн хандлагыг амжилттай авлаа')
 }
 
 function aggregateVitals(visits: any[], period: string) {

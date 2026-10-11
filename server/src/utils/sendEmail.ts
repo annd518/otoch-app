@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer'
 import prisma from '../db/db.config'
+import { logError } from './logger'
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -56,6 +57,6 @@ export const sendVisitCompletionEmail = async (visitId: string) => {
             })
         }
     } catch (error) {
-        console.error('Email sending failed:', error)
+        logError('sendVisitCompletionEmail', error)
     }
 }
