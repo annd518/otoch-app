@@ -8,6 +8,7 @@ import {
   startServer,
   type TestServer,
 } from "./helpers";
+import { fixtureCatalogRow } from "../src/services/serviceMetadata";
 import { CATALOG_V2 } from "../src/data/catalogV2";
 import { RED_FLAG_V2_FIXTURES } from "../prisma/fixtures/redFlags";
 let srv: TestServer,
@@ -38,18 +39,10 @@ before(async () => {
     },
   });
   parentId = parent.id;
-  for (const {
-    group,
-    includes,
-    preparation,
-    nurseSupplies,
-    exclusions,
-    formConfig,
-    ...item
-  } of CATALOG_V2)
+  for (const row of CATALOG_V2)
     await prisma.serviceCatalogItem.upsert({
-      where: { code: item.code },
-      create: { ...item, isFixture: true },
+      where: { code: row.code },
+      create: fixtureCatalogRow(row),
       update: {},
     });
   for (const q of RED_FLAG_V2_FIXTURES)
@@ -484,4 +477,66 @@ it("availability rejects an invalid calendar date and excludes a short window fo
   );
   assert.equal(short.status, 200);
   assert.deepEqual(short.json.data.slots, []);
+});
+it("two simultaneous capacity claims create only one invoice for a single slot", async () => {
+  const start = new Date(Date.now() + 24 * 3600000),
+    end = new Date(start.getTime() + 3600000);
+  await prisma.availabilitySlot.create({
+    data: { zoneId: "TEST_V2_ZONE", startsAt: start, endsAt: end, capacity: 1 },
+  });
+  const time = (d: Date) =>
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ulaanbaatar",
+    }).format(d);
+  const ids: string[] = [],
+    quoteIds: string[] = [];
+  for (let i = 0; i < 2; i++) {
+    const d = await api(srv.baseUrl, "POST", "/api/orders", {
+      token,
+      body: {
+        parentId,
+        items: [{ serviceCode: "S01" }],
+        bookingForm: form,
+        zoneId: "TEST_V2_ZONE",
+        scheduledFor: start.toISOString(),
+        timeSlot: `${time(start)}-${time(end)}`,
+        address: { text: "Тест хаяг 123", lat: 48, lng: 107 },
+      },
+    });
+    const id = d.json.data.order.id;
+    await clear(id);
+    const q = await api(srv.baseUrl, "POST", `/api/orders/${id}/quote`, {
+      token,
+      body: {},
+    });
+    assert.equal(q.status, 201);
+    ids.push(id);
+    quoteIds.push(q.json.data.quote.id);
+  }
+  const results = await Promise.all(
+    ids.map((id, i) =>
+      fetch(srv.baseUrl + `/api/orders/${id}/payments/qpay`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": `capacity-claim-${i}`,
+        },
+        body: JSON.stringify({ quoteId: quoteIds[i] }),
+      }),
+    ),
+  );
+  assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
+  assert.equal(
+    await prisma.payment.count({ where: { orderId: { in: ids } } }),
+    1,
+  );
+  assert.equal(
+    await prisma.order.count({
+      where: { id: { in: ids }, status: "AWAITING_PAYMENT" },
+    }),
+    1,
+  );
 });

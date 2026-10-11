@@ -1,3 +1,4 @@
+import { fixtureCatalogRow } from "../src/services/serviceMetadata";
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { CATALOG_FIXTURES } from "./fixtures/catalog";
@@ -27,25 +28,20 @@ async function seedCatalogFixtures() {
   for (const { isActive = true, ...item } of CATALOG_FIXTURES) {
     await prisma.serviceCatalogItem.upsert({
       where: { code: item.code },
-      update: { ...item, isActive, isFixture: true },
+      update: {},
       create: { ...item, isActive, isFixture: true },
     });
   }
   for (const row of CATALOG_V2) {
-    const {
-      group,
-      includes,
-      preparation,
-      nurseSupplies,
-      exclusions,
-      formConfig,
-      ...item
-    } = row;
-    const data = { ...item, isFixture: true };
+    const data = fixtureCatalogRow(row);
     await prisma.serviceCatalogItem.upsert({
       where: { code: row.code },
       create: data,
-      update: data,
+      update: {},
+    });
+    await prisma.serviceCatalogItem.updateMany({
+      where: { code: row.code, isFixture: true },
+      data,
     });
   }
 }
@@ -57,7 +53,7 @@ async function seedRedFlagFixtures() {
       where: {
         questionnaire_code: { questionnaire: q.questionnaire, code: q.code },
       },
-      update: { text: q.text, sortOrder: q.sortOrder, isFixture: true },
+      update: {},
       create: { ...q, isFixture: true },
     });
   }

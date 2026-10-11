@@ -58,8 +58,14 @@ export interface SignupInput {
   password: string;
 }
 
-// docs/l1-1-api.md §2 (proposal, not implemented on the server yet)
+// Catalog contract: docs/l1-1-api.md §2 and docs/l1-1-acceptance/README.md
 export interface CatalogService {
+  contentVersion?: string;
+  approval?: {
+    approved: boolean;
+    approvedAt: string | null;
+    approvedBy: string | null;
+  };
   group?: string;
   sortOrder?: number;
   includes?: string[];
@@ -143,6 +149,7 @@ export interface DraftOrderItemInput {
 
 export interface BookingForm {
   consent: {
+    catalogVersion?: string | null;
     service: boolean;
     sensitiveData: boolean;
     signer?: "RECIPIENT" | "REPRESENTATIVE";
@@ -184,6 +191,7 @@ export interface Order {
   address?: { text: string; lat?: number; lng?: number } | null;
   bookingForm?: BookingForm | null;
   zoneId?: string | null;
+  isMock?: boolean;
   attachments?: Attachment[];
 
   nurse?: { name: string } | null;

@@ -11,7 +11,8 @@ export default function OrderDetail() {
   const { dispatch } = useBookingDraft();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   useFocusEffect(
     useCallback(() => {
       let active = true,
@@ -24,6 +25,7 @@ export default function OrderDetail() {
           if (active) {
             if (r.ok) {
               setOrder(r.data);
+              setLastUpdatedAt(new Date());
               setError("");
             } else setError(r.message);
           }
@@ -89,7 +91,20 @@ export default function OrderDetail() {
           ? ulaanbaatarDate(new Date(order.scheduledFor))
           : "",
         timeSlot: order.timeSlot ?? "",
-        ...(order.bookingForm && { bookingForm: order.bookingForm }),
+        ...(order.bookingForm && {
+          bookingForm:
+            order.catalogVersion !== catalog.data.catalogVersion
+              ? {
+                  ...order.bookingForm,
+                  consent: {
+                    ...order.bookingForm.consent,
+                    service: false,
+                    sensitiveData: false,
+                    catalogVersion: null,
+                  },
+                }
+              : order.bookingForm,
+        }),
       },
     });
     dispatch({
@@ -117,11 +132,27 @@ export default function OrderDetail() {
   };
   return (
     <Screen title="Захиалгын дэлгэрэнгүй">
-      {!!error && <Banner error>{error}</Banner>}
+      {!!error && (
+        <Banner error>
+          {error}
+          {order ? " Өмнөх мэдээлэл харагдаж байна; шинэчлэгдээгүй." : ""}
+        </Banner>
+      )}
+      {lastUpdatedAt && (
+        <Copy>
+          Сүүлд шинэчилсэн:{" "}
+          {lastUpdatedAt.toLocaleTimeString("mn-MN", {
+            timeZone: "Asia/Ulaanbaatar",
+          })}
+        </Copy>
+      )}
       {!order ? (
         <StateView title="Захиалга ачаалж байна" loading={!error} />
       ) : (
         <>
+          {order.isMock && (
+            <Banner>Туршилтын захиалга · бодит төлбөр биш.</Banner>
+          )}
           <Card>
             <Copy variant="heading">{orderStatus(order.status)}</Copy>
             <Copy>
@@ -137,7 +168,7 @@ export default function OrderDetail() {
             <Copy>{order.nurse?.name ?? "Томилогдоогүй"}</Copy>
             <Copy>
               {order.eta
-                ? `Ирэх хугацаа: ${new Date(order.eta).toLocaleTimeString("mn-MN")}`
+                ? `Ирэх хугацаа: ${new Date(order.eta).toLocaleTimeString("mn-MN", { timeZone: "Asia/Ulaanbaatar" })}`
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>

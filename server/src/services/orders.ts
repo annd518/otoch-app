@@ -1,3 +1,4 @@
+import { serviceConfig, readMetadata } from "./serviceMetadata";
 import { Prisma } from "@prisma/client";
 import prisma from "../db/db.config";
 import { ApiError, FieldErrors } from "../utils/http";
@@ -24,6 +25,7 @@ export const PRICE_EXCLUDES = ["TRAVEL_FEE", "DISCOUNT", "VAT"] as const;
 
 export const orderInclude = {
   parent: true,
+  payments: { orderBy: { createdAt: "desc" }, take: 1 },
   assignedNurse: { select: { name: true } },
   events: { orderBy: { createdAt: "asc" } },
   items: { include: { service: true }, orderBy: { serviceCode: "asc" } },
@@ -64,7 +66,7 @@ export const requiresReferral = (order: OrderWithItems) =>
   order.items.some(
     (i) =>
       i.service.requiresReferral ||
-      (i.serviceCode === "S04" &&
+      (readMetadata(i.service.metadata)?.formConfig.referral === "partial" &&
         (order.bookingForm as { postoperative?: boolean } | null)
           ?.postoperative === true),
   );
@@ -126,6 +128,7 @@ export function serializeOrder(order: OrderWithItems) {
     bookingForm: order.bookingForm,
     zoneId: order.zoneId,
     nurse: order.assignedNurse,
+    isMock: order.payments[0]?.mode === "mock",
     eta: order.eta?.toISOString() ?? null,
     timeline: order.events
       .filter((e) => e.toStatus)
@@ -241,9 +244,12 @@ export const fixtureDataAllowed = () =>
   process.env.NODE_ENV !== "production" ||
   process.env.ALLOW_FIXTURE_DATA === "true";
 
-export async function assertNoFixtureDataInProduction(order: OrderWithItems) {
+export async function assertNoFixtureDataInProduction(
+  order: OrderWithItems,
+  db: Prisma.TransactionClient = prisma,
+) {
   if (order.items.some((i) => /^S\d{2}$/.test(i.serviceCode))) {
-    const slot = await prisma.availabilitySlot.findFirst({
+    const slot = await db.availabilitySlot.findFirst({
       where: {
         zoneId: order.zoneId ?? "",
         startsAt: order.scheduledFor ?? new Date(0),
@@ -251,11 +257,13 @@ export async function assertNoFixtureDataInProduction(order: OrderWithItems) {
       },
       include: { zone: true },
     });
-    const minWindow = order.items.some((i) =>
-      ["S03", "S06"].includes(i.serviceCode),
-    )
-      ? 120
-      : 60;
+    const minWindow = Math.max(
+      ...order.items.map((i) =>
+        /^S\d{2}$/.test(i.serviceCode)
+          ? serviceConfig(i.service).windowMin
+          : 60,
+      ),
+    );
     if (
       !slot ||
       order.lat === null ||
@@ -283,7 +291,7 @@ export async function assertNoFixtureDataInProduction(order: OrderWithItems) {
         "AVAILABILITY_REQUIRED",
         "Цагийн цонх серверийн сул цагтай тохирохгүй байна",
       );
-    const booked = await prisma.order.count({
+    const booked = await db.order.count({
       where: {
         id: { not: order.id },
         zoneId: order.zoneId,
@@ -303,7 +311,7 @@ export async function assertNoFixtureDataInProduction(order: OrderWithItems) {
   const questionnaires = questionnairesFor(order);
   const fixtureQuestions =
     questionnaires.length > 0 &&
-    (await prisma.redFlagQuestion.count({
+    (await db.redFlagQuestion.count({
       where: { questionnaire: { in: questionnaires }, isFixture: true },
     })) > 0;
   if (fixturePrice || fixtureQuestions) {
@@ -358,6 +366,15 @@ function assertV2Form(order: OrderWithItems, now: Date) {
       "Үйлчилгээ болон эрүүл мэндийн мэдээллийн зөвшөөрөл шаардлагатай",
     );
   }
+  if (
+    order.items.some((i) => !i.service.isFixture && i.service.contentVersion) &&
+    consent.catalogVersion !== order.catalogVersion
+  )
+    throw new ApiError(
+      422,
+      "CONSENT_REQUIRED",
+      "Шинэ каталогийг шалгаж дахин зөвшөөрнө үү",
+    );
   if (order.parent.birthYear === null)
     throw new ApiError(
       422,
@@ -379,12 +396,19 @@ function assertV2Form(order: OrderWithItems, now: Date) {
       "FAMILY_REQUIRED",
       "Насанд хүрсэн гэр бүлийн гишүүн байлцах шаардлагатай",
     );
-  const medication = form?.medication as Record<string, unknown> | undefined;
   if (
-    order.items.some((i) =>
-      ["S02", "S03", "S09", "S10"].includes(i.serviceCode),
-    )
-  ) {
+    order.items.some(
+      (i) => serviceConfig(i.service).familyPresence === "required",
+    ) &&
+    form?.familyPresent !== true
+  )
+    throw new ApiError(
+      422,
+      "FAMILY_REQUIRED",
+      "Гэр бүлийн гишүүн байлцах шаардлагатай",
+    );
+  const medication = form?.medication as Record<string, unknown> | undefined;
+  if (order.items.some((i) => serviceConfig(i.service).medicationRequired)) {
     if (
       !medication ||
       !["name", "dose", "route", "expiresAt"].every(
@@ -399,7 +423,7 @@ function assertV2Form(order: OrderWithItems, now: Date) {
         "Эмийн нэр, тун, арга, хугацааг бүрэн оруулна уу",
       );
     if (
-      order.items.some((i) => ["S02", "S03"].includes(i.serviceCode)) &&
+      order.items.some((i) => serviceConfig(i.service).firstDoseCheck) &&
       (!Number.isInteger(medication.doseNumber) ||
         Number(medication.doseNumber) < 2)
     )
@@ -420,7 +444,7 @@ function assertV2Form(order: OrderWithItems, now: Date) {
       );
   }
   if (
-    order.items.some((i) => i.serviceCode === "S04") &&
+    order.items.some((i) => serviceConfig(i.service).referral === "partial") &&
     form?.postoperative === true &&
     !hasReferral(order)
   )
