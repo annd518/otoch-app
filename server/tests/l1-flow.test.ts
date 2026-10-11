@@ -527,6 +527,31 @@ describe('QPay payment (MOCK mode — not QPay sandbox)', () => {
     })
 })
 
+describe('fixture data in production', () => {
+    it('NODE_ENV=production refuses quote/payment on fixture prices or questions unless ALLOW_FIXTURE_DATA=true', async () => {
+        const f = await family('fix-prod')
+        const { order, quote: qt } = await quotedOrder(f) // created in test mode
+        const saved = { node: process.env.NODE_ENV, allow: process.env.ALLOW_FIXTURE_DATA }
+        try {
+            process.env.NODE_ENV = 'production'
+            delete process.env.ALLOW_FIXTURE_DATA
+            const q = await quote(f, order.id)
+            assert.equal(q.status, 503)
+            assert.equal(q.json.error.code, 'FIXTURE_DATA_NOT_ALLOWED')
+            const pay = await createPayment(f, order.id, qt.id, 'fix-prod-key-01')
+            assert.equal(pay.status, 503)
+            assert.equal(pay.json.error.code, 'FIXTURE_DATA_NOT_ALLOWED')
+            assert.equal(await prisma.payment.count({ where: { orderId: order.id } }), 0)
+            process.env.ALLOW_FIXTURE_DATA = 'true'
+            assert.equal((await quote(f, order.id)).status, 201)
+        } finally {
+            process.env.NODE_ENV = saved.node
+            if (saved.allow === undefined) delete process.env.ALLOW_FIXTURE_DATA
+            else process.env.ALLOW_FIXTURE_DATA = saved.allow
+        }
+    })
+})
+
 describe('payment recovery (MOCK mode — not QPay sandbox)', () => {
     const invoicesFor = async (orderId: string) => prisma.payment.count({ where: { orderId } })
 

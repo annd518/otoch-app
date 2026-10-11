@@ -7,6 +7,7 @@ import {
     PRICING_VERSION,
     QUOTE_TTL_MINUTES,
     RED_FLAG_BLOCK_ADVICE,
+    assertNoFixtureDataInProduction,
     assertOrderReadyForPricing,
     computeQuote,
     loadOwnedOrder,
@@ -405,6 +406,7 @@ export const requestQuote = async (req: AuthenticatedRequest, res: Response) => 
         throw new ApiError(409, 'VERSION_CONFLICT', 'Захиалга өөрчлөгдсөн байна. Дахин ачаална уу')
     }
     assertOrderReadyForPricing(order)
+    await assertNoFixtureDataInProduction(order)
 
     const catalogVersion = await getCatalogVersion()
     if (!catalogVersion || catalogVersion !== order.catalogVersion) {

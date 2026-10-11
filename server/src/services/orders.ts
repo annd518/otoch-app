@@ -147,6 +147,25 @@ export function assertOrderReadyForPricing(order: OrderWithItems, now = new Date
     }
 }
 
+/**
+ * Fixture prices and unapproved (fixture) red flag questions are demo data.
+ * In NODE_ENV=production they are refused unless ALLOW_FIXTURE_DATA=true is set explicitly
+ * (a staging deployment that knowingly runs on fixtures). Never set it for real customers.
+ */
+export const fixtureDataAllowed = () =>
+    process.env.NODE_ENV !== 'production' || process.env.ALLOW_FIXTURE_DATA === 'true'
+
+export async function assertNoFixtureDataInProduction(order: OrderWithItems) {
+    if (fixtureDataAllowed()) return
+    const fixturePrice = order.items.some((i) => i.service.isFixture)
+    const questionnaires = questionnairesFor(order)
+    const fixtureQuestions = questionnaires.length > 0
+        && (await prisma.redFlagQuestion.count({ where: { questionnaire: { in: questionnaires }, isFixture: true } })) > 0
+    if (fixturePrice || fixtureQuestions) {
+        throw new ApiError(503, 'FIXTURE_DATA_NOT_ALLOWED', 'Үнэ эсвэл аюулын шинжийн асуулга батлагдаагүй байгаа тул захиалга түр боломжгүй')
+    }
+}
+
 /** Server-side price from the current catalog. Integer MNT only. */
 export function computeQuote(order: OrderWithItems) {
     const lines = order.items.map((i) => {

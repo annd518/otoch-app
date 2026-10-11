@@ -6,7 +6,7 @@ import prisma from '../db/db.config'
 import { ApiError, ok, validationError } from '../utils/http'
 import { logError } from '../utils/logger'
 import { getCatalogVersion } from '../services/catalog'
-import { assertOrderReadyForPricing, computeQuote, loadOwnedOrder } from '../services/orders'
+import { assertNoFixtureDataInProduction, assertOrderReadyForPricing, computeQuote, loadOwnedOrder } from '../services/orders'
 import { isUniqueViolation, readIdempotencyKey } from '../services/idempotency'
 import { QPayAdapter, QPayConfigError, QPayProviderError, currentQPayMode, getQPayAdapter, qpayMock } from '../services/qpay'
 
@@ -145,6 +145,7 @@ export const createQPayPayment = async (req: AuthenticatedRequest, res: Response
 
     // Same guards as quote, run again: red flag, status, completeness, referral
     assertOrderReadyForPricing(order)
+    await assertNoFixtureDataInProduction(order)
 
     const quote = await prisma.quote.findFirst({ where: { id: quoteId, orderId: order.id } })
     if (!quote) throw new ApiError(404, 'QUOTE_NOT_FOUND', 'Үнийн санал олдсонгүй')

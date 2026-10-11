@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { QPayConfigError, currentQPayMode, getQPayAdapter } from '../src/services/qpay'
 import { getStorage } from '../src/services/storage'
+import { fixtureDataAllowed } from '../src/services/orders'
 
 const saved = { ...process.env }
 afterEach(() => { process.env = { ...saved } })
@@ -42,6 +43,19 @@ describe('production config refuses dev/test fallbacks', () => {
         }
         env({ NODE_ENV: 'development', STORAGE_DRIVER: 'memory' })
         assert.equal(getStorage(), null) // memory is test-only
+    })
+
+    it('fixture data: allowed outside production; in production only with explicit ALLOW_FIXTURE_DATA=true', () => {
+        env({ NODE_ENV: 'development', ALLOW_FIXTURE_DATA: undefined })
+        assert.equal(fixtureDataAllowed(), true)
+        for (const v of [undefined, '', 'false', '1', 'TRUE']) {
+            env({ NODE_ENV: 'production', ALLOW_FIXTURE_DATA: v })
+            assert.equal(fixtureDataAllowed(), false, `ALLOW_FIXTURE_DATA=${v}`)
+        }
+        env({ ALLOW_FIXTURE_DATA: 'true' })
+        assert.equal(fixtureDataAllowed(), true)
+        const seed = readFileSync(path.resolve(process.cwd(), 'prisma/seed.ts'), 'utf8')
+        assert.ok(seed.indexOf("ALLOW_FIXTURE_DATA !== 'true'") < seed.indexOf('await seedCatalogFixtures()'), 'production seed checks the flag before fixtures')
     })
 
     it('seed: production gets fixtures only, never the demo accounts', () => {

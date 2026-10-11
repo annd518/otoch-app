@@ -42,12 +42,19 @@ async function seedRedFlagFixtures() {
 const isProduction = process.env.NODE_ENV === 'production'
 
 async function main() {
-    await seedCatalogFixtures()
-    await seedRedFlagFixtures()
     if (isProduction) {
-        console.log('NODE_ENV=production: catalog/red flag fixtures only, no demo users or demo data.')
+        // Fixture prices/questions are not approved data: only a staging that opts in gets them
+        if (process.env.ALLOW_FIXTURE_DATA !== 'true') {
+            console.log('NODE_ENV=production: nothing seeded (no demo users; fixtures need ALLOW_FIXTURE_DATA=true, staging only).')
+            return
+        }
+        await seedCatalogFixtures()
+        await seedRedFlagFixtures()
+        console.log('NODE_ENV=production + ALLOW_FIXTURE_DATA=true: fixtures only (NOT approved prices/questions), no demo users.')
         return
     }
+    await seedCatalogFixtures()
+    await seedRedFlagFixtures()
 
     const password = await bcrypt.hash(DEMO_PASSWORD, 10)
 
