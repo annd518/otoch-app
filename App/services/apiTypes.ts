@@ -106,9 +106,10 @@ export interface Quote {
 export type NurseGenderPreference = 'ANY' | 'FEMALE' | 'MALE'
 
 export interface DraftOrderItemInput {
+  // The implemented server (work/backend-l1-1 d842241) resolves the service by
+  // serviceCode and ignores serviceId; serviceId is kept for the original
+  // proposal and for tracing.
   serviceId: string
-  // Not in the proposal yet: sent so the server can rely on the stable code
-  // (docs/l1-1-api.md §2 says mobile logic should use `code`). Mobile plan GAP-12.
   serviceCode: string
   quantity: number
 }
@@ -116,7 +117,7 @@ export interface DraftOrderItemInput {
 export interface DraftOrderInput {
   parentId: string
   items: DraftOrderItemInput[]
-  // Not in the proposal yet (GAP-12): lets the server detect a stale catalog.
+  // The server answers 409 CATALOG_OUTDATED when this does not match.
   catalogVersion: string | null
   scheduledFor: string
   timeSlot: string
@@ -125,17 +126,23 @@ export interface DraftOrderInput {
   nurseGenderPreference: NurseGenderPreference
 }
 
-export type DraftOrderPatch = Partial<Omit<DraftOrderInput, 'parentId'>> & { version: number }
+// `notes: null` clears the note on the server.
+export type DraftOrderPatch = Partial<Omit<DraftOrderInput, 'parentId' | 'notes'>> & { version: number; notes?: string | null }
 
 export interface Order {
   id: string
   status: string
   version: number
   parentId: string
+  serviceCodes: string[]
   scheduledFor: string | null
   timeSlot: string | null
   redFlagStatus: string
   requiresReferral: boolean
+  // null when the server does not say (proposal shape)
+  referralUploadAvailable: boolean | null
+  // body fields the server did not store (data.ignoredFields)
+  ignoredFields: string[]
 }
 
 export interface RedFlagQuestion {
@@ -143,23 +150,35 @@ export interface RedFlagQuestion {
   code: string
   text: string
   required: boolean
+  isFixture: boolean
 }
 
 export interface RedFlagQuestionnaire {
-  questionnaire: string
+  // Questionnaire codes for this order; empty means no questionnaire is required.
+  questionnaires: string[]
   // true only when the server says a medical owner approved the wording.
   approved: boolean
+  containsFixtures: boolean
+  orderStatus: string | null
+  redFlagStatus: string | null
   questions: RedFlagQuestion[]
 }
 
 export interface RedFlagAdvice {
   text: string
-  phone: string
+  phone: string | null
+  isFixture: boolean
 }
 
 export type RedFlagOutcome =
-  | { status: 'CLEAR'; orderStatus: string }
-  | { status: 'FLAGGED'; orderStatus: string; triggeredCodes: string[]; advice: RedFlagAdvice | null }
+  | { status: 'CLEAR'; orderStatus: string; version: number | null }
+  | {
+      status: 'FLAGGED'
+      orderStatus: string
+      version: number | null
+      triggeredCodes: string[]
+      advice: RedFlagAdvice | null
+    }
 
 export interface Attachment {
   id: string

@@ -41,6 +41,11 @@ export interface ServerDraft {
   version: number
   status: string
   parentId: string
+  // service code the server has stored for this draft
+  serviceCode: string | null
+  // body fields the server reported as not stored (e.g. nurseGenderPreference)
+  ignoredFields: string[]
+  referralUploadAvailable: boolean | null
   source: ApiMode
 }
 
@@ -102,13 +107,19 @@ export type BookingDraftAction =
   | { type: 'updateDetails'; patch: Partial<DraftDetails> }
   | { type: 'createStarted'; key: string }
   | { type: 'draftSaved'; order: Order; source: ApiMode }
-  | { type: 'redFlagCleared' }
-  | { type: 'redFlagBlocked'; advice: RedFlagAdvice | null }
+  | { type: 'redFlagCleared'; version?: number | null }
+  | { type: 'redFlagBlocked'; advice: RedFlagAdvice | null; version?: number | null }
   | { type: 'attachmentAdded'; attachment: LocalAttachment }
   | { type: 'attachmentUpdated'; localId: string; patch: Partial<LocalAttachment> }
   | { type: 'attachmentRemoved'; localId: string }
   | { type: 'setQuote'; quote: Quote | null }
   | { type: 'reset' }
+
+// Answering the questionnaire bumps the server-side version; keep it in sync
+// so the next PATCH is not rejected with VERSION_CONFLICT.
+function withVersion(server: ServerDraft | null, version: number | null | undefined): ServerDraft | null {
+  return server && typeof version === 'number' ? { ...server, version } : server
+}
 
 export function isBlocked(state: BookingDraftState): boolean {
   return state.redFlag.status === 'blocked'
@@ -153,23 +164,41 @@ export function bookingDraftReducer(state: BookingDraftState, action: BookingDra
     }
     case 'createStarted':
       return { ...state, pendingCreateKey: action.key }
-    case 'draftSaved':
+    case 'draftSaved': {
+      const { order } = action
+      // The server is the source of truth for the red flag state: changing the
+      // service resets it to NOT_ANSWERED there, a flagged order stays blocked.
+      const redFlag: RedFlagState =
+        order.status === 'BLOCKED_RED_FLAG' || order.redFlagStatus === 'FLAGGED'
+          ? { status: 'blocked', advice: null }
+          : order.redFlagStatus === 'CLEAR'
+            ? { status: 'clear' }
+            : { status: 'not_answered' }
       return {
         ...state,
         server: {
-          orderId: action.order.id,
-          version: action.order.version,
-          status: action.order.status,
-          parentId: action.order.parentId,
+          orderId: order.id,
+          version: order.version,
+          status: order.status,
+          parentId: order.parentId,
+          serviceCode: order.serviceCodes[0] ?? state.service?.code ?? null,
+          ignoredFields: order.ignoredFields,
+          referralUploadAvailable: order.referralUploadAvailable,
           source: action.source,
         },
+        redFlag,
         dirty: false,
         pendingCreateKey: null,
       }
+    }
     case 'redFlagCleared':
-      return { ...state, redFlag: { status: 'clear' } }
+      return { ...state, server: withVersion(state.server, action.version), redFlag: { status: 'clear' } }
     case 'redFlagBlocked':
-      return { ...state, redFlag: { status: 'blocked', advice: action.advice } }
+      return {
+        ...state,
+        server: withVersion(state.server, action.version),
+        redFlag: { status: 'blocked', advice: action.advice },
+      }
     case 'attachmentAdded':
       return { ...state, attachments: [...state.attachments, action.attachment] }
     case 'attachmentUpdated':
@@ -239,15 +268,17 @@ export function planDraftSave(state: BookingDraftState, newKey: () => string): D
     return { kind: 'create', input, key: state.pendingCreateKey ?? newKey() }
   }
   if (!state.dirty) return { kind: 'none' }
+  // Items are sent only when the service changed: the server treats any
+  // `items` as a change and resets the red flag answers.
+  const serviceChanged = state.server.serviceCode !== state.service?.code
   const patch: DraftOrderPatch = {
     version: state.server.version,
-    items: input.items,
-    catalogVersion: input.catalogVersion,
+    ...(serviceChanged ? { items: input.items, catalogVersion: input.catalogVersion } : {}),
     scheduledFor: input.scheduledFor,
     timeSlot: input.timeSlot,
     address: input.address,
     nurseGenderPreference: input.nurseGenderPreference,
-    ...(input.notes ? { notes: input.notes } : {}),
+    notes: input.notes ?? null,
   }
   return { kind: 'update', orderId: state.server.orderId, patch }
 }

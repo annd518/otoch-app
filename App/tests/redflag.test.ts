@@ -19,6 +19,7 @@ import {
   hasPositiveAnswer,
   initialAnswers,
   questionnaireLabel,
+  questionnaireShowsBlocked,
 } from '../services/redFlag'
 import { makeClient, makeMockClient } from './helpers'
 
@@ -81,11 +82,13 @@ describe('questionnaire rules', () => {
     assert.deepEqual(answersPayload(QUESTIONNAIRE, allNo)[0], { questionId: ids[0], value: false })
   })
 
-  it('labels dev fixtures, unapproved and approved server wording', () => {
+  it('labels dev fixtures, server fixtures, unapproved and approved wording', () => {
     if (!QUESTIONNAIRE) return assert.fail('questionnaire')
     assert.equal(questionnaireLabel(QUESTIONNAIRE, 'mock'), 'dev_fixture')
-    assert.equal(questionnaireLabel(QUESTIONNAIRE, 'real'), 'unapproved')
-    assert.equal(questionnaireLabel({ ...QUESTIONNAIRE, approved: true }, 'real'), 'approved')
+    assert.equal(questionnaireLabel(QUESTIONNAIRE, 'real'), 'server_fixture')
+    const plain = { ...QUESTIONNAIRE, containsFixtures: false }
+    assert.equal(questionnaireLabel(plain, 'real'), 'unapproved')
+    assert.equal(questionnaireLabel({ ...plain, approved: true }, 'real'), 'approved')
   })
 
   it('rejects questionnaires it cannot render instead of skipping them', () => {
@@ -112,26 +115,36 @@ describe('red flag flow with the development mock', () => {
     assert.equal(r.ok && r.data.status, 'CLEAR')
   })
 
-  it('one "yes" -> FLAGGED with 103 advice; the order is blocked on the server too', async () => {
+  it('one "yes" -> FLAGGED; the order is blocked on the server too and cannot be edited or re-answered', async () => {
     const { client } = makeMockClient()
     const id = await draftOn(client)
     const answers = DEV_FIXTURE_QUESTIONS.map((x, i) => ({ questionId: x.id, value: i === 1 }))
-    const r = await submitRedFlagAnswers(client, id, answers)
+    const r = await submitRedFlagAnswers(client, id, answers, ['DEV_FIXTURE_V0'])
     assert.ok(r.ok && r.data.status === 'FLAGGED')
     if (r.ok && r.data.status === 'FLAGGED') {
       assert.equal(r.data.orderStatus, 'BLOCKED_RED_FLAG')
-      assert.equal(r.data.advice?.phone, '103')
-      assert.deepEqual(r.data.triggeredCodes, ['BREATHING'])
+      assert.equal(r.data.version, 2)
+      // the implemented server sends placeholder advice without a phone; the app always offers 103
+      assert.equal(r.data.advice?.isFixture, true)
     }
-    const edit = await updateDraftOrder(client, id, { version: 1, timeSlot: '13:00-15:00' })
-    assert.equal(edit.ok ? '' : edit.code, 'ORDER_NOT_EDITABLE')
+    const edit = await updateDraftOrder(client, id, { version: 2, timeSlot: '13:00-15:00' })
+    assert.equal(edit.ok ? '' : edit.code, 'RED_FLAG_BLOCKED')
+    const again = await submitRedFlagAnswers(client, id, DEV_FIXTURE_QUESTIONS.map((x) => ({ questionId: x.id, value: false })))
+    assert.equal(again.ok ? '' : again.code, 'RED_FLAG_BLOCKED')
   })
 
-  it('unanswered questions are rejected by the server', async () => {
+  it('unanswered questions are rejected by the server (RED_FLAG_INCOMPLETE)', async () => {
     const { client } = makeMockClient()
     const id = await draftOn(client)
     const r = await submitRedFlagAnswers(client, id, [{ questionId: DEV_FIXTURE_QUESTIONS[0].id, value: false }])
-    assert.equal(r.ok ? '' : r.code, 'VALIDATION_ERROR')
+    assert.equal(r.ok ? '' : r.code, 'RED_FLAG_INCOMPLETE')
+  })
+
+  it('an outdated questionnaire is a 409 the screen answers by reloading', async () => {
+    const { client } = makeMockClient()
+    const id = await draftOn(client)
+    const r = await submitRedFlagAnswers(client, id, DEV_FIXTURE_QUESTIONS.map((x) => ({ questionId: x.id, value: false })), ['OLD_V0'])
+    assert.equal(r.ok ? '' : r.code, 'QUESTIONNAIRE_OUTDATED')
   })
 
   it('load and submit errors are failures (the screen must not skip the check)', async () => {
@@ -162,5 +175,52 @@ describe('server decisions win', () => {
     )
     const r = await submitRedFlagAnswers(client, 'ord_1', [])
     assert.equal(r.ok ? '' : r.kind, 'contract')
+  })
+})
+
+describe('implemented server shapes (work/backend-l1-1 d842241)', () => {
+  const IMPLEMENTED = {
+    orderId: 'ord_1',
+    orderStatus: 'DRAFT',
+    redFlag: { status: 'NOT_ANSWERED' },
+    questionnaires: ['GENERAL_V1'],
+    containsFixtures: true,
+    questions: [
+      { id: 'q1', questionnaire: 'GENERAL_V1', code: 'TEST_Q1', text: 'Туршилтын асуулт 1', isFixture: true },
+      { id: 'q2', questionnaire: 'GENERAL_V1', code: 'TEST_Q2', text: 'Туршилтын асуулт 2', isFixture: true },
+      { id: 'q3', questionnaire: 'GENERAL_V1', code: 'TEST_Q3', text: 'Туршилтын асуулт 3', isFixture: true },
+    ],
+  }
+
+  it('parses questionnaires[] and questions without a type field', () => {
+    const q = parseRedFlagQuestionnaire(IMPLEMENTED)
+    assert.deepEqual(q?.questionnaires, ['GENERAL_V1'])
+    assert.equal(q?.questions.length, 3)
+    assert.equal(q?.containsFixtures, true)
+    assert.equal(q && questionnaireLabel(q, 'real'), 'server_fixture')
+  })
+
+  it('sees a questionnaire for an order the server already blocked', () => {
+    const q = parseRedFlagQuestionnaire({ ...IMPLEMENTED, orderStatus: 'BLOCKED_RED_FLAG', redFlag: { status: 'FLAGGED' } })
+    assert.ok(q && questionnaireShowsBlocked(q))
+  })
+
+  it('accepts "no questionnaire" only when both lists are empty', () => {
+    const none = parseRedFlagQuestionnaire({ ...IMPLEMENTED, questionnaires: [], questions: [], containsFixtures: false })
+    assert.equal(none?.questions.length, 0)
+    assert.equal(parseRedFlagQuestionnaire({ ...IMPLEMENTED, questions: [] }), null)
+    assert.equal(parseRedFlagQuestionnaire({ ...IMPLEMENTED, questionnaires: [] }), null)
+  })
+
+  it('reads version and placeholder advice from the answers response', () => {
+    const clear = parseRedFlagOutcome({ redFlag: { status: 'CLEAR', answeredAt: 'x' }, orderStatus: 'DRAFT', version: 3 })
+    assert.deepEqual(clear, { status: 'CLEAR', orderStatus: 'DRAFT', version: 3 })
+    const flagged = parseRedFlagOutcome({
+      redFlag: { status: 'FLAGGED' },
+      orderStatus: 'BLOCKED_RED_FLAG',
+      version: 3,
+      advice: { text: 'Туршилтын мэдэгдэл', isFixture: true },
+    })
+    assert.ok(flagged?.status === 'FLAGGED' && flagged.advice?.isFixture === true && flagged.advice.phone === null)
   })
 })

@@ -15,6 +15,7 @@ import {
   canSubmitClear,
   initialAnswers,
   questionnaireLabel,
+  questionnaireShowsBlocked,
   type Answers,
 } from "@/services/redFlag"
 
@@ -29,6 +30,7 @@ function toLoadState(result: ApiResult<RedFlagQuestionnaire>): LoadState {
 
 const LABEL_TEXT = {
   dev_fixture: "DEV FIXTURE: асуултын бичвэр зохиомол, эмнэлгийн хариуцагчаар батлагдаагүй. Зөвхөн хөгжүүлэлтэд.",
+  server_fixture: "Серверийн туршилтын асуулга (isFixture): эмнэлзүйн бичвэр батлагдаагүй.",
   unapproved: "Асуултын бичвэр эмнэлгийн хариуцагчаар батлагдаагүй (сервер approved гэж тэмдэглээгүй).",
   approved: "",
 } as const
@@ -48,22 +50,33 @@ export default function RedFlagsScreen() {
     let active = true
     apiService.getRedFlagQuestions(orderId).then((result) => {
       if (!active) return
+      if (result.ok && questionnaireShowsBlocked(result.data)) {
+        dispatch({ type: "redFlagBlocked", advice: null })
+        router.replace("/booking/emergency")
+        return
+      }
       setLoad(toLoadState(result))
       if (result.ok) setAnswers(initialAnswers(result.data))
     })
     return () => {
       active = false
     }
-  }, [orderId])
+  }, [orderId, dispatch, router])
 
-  const reload = () => {
+  const reload = useCallback(() => {
     if (!orderId) return
     setLoad({ status: "loading" })
+    setSubmitError(null)
     apiService.getRedFlagQuestions(orderId).then((result) => {
+      if (result.ok && questionnaireShowsBlocked(result.data)) {
+        dispatch({ type: "redFlagBlocked", advice: null })
+        router.replace("/booking/emergency")
+        return
+      }
       setLoad(toLoadState(result))
       if (result.ok) setAnswers(initialAnswers(result.data))
     })
-  }
+  }, [orderId, dispatch, router])
 
   const answer = (questionId: string, value: boolean) => {
     if (value) {
@@ -79,13 +92,30 @@ export default function RedFlagsScreen() {
   const submit = useSingleFlight(
     useCallback(async () => {
       if (load.status !== "ready" || !orderId) return
-      if (!canSubmitClear(load.questionnaire, answers)) return
+      const { questionnaire } = load
+      if (questionnaire.questions.length === 0) {
+        // The server lists no questionnaire for this service: nothing to answer.
+        dispatch({ type: "redFlagCleared" })
+        router.replace(nextStepAfterDetails({ ...state, redFlag: { status: "clear" } }))
+        return
+      }
+      if (!canSubmitClear(questionnaire, answers)) return
       setSubmitError(null)
-      const result = await apiService.submitRedFlagAnswers(orderId, answersPayload(load.questionnaire, answers))
+      const result = await apiService.submitRedFlagAnswers(
+        orderId,
+        answersPayload(questionnaire, answers),
+        questionnaire.questionnaires,
+      )
       if (!result.ok) {
         if (result.code === "RED_FLAG_BLOCKED") {
           dispatch({ type: "redFlagBlocked", advice: null })
           router.replace("/booking/emergency")
+          return
+        }
+        if (result.code === "QUESTIONNAIRE_OUTDATED") {
+          // The questions changed on the server: show the new set, answers start empty.
+          reload()
+          setSubmitError(result.message)
           return
         }
         // No silent skip: the user stays here until the server stores the answers.
@@ -94,20 +124,21 @@ export default function RedFlagsScreen() {
       }
       if (result.data.status === "FLAGGED") {
         // The server's decision wins even if every local answer was "no".
-        dispatch({ type: "redFlagBlocked", advice: result.data.advice })
+        dispatch({ type: "redFlagBlocked", advice: result.data.advice, version: result.data.version })
         router.replace("/booking/emergency")
         return
       }
-      dispatch({ type: "redFlagCleared" })
+      dispatch({ type: "redFlagCleared", version: result.data.version })
       router.replace(nextStepAfterDetails({ ...state, redFlag: { status: "clear" } }))
-    }, [load, orderId, answers, dispatch, router, state]),
+    }, [load, orderId, answers, dispatch, router, state, reload]),
   )
 
   if (isBlocked(state)) return <Redirect href="/booking/emergency" />
   if (!orderId) return <Redirect href="/(tabs)/bookappointment" />
 
   const label = load.status === "ready" ? questionnaireLabel(load.questionnaire, source) : null
-  const ready = load.status === "ready" && canSubmitClear(load.questionnaire, answers)
+  const noQuestions = load.status === "ready" && load.questionnaire.questions.length === 0
+  const ready = load.status === "ready" && (noQuestions || canSubmitClear(load.questionnaire, answers))
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -142,7 +173,10 @@ export default function RedFlagsScreen() {
       {load.status === "ready" && (
         <>
           <ScrollView contentContainerStyle={styles.list}>
-            {label && label !== "approved" ? (
+            {noQuestions ? (
+              <Text style={styles.intro}>Сервер энэ үйлчилгээнд аюулын шинжийн асуулга шаардаагүй байна.</Text>
+            ) : null}
+            {label && label !== "approved" && !noQuestions ? (
               <View style={styles.fixtureBanner}>
                 <Text style={styles.fixtureBannerText}>{LABEL_TEXT[label]}</Text>
               </View>

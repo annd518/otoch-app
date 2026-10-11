@@ -129,7 +129,17 @@ export default function BookAppointment() {
           ? await apiService.createDraftOrder(plan.input, plan.key)
           : await apiService.updateDraftOrder(plan.orderId, plan.patch)
       if (!result.ok) {
-        setSaveError(result.message)
+        if (result.code === "RED_FLAG_BLOCKED") {
+          // The server already blocked this draft (e.g. answered on another device).
+          dispatch({ type: "redFlagBlocked", advice: null })
+          router.replace("/booking/emergency")
+          return
+        }
+        setSaveError(
+          result.code === "CATALOG_OUTDATED"
+            ? `${result.message} Үйлчилгээгээ каталогоос дахин сонгоно уу.`
+            : result.message,
+        )
         return
       }
       dispatch({ type: "draftSaved", order: result.data, source: apiService.sourceOf("orders") })
@@ -321,6 +331,9 @@ export default function BookAppointment() {
         {/* 6. Nurse preference */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>6. Сувилагчийн сонголт (заавал биш)</Text>
+          {server?.ignoredFields.includes("nurseGenderPreference") ? (
+            <Text style={styles.noteText}>Сервер энэ сонголтыг одоогоор хадгалдаггүй.</Text>
+          ) : null}
           <View style={styles.wrapRow}>
             {NURSE_PREFS.map((pref) => {
               const selected = details.nurseGenderPreference === pref.value

@@ -28,11 +28,17 @@ export function answersPayload(questionnaire: RedFlagQuestionnaire, answers: Ans
     .map((q) => ({ questionId: q.id, value: answers[q.id] === true }))
 }
 
-export type QuestionnaireLabel = 'dev_fixture' | 'unapproved' | 'approved'
+export type QuestionnaireLabel = 'dev_fixture' | 'server_fixture' | 'unapproved' | 'approved'
 
 export function questionnaireLabel(questionnaire: RedFlagQuestionnaire, source: 'real' | 'mock'): QuestionnaireLabel {
   if (source === 'mock') return 'dev_fixture'
+  if (questionnaire.containsFixtures) return 'server_fixture'
   return questionnaire.approved ? 'approved' : 'unapproved'
+}
+
+// The server already decided this order is blocked (e.g. answered on another device).
+export function questionnaireShowsBlocked(questionnaire: RedFlagQuestionnaire): boolean {
+  return questionnaire.orderStatus === 'BLOCKED_RED_FLAG' || questionnaire.redFlagStatus === 'FLAGGED'
 }
 
 export const EMERGENCY_PHONE = '103'

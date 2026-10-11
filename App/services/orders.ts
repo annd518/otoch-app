@@ -37,45 +37,73 @@ export function parseOrder(data: unknown): Order | null {
   }
   const redFlag = isRecord(o.redFlag) && text(o.redFlag.status) ? o.redFlag.status : 'NOT_ANSWERED'
   const requirements = isRecord(o.requirements) ? o.requirements : {}
+  const items = Array.isArray(o.items) ? o.items : []
+  const ignored = Array.isArray(data.ignoredFields) ? data.ignoredFields.filter((f): f is string => typeof f === 'string') : []
   return {
     id: o.id,
     status: o.status,
     version: o.version,
     parentId: o.parentId,
+    serviceCodes: items.flatMap((i) => (isRecord(i) && text(i.serviceCode) ? [i.serviceCode] : [])),
     scheduledFor: text(o.scheduledFor) ? o.scheduledFor : null,
     timeSlot: text(o.timeSlot) ? o.timeSlot : null,
     redFlagStatus: redFlag,
     requiresReferral: requirements.referralAttachment === true,
+    referralUploadAvailable:
+      typeof requirements.referralUploadAvailable === 'boolean' ? requirements.referralUploadAvailable : null,
+    ignoredFields: ignored,
   }
 }
 
+// Accepts the implemented shape (work/backend-l1-1: `questionnaires` array,
+// per-question `isFixture`, no `type`) and the original proposal
+// (`questionnaire` string, `type: "BOOLEAN"`).
 export function parseRedFlagQuestionnaire(data: unknown): RedFlagQuestionnaire | null {
-  if (!isRecord(data) || !text(data.questionnaire) || !Array.isArray(data.questions) || data.questions.length === 0) {
+  if (!isRecord(data) || !Array.isArray(data.questions)) return null
+  let questionnaires: string[]
+  if (Array.isArray(data.questionnaires)) {
+    if (!data.questionnaires.every(text)) return null
+    questionnaires = data.questionnaires.filter(text)
+  } else if (text(data.questionnaire)) {
+    questionnaires = [data.questionnaire]
+  } else {
     return null
   }
   const questions: RedFlagQuestion[] = []
   for (const q of data.questions) {
     // Only yes/no questions are supported; anything else must not be skipped silently.
-    if (!isRecord(q) || !text(q.id) || !text(q.code) || !text(q.text) || q.type !== 'BOOLEAN') return null
-    questions.push({ id: q.id, code: q.code, text: q.text, required: q.required !== false })
+    if (!isRecord(q) || !text(q.id) || !text(q.code) || !text(q.text)) return null
+    if (q.type !== undefined && q.type !== 'BOOLEAN') return null
+    questions.push({ id: q.id, code: q.code, text: q.text, required: q.required !== false, isFixture: q.isFixture === true })
   }
-  return { questionnaire: data.questionnaire, approved: data.approved === true, questions }
+  // Questions without a questionnaire, or a questionnaire without questions, is inconsistent.
+  if ((questions.length === 0) !== (questionnaires.length === 0)) return null
+  const redFlag = isRecord(data.redFlag) && text(data.redFlag.status) ? data.redFlag.status : null
+  return {
+    questionnaires,
+    approved: data.approved === true,
+    containsFixtures: data.containsFixtures === true || questions.some((q) => q.isFixture),
+    orderStatus: text(data.orderStatus) ? data.orderStatus : null,
+    redFlagStatus: redFlag,
+    questions,
+  }
 }
 
 function parseAdvice(value: unknown): RedFlagAdvice | null {
-  if (!isRecord(value) || !text(value.text) || !text(value.phone)) return null
-  return { text: value.text, phone: value.phone }
+  if (!isRecord(value) || !text(value.text)) return null
+  return { text: value.text, phone: text(value.phone) ? value.phone : null, isFixture: value.isFixture === true }
 }
 
 export function parseRedFlagOutcome(data: unknown): RedFlagOutcome | null {
   if (!isRecord(data) || !isRecord(data.redFlag) || !text(data.orderStatus)) return null
   const { status } = data.redFlag
-  if (status === 'CLEAR') return { status: 'CLEAR', orderStatus: data.orderStatus }
+  const version = typeof data.version === 'number' && Number.isInteger(data.version) ? data.version : null
+  if (status === 'CLEAR') return { status: 'CLEAR', orderStatus: data.orderStatus, version }
   if (status === 'FLAGGED') {
     const codes = Array.isArray(data.redFlag.triggeredCodes)
       ? data.redFlag.triggeredCodes.filter((c): c is string => typeof c === 'string')
       : []
-    return { status: 'FLAGGED', orderStatus: data.orderStatus, triggeredCodes: codes, advice: parseAdvice(data.advice) }
+    return { status: 'FLAGGED', orderStatus: data.orderStatus, version, triggeredCodes: codes, advice: parseAdvice(data.advice) }
   }
   return null
 }
@@ -124,11 +152,14 @@ export async function submitRedFlagAnswers(
   client: HttpClient,
   orderId: string,
   answers: { questionId: string; value: boolean }[],
+  // Codes of the questionnaire the user saw; the server answers 409
+  // QUESTIONNAIRE_OUTDATED if they changed meanwhile.
+  questionnaires?: string[],
 ): Promise<ApiResult<RedFlagOutcome>> {
   const result = await client.request({
     method: 'PUT',
     path: orderPaths.redFlagAnswers(orderId),
-    body: { answers },
+    body: questionnaires ? { questionnaires, answers } : { answers },
     parse: parseRedFlagOutcome,
   })
   return markNotImplemented(result, RED_FLAG_NOT_IMPLEMENTED_MESSAGE)

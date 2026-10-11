@@ -137,8 +137,12 @@ export const apiService = {
     return getRedFlagQuestions(client, orderId)
   },
 
-  submitRedFlagAnswers(orderId: string, answers: { questionId: string; value: boolean }[]): Promise<ApiResult<RedFlagOutcome>> {
-    return submitRedFlagAnswers(client, orderId, answers)
+  submitRedFlagAnswers(
+    orderId: string,
+    answers: { questionId: string; value: boolean }[],
+    questionnaires?: string[],
+  ): Promise<ApiResult<RedFlagOutcome>> {
+    return submitRedFlagAnswers(client, orderId, answers, questionnaires)
   },
 
   uploadReferral(orderId: string, file: UploadFile, onProgress?: (fraction: number) => void): Promise<ApiResult<Attachment>> {

@@ -13,7 +13,8 @@ import {
   type BookingDraftAction,
   type BookingDraftState,
 } from '../services/bookingDraft'
-import { ORDERS_NOT_IMPLEMENTED_MESSAGE, createDraftOrder, updateDraftOrder } from '../services/orders'
+import { DEV_FIXTURE_QUESTIONS } from '../mocks/mockBackend'
+import { ORDERS_NOT_IMPLEMENTED_MESSAGE, createDraftOrder, submitRedFlagAnswers, updateDraftOrder } from '../services/orders'
 import { slotStartToUlaanbaatarIso, slotStartToUtcIso } from '../utils/datetime'
 import { createSingleFlight } from '../utils/singleFlight'
 import { makeClient, makeMockClient } from './helpers'
@@ -57,10 +58,13 @@ const savedOrder = (overrides: Partial<Order> = {}): Order => ({
   status: 'DRAFT',
   version: 1,
   parentId: 'par_1',
+  serviceCodes: ['HOME_BASIC_CHECK'],
   scheduledFor: '2026-10-20T01:00:00.000Z',
   timeSlot: '09:00-11:00',
   redFlagStatus: 'NOT_ANSWERED',
   requiresReferral: false,
+  referralUploadAvailable: false,
+  ignoredFields: [],
   ...overrides,
 })
 
@@ -249,5 +253,76 @@ describe('blocked draft', () => {
     assert.equal(bookingDraftReducer(blocked, { type: 'redFlagCleared' }), blocked)
     assert.equal(nextStepAfterDetails(blocked), '/booking/emergency')
     assert.equal(isBlocked(bookingDraftReducer(blocked, { type: 'reset' })), false)
+  })
+})
+
+describe('staying in sync with the server draft', () => {
+  it('PATCH without a service change does not send items (the server would reset the red flag)', () => {
+    const saved = bookingDraftReducer(filled(), { type: 'draftSaved', order: savedOrder(), source: 'real' })
+    const edited = bookingDraftReducer(saved, { type: 'updateDetails', patch: { notes: 'Залгана уу' } })
+    const plan = planDraftSave(edited, () => 'k')
+    assert.ok(plan.kind === 'update' && plan.patch.items === undefined && plan.patch.notes === 'Залгана уу')
+  })
+
+  it('PATCH after a service change sends items and the catalog version', () => {
+    const saved = bookingDraftReducer(filled(), { type: 'draftSaved', order: savedOrder(), source: 'real' })
+    const changed = bookingDraftReducer(saved, {
+      type: 'selectService',
+      service: { ...SERVICE, id: 'cmg_demo_iv', code: 'HOME_IV_THERAPY' },
+      catalogVersion: 'v2',
+      source: 'real',
+    })
+    const plan = planDraftSave(changed, () => 'k')
+    assert.ok(plan.kind === 'update')
+    if (plan.kind === 'update') {
+      assert.equal(plan.patch.items?.[0].serviceCode, 'HOME_IV_THERAPY')
+      assert.equal(plan.patch.catalogVersion, 'v2')
+    }
+  })
+
+  it('takes the red flag state from the saved order (server is the source of truth)', () => {
+    const cleared = bookingDraftReducer(filled(), { type: 'redFlagCleared' })
+    const reset = bookingDraftReducer(cleared, { type: 'draftSaved', order: savedOrder({ redFlagStatus: 'NOT_ANSWERED' }), source: 'real' })
+    assert.equal(reset.redFlag.status, 'not_answered')
+    const blocked = bookingDraftReducer(filled(), {
+      type: 'draftSaved',
+      order: savedOrder({ status: 'BLOCKED_RED_FLAG', redFlagStatus: 'FLAGGED' }),
+      source: 'real',
+    })
+    assert.equal(isBlocked(blocked), true)
+  })
+
+  it('answering the questionnaire updates the local version so the next PATCH is accepted', async () => {
+    const { client } = makeMockClient()
+    const input = buildDraftInput(filled())
+    assert.ok(input)
+    const created = await createDraftOrder(client, input, 'k-sync')
+    assert.ok(created.ok)
+    if (!created.ok) return
+    let state = bookingDraftReducer(filled(), { type: 'draftSaved', order: created.data, source: 'mock' })
+    const answered = await submitRedFlagAnswers(
+      client,
+      created.data.id,
+      DEV_FIXTURE_QUESTIONS.map((q) => ({ questionId: q.id, value: false })),
+    )
+    assert.ok(answered.ok)
+    if (!answered.ok) return
+    state = bookingDraftReducer(state, { type: 'redFlagCleared', version: answered.data.version })
+    state = bookingDraftReducer(state, { type: 'updateDetails', patch: { notes: 'Шинэ тэмдэглэл' } })
+    const plan = planDraftSave(state, () => 'k')
+    assert.ok(plan.kind === 'update')
+    if (plan.kind !== 'update') return
+    const patched = await updateDraftOrder(client, plan.orderId, plan.patch)
+    assert.equal(patched.ok, true)
+    // details-only change keeps the CLEAR answers on the server
+    assert.equal(patched.ok && patched.data.redFlagStatus, 'CLEAR')
+  })
+
+  it('reports fields the server did not store', async () => {
+    const { client } = makeMockClient()
+    const input = buildDraftInput(filled())
+    assert.ok(input)
+    const created = await createDraftOrder(client, input, 'k-ign')
+    assert.ok(created.ok && created.data.ignoredFields.includes('nurseGenderPreference'))
   })
 })

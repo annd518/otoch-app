@@ -131,6 +131,13 @@ export default function ReferralScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container}>
+        {source === "real" && state.server?.referralUploadAvailable === false && (
+          <View style={styles.permissionCard}>
+            <Text style={styles.permissionText}>
+              Сервер одоогоор зураг хүлээн авах боломжгүй байна (upload хэрэгжээгүй). Зураг илгээгдэхгүй.
+            </Text>
+          </View>
+        )}
         {source === "mock" && (
           <View style={styles.mockBanner}>
             <Text style={styles.mockBannerText}>MOCK upload: зураг серверт хадгалагдахгүй. Зөвхөн хөгжүүлэлтийн горим.</Text>

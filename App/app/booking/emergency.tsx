@@ -39,7 +39,13 @@ export default function EmergencyScreen() {
       <View style={styles.content}>
         <Ionicons name="medkit" size={64} color="#c62828" />
         <Text style={styles.title}>Яаралтай тусламж шаардлагатай байж болзошгүй</Text>
-        <Text style={styles.advice}>{advice?.text ?? DEFAULT_ADVICE}</Text>
+        <Text style={styles.advice}>{DEFAULT_ADVICE}</Text>
+        {advice ? (
+          <Text style={styles.note}>
+            {advice.text}
+            {advice.isFixture ? " (туршилтын бичвэр, батлагдаагүй)" : ""}
+          </Text>
+        ) : null}
         <Text style={styles.note}>Энэ тохиолдолд гэрийн үйлчилгээний захиалга хийх боломжгүй.</Text>
 
         <TouchableOpacity style={styles.callButton} onPress={() => void call()} accessibilityRole="button">
