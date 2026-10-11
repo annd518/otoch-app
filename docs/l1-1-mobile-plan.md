@@ -389,7 +389,8 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 
 - Mock одоогоор зөвхөн каталогт хамаарна. Auth, өвчтөн, үзлэг үргэлж жинхэнэ API-г дуудна.
 - Mock горимд каталогийн дэлгэц болон сонгосон үйлчилгээн дээр "MOCK" тэмдэг харагдана. Fixture-ийн нэр бүр `[MOCK]`-оор эхэлнэ.
-- Real горимд `GET /api/catalog/services` 404 буцаавал "Каталогийн API серверт хараахан нэмэгдээгүй байна" гэж харуулна, ажилласан мэт дүр үзүүлэхгүй.
+- Real горимд `GET /api/catalog/services` 404 буцаавал "Каталогийн API серверт хараахан нэмэгдээгүй байна" гэж харуулна, ажилласан мэт дүр үзүүлэхгүй. origin/main-ийн сервер одоо 404 буцаадаг.
+- `work/backend-l1-1` (`e261639`) дээр endpoint хэрэгжсэн бөгөөд real горимд ажилласан. Тэр branch main-д нэгтгэгдэж staging-д гартал real каталогийг staging дээр баталгаажсан гэж үзэхгүй.
 - Mock fixture release bundle-д орсон хэвээр боловч тохиргоогоор хүрэх боломжгүй. Bundle-аас бүрэн хасах нь дараагийн сайжруулалт.
 
 ### 9.4 Шалгалтын дүн
@@ -399,9 +400,10 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 | `npm ci` (cache-ээс, lockfile-ээр) | 856 package, `package-lock.json` өөрчлөгдөөгүй, `npm ls` алдаагүй |
 | `npm run lint` (`expo lint`) | 0 error, 0 warning |
 | `npm run typecheck` (апп + тест) | 0 error. `any`, `ts-ignore`, `eslint-disable` ашиглаагүй. |
-| `npm test` (unit) | 44/44 амжилттай |
+| `npm test` (unit) | 49/49 амжилттай |
 | Мутацийн шалгалт | `success` шалгалтыг түр унтраахад 4 тест унасан. Тестүүд худал амжилтыг барьж чадна. |
-| Локал серверийн эсрэг интеграц | 14/14 амжилттай (доор) |
+| Локал серверийн эсрэг интеграц, origin/main | 14/14 амжилттай (доор) |
+| Локал серверийн эсрэг интеграц, `work/backend-l1-1` (`e261639`) | 12/12 амжилттай (доор) |
 | `expo export` iOS, Android | Хоёулаа Hermes bundle үүссэн. Native build, signed build биш. |
 | Бодит төхөөрөмж, simulator | Хийгээгүй. Төхөөрөмж холбогдоогүй, Xcode, Android SDK байхгүй. |
 
@@ -416,13 +418,23 @@ Red flag-ийн жинхэнэ асуултыг mock-д нэмж бичихгү�
 - Каталог 404 "хэрэгжээгүй" гэж харагдсан.
 - Logout-ийн дараах хүсэлт 401 болж session дуусах handler ажилласан.
 
+**Backend branch-ийн эсрэг шалгалт.** `work/backend-l1-1` (`e261639`, main-д ороогүй) серверийг мөн адил ажиллуулж шалгасан. Тэр хувилбарт signup token буцаадаг, login `user` объект буцаадаг, алдаа нэгдсэн хэлбэртэй. Mobile client өөрчлөлтгүйгээр ажилласан:
+
+- Signup шууд нэвтэрсэн, давхар имэйл 409 `EMAIL_TAKEN` алдаа болж харагдсан.
+- Буруу нууц үг 401 `INVALID_CREDENTIALS` ирсэн ч session дуусах handler ажиллаагүй (зөв).
+- Login нэг хүсэлтээр user объект авсан.
+- Каталог **real** горимд 5 үйлчилгээ буцаасан, бүгд `isFixture: true`. Апп тэдгээрийг "Туршилтын өгөгдөл" тэмдэгтэй харуулна.
+- 8 оронтой дугаар, `+08:00` offset хоёуланг нь хүлээн авсан. Байхгүй өвчтөн 404 `PARENT_NOT_FOUND`. Хүчингүй token 401.
+
+Энэ шалгалтын дараа каталогийн parser-ийг хоосон каталогийн `catalogVersion: null`, `isFixture`, `containsFixtures`-ийг хүлээн авдаг болгосон.
+
 ### 9.5 Backend-д өгөх шинэ олдвор
 
 | # | Олдвор | Нотолгоо | Mobile-ийн одоогийн арга |
 |---|---|---|---|
-| GAP-8 | Token байхгүй үед 401, хүчингүй эсвэл хугацаа дууссан үед **403** буцаадаг. Хариу нь `success`, `message`-гүй, зөвхөн `{ error }`. Гэрээ (API §0.1) 401 `UNAUTHENTICATED` гэж заасан. | `server/src/middlwares/auth.ts:12-20` | `error` string-ийг мессеж болгоно. 403 ирэхэд token-ий `exp` дууссан бол session дуусгана. |
-| GAP-9 | `emergencyContact` 10-аас доошгүй тэмдэгт шаарддаг тул 8 оронтой монгол дугаарыг татгалздаг. Validation-ий хариунд `error` нь zod format объект. | `server/src/controllers/parentController.ts:20,27-31` | 8 оронтой дугаарт `+976` нэмнэ. |
-| GAP-10 | `POST /api/visits` нь `+08:00` offset-тэй огноог татгалздаг. API §0 offset-тэй ISO-г шаардсан тул шинэ endpoint-ууд offset-ийг хүлээн авах ёстой. | Интеграцийн шалгалт, `server/src/controllers/visitController.ts` `z.string().datetime()` | UTC (`Z`) ISO илгээнэ. |
+| GAP-8 | origin/main: token байхгүй үед 401, хүчингүй эсвэл хугацаа дууссан үед **403** буцаадаг. `e261639`-д 401 болгож засагдсан. Хариу нь `success`, `message`-гүй, зөвхөн `{ error }`. Гэрээ (API §0.1) 401 `UNAUTHENTICATED` гэж заасан. | `server/src/middlwares/auth.ts:12-20` | `error` string-ийг мессеж болгоно. 403 ирэхэд token-ий `exp` дууссан бол session дуусгана. |
+| GAP-9 | origin/main: `emergencyContact` 10-аас доошгүй тэмдэгт шаарддаг тул 8 оронтой монгол дугаарыг татгалздаг. `e261639`-д 8 оронтойг хүлээн авсан. Validation-ий хариунд `error` нь zod format объект. | `server/src/controllers/parentController.ts:20,27-31` | 8 оронтой дугаарт `+976` нэмнэ. |
+| GAP-10 | origin/main: `POST /api/visits` нь `+08:00` offset-тэй огноог татгалздаг. `e261639`-д хүлээн авсан. API §0 offset-тэй ISO-г шаардсан тул шинэ endpoint-ууд offset-ийг хүлээн авах ёстой. | Интеграцийн шалгалт, `server/src/controllers/visitController.ts` `z.string().datetime()` | UTC (`Z`) ISO илгээнэ. |
 | GAP-11 | `POST /api/visits` үйлчилгээ, тэмдэглэл, сувилагчийн хүйсийг хүлээж авдаггүй. Каталогоос сонгосон үйлчилгээ одоо серверт хадгалагдахгүй. | `visitController.ts` `visitSchema` | Мессежийг "Үзлэгийн хүсэлт" гэж өөрчилсөн. Orders API гарахад шилжинэ. |
 
 ### 9.6 Дараагийн алхам

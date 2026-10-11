@@ -64,8 +64,8 @@
 | **2026-10-12** `npm ci` cache-ээс | 856 package, lockfile өөрчлөгдөөгүй, `npm ls` алдаагүй | 2 |
 | **2026-10-12** ESLint | 0 error, 0 warning | 2 |
 | **2026-10-12** Typecheck (апп + тест) | 0 error | 2 |
-| **2026-10-12** Unit тест | 44/44 | 2 |
-| **2026-10-12** Локал серверийн эсрэг интеграц | 14/14 (`docs/l1-1-mobile-plan.md` 9.4) | 2 |
+| **2026-10-12** Unit тест | 49/49 | 2 |
+| **2026-10-12** Локал серверийн эсрэг интеграц | origin/main 14/14, `work/backend-l1-1` 12/12 (`docs/l1-1-mobile-plan.md` 9.4) | 2 |
 | **2026-10-12** `expo export` iOS, Android | Амжилттай. Native build биш. | 2 |
 | Expo Go, simulator, native build, cloud build, store upload | Хийгээгүй | — |
 

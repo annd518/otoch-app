@@ -20,7 +20,13 @@ import { formatMnt } from "@/utils/money"
 type LoadState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; services: CatalogService[]; catalogVersion: string; source: "real" | "mock" }
+  | {
+      status: "ready"
+      services: CatalogService[]
+      catalogVersion: string | null
+      containsFixtures: boolean
+      source: "real" | "mock"
+    }
 
 function toLoadState(result: CatalogResult): LoadState {
   if (!result.ok) return { status: "error", message: result.message }
@@ -28,6 +34,7 @@ function toLoadState(result: CatalogResult): LoadState {
     status: "ready",
     services: result.data.services.filter((service) => service.isActive),
     catalogVersion: result.data.catalogVersion,
+    containsFixtures: result.data.containsFixtures,
     source: result.source,
   }
 }
@@ -85,6 +92,13 @@ export default function CatalogScreen() {
           </Text>
         </View>
       )}
+      {state.status === "ready" && state.source === "real" && state.containsFixtures && (
+        <View style={styles.mockBanner}>
+          <Text style={styles.mockBannerText}>
+            Серверийн туршилтын (fixture) үйлчилгээ агуулсан каталог.
+          </Text>
+        </View>
+      )}
 
       {state.status === "loading" && (
         <View style={styles.centered}>
@@ -133,6 +147,11 @@ export default function CatalogScreen() {
                   {service.description ? <Text style={styles.cardDescription}>{service.description}</Text> : null}
                   <View style={styles.metaRow}>
                     <Text style={styles.metaText}>{service.durationMin} мин</Text>
+                    {service.isFixture && (
+                      <View style={styles.fixtureBadge}>
+                        <Text style={styles.fixtureBadgeText}>Туршилтын өгөгдөл</Text>
+                      </View>
+                    )}
                     {service.requiresReferral && (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>Эмчийн заалт шаардлагатай</Text>
@@ -205,6 +224,8 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 13, color: "#666" },
   badge: { backgroundColor: "#fdecea", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 12, color: "#c62828", fontWeight: "600" },
+  fixtureBadge: { backgroundColor: "#fff3e0", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  fixtureBadgeText: { fontSize: 12, color: "#e65100", fontWeight: "600" },
   price: { fontSize: 20, fontWeight: "800", color: "#2f80ed", marginTop: 10 },
   priceNote: { fontSize: 12, color: "#888", marginTop: 2 },
   footer: { padding: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#e1e4e8" },

@@ -143,19 +143,26 @@ function parseCatalogService(value: unknown): CatalogService | null {
     requiresReferral,
     redFlagQuestionnaire: typeof redFlag === 'string' ? redFlag : null,
     isActive,
+    isFixture: value.isFixture === true,
   }
 }
 
 export function parseCatalog(data: unknown): Catalog | null {
-  if (!isRecord(data) || data.currency !== 'MNT' || !nonEmptyString(data.catalogVersion)) return null
-  if (!Array.isArray(data.services)) return null
+  if (!isRecord(data) || data.currency !== 'MNT' || !Array.isArray(data.services)) return null
+  const { catalogVersion } = data
+  if (catalogVersion !== null && catalogVersion !== undefined && !nonEmptyString(catalogVersion)) return null
   const services: CatalogService[] = []
   for (const item of data.services) {
     const service = parseCatalogService(item)
     if (!service) return null
     services.push(service)
   }
-  return { catalogVersion: data.catalogVersion, currency: 'MNT', services }
+  return {
+    catalogVersion: typeof catalogVersion === 'string' ? catalogVersion : null,
+    currency: 'MNT',
+    containsFixtures: data.containsFixtures === true || services.some((s) => s.isFixture),
+    services,
+  }
 }
 
 function parseQuoteLine(value: unknown): QuoteLine | null {

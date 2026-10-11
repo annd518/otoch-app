@@ -115,3 +115,27 @@ describe('quote and money display', () => {
     assert.equal(formatMnt(0), '0₮')
   })
 })
+
+describe('catalog shape implemented on work/backend-l1-1 (e261639)', () => {
+  it('accepts catalogVersion null for an empty catalog', () => {
+    const catalog = parseCatalog({ catalogVersion: null, currency: 'MNT', containsFixtures: false, services: [] })
+    assert.deepEqual(catalog, { catalogVersion: null, currency: 'MNT', containsFixtures: false, services: [] })
+  })
+
+  it('reads isFixture and containsFixtures', () => {
+    const catalog = parseCatalog({
+      catalogVersion: '2026-10-11T07:00:00.000Z',
+      currency: 'MNT',
+      containsFixtures: true,
+      services: [{ ...CONTRACT_CATALOG.data.services[0], isFixture: true }],
+    })
+    assert.equal(catalog?.containsFixtures, true)
+    assert.equal(catalog?.services[0].isFixture, true)
+  })
+
+  it('defaults isFixture to false when the field is absent', () => {
+    const catalog = parseCatalog(CONTRACT_CATALOG.data)
+    assert.equal(catalog?.services[0].isFixture, false)
+    assert.equal(catalog?.containsFixtures, false)
+  })
+})

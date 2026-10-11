@@ -230,6 +230,7 @@ export default function BookAppointment() {
                   <Text style={styles.referralNote}>Эмчийн заалт шаардлагатай. Зураг оруулах алхам удахгүй нэмэгдэнэ.</Text>
                 )}
                 {draft.service.source === "mock" && <Text style={styles.mockTag}>MOCK өгөгдөл</Text>}
+                {draft.service.isFixture && <Text style={styles.mockTag}>Серверийн туршилтын өгөгдөл</Text>}
               </View>
               <TouchableOpacity onPress={() => router.push("/booking/catalog")}>
                 <Text style={styles.changeServiceText}>Солих</Text>

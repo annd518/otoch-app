@@ -136,3 +136,38 @@ describe('logout', () => {
     assert.equal(store.current(), null)
   })
 })
+
+describe('auth shapes implemented on work/backend-l1-1 (e261639)', () => {
+  it('login 401 INVALID_CREDENTIALS shows the message and does not end a session', async () => {
+    const { client, unauthorizedCount } = makeClient([
+      {
+        status: 401,
+        body: { success: false, message: 'Имэйл эсвэл нууц үг буруу байна', error: { code: 'INVALID_CREDENTIALS' } },
+      },
+    ])
+    const store = createMemoryStore()
+
+    const result = await loginFlow(client, store, 'a@b.mn', 'wrong')
+
+    assert.deepEqual(result, { ok: false, message: 'Имэйл эсвэл нууц үг буруу байна' })
+    assert.equal(unauthorizedCount(), 0)
+    assert.equal(store.current(), null)
+  })
+
+  it('signup 409 EMAIL_TAKEN fails with the server message', async () => {
+    const { client } = makeClient([
+      {
+        status: 409,
+        body: {
+          success: false,
+          message: 'Энэ имэйлээр бүртгэл аль хэдийн үүссэн байна',
+          error: { code: 'EMAIL_TAKEN', fields: { email: 'Бүртгэлтэй имэйл' } },
+        },
+      },
+    ])
+
+    const result = await signupFlow(client, createMemoryStore(), { name: 'A', email: 'a@b.mn', password: 'secret1' })
+
+    assert.deepEqual(result, { kind: 'failed', message: 'Энэ имэйлээр бүртгэл аль хэдийн үүссэн байна' })
+  })
+})

@@ -12,14 +12,15 @@ export interface SelectedService {
   priceMnt: number
   durationMin: number
   requiresReferral: boolean
-  catalogVersion: string
+  catalogVersion: string | null
+  isFixture: boolean
   source: ApiMode
 }
 
 interface BookingDraftValue {
   service: SelectedService | null
   quote: Quote | null
-  selectService(service: CatalogService, catalogVersion: string, source: ApiMode): void
+  selectService(service: CatalogService, catalogVersion: string | null, source: ApiMode): void
   setQuote(quote: Quote | null): void
   resetDraft(): void
 }
@@ -43,6 +44,7 @@ export function BookingDraftProvider({ children }: { children: ReactNode }) {
           durationMin: next.durationMin,
           requiresReferral: next.requiresReferral,
           catalogVersion,
+          isFixture: next.isFixture,
           source,
         })
         // A quote belongs to a specific selection; changing it invalidates it.

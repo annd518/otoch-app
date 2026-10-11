@@ -66,11 +66,15 @@ export interface CatalogService {
   requiresReferral: boolean
   redFlagQuestionnaire: string | null
   isActive: boolean
+  // Backend marks fictional seed rows (work/backend-l1-1). Defaults to false.
+  isFixture: boolean
 }
 
 export interface Catalog {
-  catalogVersion: string
+  // null when the catalog has no active rows (backend implementation).
+  catalogVersion: string | null
   currency: 'MNT'
+  containsFixtures: boolean
   services: CatalogService[]
 }
 
