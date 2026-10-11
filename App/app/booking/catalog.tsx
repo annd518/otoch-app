@@ -43,7 +43,7 @@ export default function CatalogScreen() {
   const router = useRouter()
   const draft = useBookingDraft()
   const [state, setState] = useState<LoadState>({ status: "loading" })
-  const [selectedId, setSelectedId] = useState<string | null>(draft.service?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(draft.state.service?.id ?? null)
 
   useEffect(() => {
     let active = true
@@ -69,7 +69,7 @@ export default function CatalogScreen() {
     if (state.status !== "ready") return
     const service = state.services.find((item) => item.id === selectedId)
     if (!service) return
-    draft.selectService(service, state.catalogVersion, state.source)
+    draft.dispatch({ type: "selectService", service, catalogVersion: state.catalogVersion, source: state.source })
     goBack()
   }
 

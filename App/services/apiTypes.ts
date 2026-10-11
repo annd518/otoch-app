@@ -99,3 +99,71 @@ export interface Quote {
   pricingVersion: string
   expiresAt: string
 }
+
+// ---- Orders, red flags, attachments: docs/l1-1-api.md §3-§5 (proposal, not
+// implemented on the server yet). Field names follow the proposal.
+
+export type NurseGenderPreference = 'ANY' | 'FEMALE' | 'MALE'
+
+export interface DraftOrderItemInput {
+  serviceId: string
+  // Not in the proposal yet: sent so the server can rely on the stable code
+  // (docs/l1-1-api.md §2 says mobile logic should use `code`). Mobile plan GAP-12.
+  serviceCode: string
+  quantity: number
+}
+
+export interface DraftOrderInput {
+  parentId: string
+  items: DraftOrderItemInput[]
+  // Not in the proposal yet (GAP-12): lets the server detect a stale catalog.
+  catalogVersion: string | null
+  scheduledFor: string
+  timeSlot: string
+  address: { text: string }
+  notes?: string
+  nurseGenderPreference: NurseGenderPreference
+}
+
+export type DraftOrderPatch = Partial<Omit<DraftOrderInput, 'parentId'>> & { version: number }
+
+export interface Order {
+  id: string
+  status: string
+  version: number
+  parentId: string
+  scheduledFor: string | null
+  timeSlot: string | null
+  redFlagStatus: string
+  requiresReferral: boolean
+}
+
+export interface RedFlagQuestion {
+  id: string
+  code: string
+  text: string
+  required: boolean
+}
+
+export interface RedFlagQuestionnaire {
+  questionnaire: string
+  // true only when the server says a medical owner approved the wording.
+  approved: boolean
+  questions: RedFlagQuestion[]
+}
+
+export interface RedFlagAdvice {
+  text: string
+  phone: string
+}
+
+export type RedFlagOutcome =
+  | { status: 'CLEAR'; orderStatus: string }
+  | { status: 'FLAGGED'; orderStatus: string; triggeredCodes: string[]; advice: RedFlagAdvice | null }
+
+export interface Attachment {
+  id: string
+  kind: string
+  mimeType: string
+  sizeBytes: number
+}

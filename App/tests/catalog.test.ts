@@ -4,9 +4,7 @@ import { describe, it } from 'node:test'
 import { CATALOG_NOT_IMPLEMENTED_MESSAGE, fetchCatalog } from '../services/catalog'
 import { parseCatalog, parseQuote } from '../services/validators'
 import { formatMnt } from '../utils/money'
-import { makeClient } from './helpers'
-
-const noDelay = async () => {}
+import { makeClient, makeMockClient } from './helpers'
 
 // docs/l1-1-api.md §2 example (fabricated data from the backend proposal).
 const CONTRACT_CATALOG = {
@@ -33,12 +31,11 @@ const CONTRACT_CATALOG = {
 }
 
 describe('catalog in mock mode', () => {
-  it('returns contract-shaped fabricated data without any network request', async () => {
-    const { client, calls } = makeClient([])
-    const result = await fetchCatalog({ mode: 'mock', client, mockScenario: 'ok', delay: noDelay })
+  it('returns contract-shaped fabricated data from the development mock', async () => {
+    const { client } = makeMockClient()
+    const result = await fetchCatalog(client, 'mock')
     assert.equal(result.source, 'mock')
     assert.equal(result.ok, true)
-    assert.equal(calls.length, 0)
     if (result.ok) {
       assert.ok(result.data.services.length >= 2)
       assert.ok(result.data.services.some((s) => s.requiresReferral))
@@ -47,18 +44,17 @@ describe('catalog in mock mode', () => {
   })
 
   it('supports the empty and error scenarios', async () => {
-    const { client } = makeClient([])
-    const empty = await fetchCatalog({ mode: 'mock', client, mockScenario: 'empty', delay: noDelay })
+    const empty = await fetchCatalog(makeMockClient('empty').client, 'mock')
     assert.equal(empty.ok && empty.data.services.length, 0)
-    const error = await fetchCatalog({ mode: 'mock', client, mockScenario: 'error', delay: noDelay })
+    const error = await fetchCatalog(makeMockClient('error').client, 'mock')
     assert.equal(error.ok, false)
   })
 })
 
 describe('catalog in real mode', () => {
   it('reports a 404 as "not implemented" instead of pretending it worked', async () => {
-    const { client, calls } = makeClient([{ status: 404, body: { message: 'Not Found' } }], { token: 't' })
-    const result = await fetchCatalog({ mode: 'real', client, mockScenario: 'ok', delay: noDelay })
+    const { client, calls } = makeClient([{ status: 404 }], { token: 't' })
+    const result = await fetchCatalog(client, 'real')
     assert.equal(calls[0].url, 'http://api.test/api/catalog/services')
     assert.equal(result.ok, false)
     assert.equal(result.source, 'real')
@@ -67,7 +63,7 @@ describe('catalog in real mode', () => {
 
   it('parses the proposed contract response', async () => {
     const { client } = makeClient([{ status: 200, body: CONTRACT_CATALOG }], { token: 't' })
-    const result = await fetchCatalog({ mode: 'real', client, mockScenario: 'ok', delay: noDelay })
+    const result = await fetchCatalog(client, 'real')
     assert.equal(result.ok, true)
     if (result.ok) {
       assert.equal(result.data.services[0].code, 'HOME_BASIC_CHECK')

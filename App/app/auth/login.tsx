@@ -17,11 +17,12 @@ import { apiService } from "@/services/api"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ email?: string; registered?: string }>()
+  const params = useLocalSearchParams<{ email?: string; registered?: string; expired?: string }>()
   const [email, setEmail] = useState(typeof params.email === "string" ? params.email : "")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const justRegistered = params.registered === "1"
+  const sessionExpired = params.expired === "1"
 
   const handleLogin = async () => {
     const trimmedEmail = email.trim()
@@ -59,6 +60,12 @@ export default function LoginScreen() {
               PariwarCare-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
             </Text>
           </View>
+
+          {sessionExpired && (
+            <View style={[styles.notice, styles.noticeWarn]}>
+              <Text style={[styles.noticeText, styles.noticeWarnText]}>Нэвтрэх хугацаа дууссан. Дахин нэвтэрнэ үү.</Text>
+            </View>
+          )}
 
           {justRegistered && (
             <View style={styles.notice}>
@@ -252,5 +259,11 @@ const styles = StyleSheet.create({
     color: "#1b5e20",
     fontSize: 14,
     lineHeight: 20,
+  },
+  noticeWarn: {
+    backgroundColor: "#fff3e0",
+  },
+  noticeWarnText: {
+    color: "#e65100",
   },
 })

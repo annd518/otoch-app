@@ -2,7 +2,7 @@ import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 
 import { hostFromHostUri, resolveApiConfig, type ApiConfig } from './apiConfig'
-import { parseCatalogMockScenario, type CatalogMockScenario } from '../mocks/catalogMock'
+import { resolveMockedEndpoints, type MockableEndpoint } from '../services/endpoints'
 
 // EXPO_PUBLIC_* values are inlined into the JS bundle at build time, so they
 // must never contain secrets. Access them with dot notation so Expo can inline.
@@ -15,15 +15,20 @@ export const apiConfig: ApiConfig = resolveApiConfig({
   requestedMode: process.env.EXPO_PUBLIC_API_MODE,
 })
 
-export const catalogMockScenario: CatalogMockScenario = parseCatalogMockScenario(
-  process.env.EXPO_PUBLIC_MOCK_SCENARIO,
-)
+// Always empty in release builds.
+export const mockedEndpoints: ReadonlySet<MockableEndpoint> = resolveMockedEndpoints({
+  isDev: __DEV__,
+  mode: apiConfig.mode,
+  list: process.env.EXPO_PUBLIC_MOCK_ENDPOINTS,
+})
+
+export const mockScenario: string = __DEV__ ? (process.env.EXPO_PUBLIC_MOCK_SCENARIO ?? '') : ''
 
 if (__DEV__) {
   console.log(
     '[env] API:',
     apiConfig.ok ? `${apiConfig.baseUrl} (${apiConfig.source})` : apiConfig.error,
-    'mode:',
-    apiConfig.mode,
+    'mocked endpoints:',
+    mockedEndpoints.size > 0 ? [...mockedEndpoints].join(',') : 'none',
   )
 }

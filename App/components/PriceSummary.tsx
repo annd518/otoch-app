@@ -1,7 +1,7 @@
 import React from "react"
 import { StyleSheet, Text, View } from "react-native"
 
-import type { SelectedService } from "@/context/BookingDraftContext"
+import type { SelectedService } from "@/services/bookingDraft"
 import type { Quote } from "@/services/apiTypes"
 import { formatMnt } from "@/utils/money"
 
