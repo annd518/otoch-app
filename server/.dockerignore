@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+!.env.sample
+.local-pg
+*.log
+tests
+src/uploads
+Dockerfile
+.dockerignore

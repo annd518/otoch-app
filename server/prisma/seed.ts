@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { CATALOG_FIXTURES } from './fixtures/catalog'
 
 const prisma = new PrismaClient()
 
@@ -14,7 +15,20 @@ const demoUsers: { name: string; email: string; role: Role }[] = [
 
 const daysFromNow = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000)
 
+// Fictional catalog rows (isFixture = true). Upsert by stable code; never deletes rows.
+async function seedCatalogFixtures() {
+    for (const { isActive = true, ...item } of CATALOG_FIXTURES) {
+        await prisma.serviceCatalogItem.upsert({
+            where: { code: item.code },
+            update: { ...item, isActive, isFixture: true },
+            create: { ...item, isActive, isFixture: true },
+        })
+    }
+}
+
 async function main() {
+    await seedCatalogFixtures()
+
     const password = await bcrypt.hash(DEMO_PASSWORD, 10)
 
     const users: Record<string, { id: string }> = {}

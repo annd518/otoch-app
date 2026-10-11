@@ -5,7 +5,7 @@ node_modules
 /src/generated/prisma
 
 /src/uploads
-/prisma/migrations
+# Prisma migrations ARE versioned (prisma/migrations). Do not ignore them.
 /dist
 /.local-pg
 .dev-local.log

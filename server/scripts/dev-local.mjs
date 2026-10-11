@@ -28,6 +28,8 @@ if (!process.argv.includes('--external-db')) {
         password: decodeURIComponent(dbUrl.password),
         port: Number(dbUrl.port || 5432),
         persistent: true,
+        // Windows defaults to WIN1252, which cannot store Cyrillic (Mongolian) text
+        initdbFlags: ['--encoding=UTF8', '--locale=C'],
     })
     if (!existsSync(path.join(databaseDir, 'PG_VERSION'))) {
         console.log('Initialising embedded PostgreSQL...')

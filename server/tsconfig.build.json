@@ -1,0 +1,9 @@
+{
+  // Production build: only src/ -> dist/ (dist/index.js matches `npm start`)
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*.ts"]
+}

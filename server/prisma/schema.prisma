@@ -88,3 +88,23 @@ enum VisitType {
   BASIC
   FULL
 }
+
+// ---- L1-1: service catalog (additive; no relations to existing models yet) ----
+model ServiceCatalogItem {
+  id               String   @id @default(cuid())
+  code             String   @unique // stable machine code, e.g. HOME_BASIC_CHECK
+  name             String
+  description      String?
+  category         String
+  priceMnt         Int // integer MNT, display only — final price comes from the server quote
+  durationMin      Int
+  requiresReferral Boolean  @default(false)
+  questionnaire    String? // red flag questionnaire code, e.g. GENERAL_V1
+  isActive         Boolean  @default(true)
+  isFixture        Boolean  @default(false) // true = fictional test data, not an approved service/price
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive, category, sortOrder])
+}
