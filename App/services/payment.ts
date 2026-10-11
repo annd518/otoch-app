@@ -14,6 +14,7 @@ export interface BankDeeplink {
 
 export interface Invoice {
   id: string
+  paidAt: string | null
   // true for the backend's QPAY_MODE=mock invoices: not QPay, not payable
   isMock: boolean
   mode: string | null
@@ -73,6 +74,7 @@ export function parseInvoice(data: unknown): Invoice | null {
     qrImageBase64: text(p.qrImageBase64) && /^[A-Za-z0-9+/=]+$/.test(p.qrImageBase64) ? p.qrImageBase64 : null,
     deeplinks: safeDeeplinks(p.deeplinks),
     expiresAt: p.expiresAt,
+    paidAt: text(p.paidAt) ? p.paidAt : null,
   }
 }
 
@@ -136,4 +138,71 @@ export function pollDecision(status: PaymentStatus, expiresAt: string, nowMs: nu
   if (status === 'FAILED' || status === 'CANCELLED') return 'stop_failed'
   if (status === 'EXPIRED' || Date.parse(expiresAt) <= nowMs) return 'expired'
   return 'poll'
+}
+
+// ---- Recovery ---------------------------------------------------------------
+// What the device remembers about an invoice attempt (no amounts, no QR):
+// enough to replay the same create (same key + same quote) or read the status.
+export interface PaymentRecord {
+  orderId: string
+  quoteId: string
+  key: string
+  paymentId: string | null
+}
+
+export type RecoveryResult =
+  | { kind: 'pending'; invoice: Invoice }
+  | { kind: 'paid'; invoice: Invoice; paidAt: string }
+  | { kind: 'expired'; invoice: Invoice | null }
+  | { kind: 'failed'; invoice: Invoice }
+  | { kind: 'unavailable'; message: string }
+  | { kind: 'error'; message: string }
+  // the order is waiting for a payment this device cannot identify
+  | { kind: 'unknown_pending'; message: string }
+
+export const UNKNOWN_PENDING_MESSAGE =
+  'Энэ захиалгад төлбөр хүлээгдэж байгаа ч энэ төхөөрөмж тэр нэхэмжлэхийг сэргээж чадахгүй байна. Шинэ нэхэмжлэх үүсгэхгүй.'
+
+export function invoiceOutcome(invoice: Invoice, nowMs: number): RecoveryResult {
+  const decision = pollDecision(invoice.status, invoice.expiresAt, nowMs)
+  if (decision === 'paid') return invoice.paidAt ? { kind: 'paid', invoice, paidAt: invoice.paidAt } : { kind: 'pending', invoice }
+  if (decision === 'expired') return { kind: 'expired', invoice }
+  if (decision === 'stop_failed') return { kind: 'failed', invoice }
+  return { kind: 'pending', invoice }
+}
+
+// GET payment returns the full invoice (QR, deeplinks, expiry) on 28590ee.
+export async function getInvoice(client: HttpClient, orderId: string, paymentId: string): Promise<ApiResult<Invoice>> {
+  const result = await client.request({
+    method: 'GET',
+    path: `/api/orders/${encodeURIComponent(orderId)}/payments/${encodeURIComponent(paymentId)}`,
+    parse: parseInvoice,
+  })
+  return markNotImplemented(result, PAYMENT_NOT_IMPLEMENTED_MESSAGE)
+}
+
+function fromFailure(result: { kind: string; message: string; code?: string }): RecoveryResult {
+  if (result.kind === 'not_implemented') return { kind: 'unavailable', message: result.message }
+  return { kind: 'error', message: result.message }
+}
+
+// Never creates a second invoice: it either reads the remembered payment, or
+// replays the remembered create (same key + same quote => same payment).
+export async function recoverPayment(
+  client: HttpClient,
+  record: PaymentRecord,
+  nowMs: number,
+): Promise<{ result: RecoveryResult; paymentId: string | null }> {
+  if (record.paymentId) {
+    const read = await getInvoice(client, record.orderId, record.paymentId)
+    if (read.ok) return { result: invoiceOutcome(read.data, nowMs), paymentId: read.data.id }
+    return { result: fromFailure(read), paymentId: record.paymentId }
+  }
+  const replay = await createInvoice(client, record.orderId, record.quoteId, record.key)
+  if (replay.ok) return { result: invoiceOutcome(replay.data, nowMs), paymentId: replay.data.id }
+  const inProgress = inProgressPaymentId(replay)
+  if (inProgress) return recoverPayment(client, { ...record, paymentId: inProgress }, nowMs)
+  if (replay.code === 'ORDER_NOT_EDITABLE') return { result: { kind: 'unknown_pending', message: UNKNOWN_PENDING_MESSAGE }, paymentId: null }
+  if (replay.code === 'QUOTE_MISMATCH' || replay.code === 'QUOTE_EXPIRED') return { result: { kind: 'expired', invoice: null }, paymentId: null }
+  return { result: fromFailure(replay), paymentId: null }
 }

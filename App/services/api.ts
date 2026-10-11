@@ -29,6 +29,7 @@ import {
   deleteAttachment,
   getOrder,
   getRedFlagQuestions,
+  listOrders,
   reportRedFlagBlock,
   requestQuote,
   submitRedFlagAnswers,
@@ -36,7 +37,16 @@ import {
   uploadReferral,
   type BlockReport,
 } from './orders'
-import { createInvoice, getPaymentState, type Invoice, type PaymentState } from './payment'
+import {
+  createInvoice,
+  getInvoice,
+  getPaymentState,
+  recoverPayment,
+  type Invoice,
+  type PaymentRecord,
+  type PaymentState,
+  type RecoveryResult,
+} from './payment'
 import { parseCreatedParent, parseParentList } from './validators'
 
 const REQUEST_TIMEOUT_MS = 15000
@@ -182,6 +192,18 @@ export const apiService = {
 
   getPaymentState(orderId: string, paymentId: string): Promise<ApiResult<PaymentState>> {
     return getPaymentState(client, orderId, paymentId)
+  },
+
+  getInvoice(orderId: string, paymentId: string): Promise<ApiResult<Invoice>> {
+    return getInvoice(client, orderId, paymentId)
+  },
+
+  recoverPayment(record: PaymentRecord): Promise<{ result: RecoveryResult; paymentId: string | null }> {
+    return recoverPayment(client, record, Date.now())
+  },
+
+  listOrders(status: string): Promise<ApiResult<Order[]>> {
+    return listOrders(client, status)
   },
 
   deleteAttachment(orderId: string, attachmentId: string): Promise<ApiResult<true>> {

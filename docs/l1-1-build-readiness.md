@@ -295,3 +295,19 @@ Account нээх, төлбөр хийх, cloud build эхлүүлэх, store р�
 | Бодит төхөөрөмж | Байхгүй. Blocker. |
 
 Cloud build, store upload эхлүүлээгүй. Зөвшөөрөл ба батлагдсан утга байхгүй.
+
+## 12. 2026-10-16: build төлөв
+
+| Зүйл | Төлөв |
+|---|---|
+| iOS bundle ID, Android package | Батлагдаагүй |
+| Expo/EAS project, эрх | Байхгүй |
+| Apple Developer, App Store Connect | Эрх байхгүй |
+| Google Play Console, account төрөл | Эрх байхгүй, төрөл тодорхойгүй |
+| Staging HTTPS URL | Байхгүй (release blocker) |
+| Батлагдсан app icon | Байхгүй (Expo template) |
+| iPhone, Android tester төхөөрөмж | Байхгүй |
+
+**Profile-ийн зориулалт (`App/eas.json`):** `staging` нь `distribution: store` тул iOS-д App Store distribution (TestFlight), Android-д signed AAB (Play internal/closed testing) гаргана. `preview` нь internal APK (шууд суулгах), Play-д тохирохгүй. Identifier, project ID, URL ороогүй тул `eas.json` build-ready **биш**.
+
+Native build, TestFlight, Play internal/closed testing эхлээгүй. Холбоос байхгүй.

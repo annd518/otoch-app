@@ -225,6 +225,27 @@ export async function reportRedFlagBlock(
   return { kind: 'retry', message: result.message }
 }
 
+export function parseOrderList(data: unknown): Order[] | null {
+  if (!isRecord(data) || !Array.isArray(data.orders)) return null
+  const out: Order[] = []
+  for (const item of data.orders) {
+    const order = parseOrder({ order: item })
+    if (!order) return null
+    out.push(order)
+  }
+  return out
+}
+
+// GET /api/orders?status=… (own orders, newest first)
+export async function listOrders(client: HttpClient, status: string): Promise<ApiResult<Order[]>> {
+  const result = await client.request({
+    method: 'GET',
+    path: `/api/orders?status=${encodeURIComponent(status)}`,
+    parse: parseOrderList,
+  })
+  return markNotImplemented(result, ORDERS_NOT_IMPLEMENTED_MESSAGE)
+}
+
 export async function getOrder(client: HttpClient, orderId: string): Promise<ApiResult<Order>> {
   const result = await client.request({ method: 'GET', path: orderPaths.byId(orderId), parse: parseOrder })
   return markNotImplemented(result, ORDERS_NOT_IMPLEMENTED_MESSAGE)

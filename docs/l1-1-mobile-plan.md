@@ -615,3 +615,35 @@ Backend `16ce810`-аас хойш шинэчлэгдээгүй, main-д merge х
 | Backend `76b7e9e`-ийн эсрэг интеграц | 7/7 |
 | iOS, Android JS export | Амжилттай. Native build биш. |
 | Бодит төхөөрөмж, native build, store upload | Хийгээгүй (төхөөрөмж, эрх, identifier байхгүй) |
+
+---
+
+## 13. 2026-10-16: backend `28590ee`, payment recovery
+
+Туршсан сервер: `work/backend-l1-1` `28590ee` (PR #5), тусгаарласан хуулбар `http://localhost:8081`, шинэ embedded DB, `QPAY_MODE=mock`, `STORAGE_DRIVER=local-dev`, `JWT_EXPIRES_IN=20s`. Бодит эсвэл бусдын DB-д хүрээгүй.
+
+### 13.1 Payment recovery
+
+- Апп захиалга бүрийн `{key, quoteId, paymentId}`-г хэрэглэгч тус бүрээр хадгална (`App/utils/paymentStore.ts`). Үнэ, QR, хувийн мэдээлэл хадгалахгүй.
+- Хүсэлт илгээхээс өмнө key хадгалагдана. Timeout эсвэл restart-ийн дараа ижил key + quote-оор replay хийж, нэг л нэхэмжлэх буцаана. `paymentId` мэдэгдэж байвал `GET payment`-ээр бүтэн нэхэмжлэх (QR, deeplink, хугацаа) сэргээнэ.
+- `409 PAYMENT_IN_PROGRESS` + `paymentId` ирвэл тэр нэхэмжлэхийг үргэлжлүүлнэ (гэрээ).
+- **Серверийн бодит зан төлөв:** өөр key-ээр (өөр төхөөрөмж, хадгалсан бичлэг алга) хүсэхэд `409 ORDER_NOT_EDITABLE`, `paymentId`-гүй. Апп "энэ төхөөрөмж сэргээж чадахгүй" гэж харуулна. Шинэ нэхэмжлэх, хуурамч амжилт байхгүй.
+- PAID зөвхөн серверийн `PAID` + `paidAt`. PAID, EXPIRED, FAILED нь бичлэгийг хаана. `isMock` бол "бодит QPay биш" гэж харуулна.
+- Нэг timer, in-flight хамгаалалт. Дэлгэц хаагдах үед (logout орно) polling зогсоно. Апп resume үед нэг удаа шалгана.
+- "Захиалга" tab нь `GET /api/orders?status=AWAITING_PAYMENT` болон `BLOCKED_RED_FLAG`-аар restart эсвэл re-login хийсний дараа төлөвийг сэргээнэ.
+
+### 13.2 Quote
+
+`travelFeeMnt`, `discountMnt` = 0 боловч `excludes`-д байвал апп тэдгээрийг "тооцоогүй" (`null`) гэж үзнэ. "0 ₮" гэж харуулахгүй, "Ороогүй: унааны зардал, хөнгөлөлт, НӨАТ" гэж харуулна.
+
+### 13.3 Шалгалт
+
+| Шалгалт | Дүн |
+|---|---|
+| Lint, typecheck | 0 алдаа |
+| Unit тест | 143/143 |
+| Backend `28590ee`-ийн эсрэг интеграц | 8/8: auth ба token дуусалт, draft replay, эрт блок, re-login дараах блок, quote version, upload алдагдсан хариу + retry/read/delete, төлбөр сэргээлт |
+| iOS, Android JS export | Амжилттай. Native build биш. |
+| Native build, store upload, төхөөрөмж | Хийгээгүй |
+
+QPay sandbox шалгагдаагүй. Mock PAID-ийг backend-ийн dev туслах endpoint-оор өдөөсөн.

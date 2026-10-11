@@ -198,18 +198,21 @@ export function parseQuote(data: unknown): Quote | null {
     if (!line) return null
     lines.push(line)
   }
+  const excludes = Array.isArray(q.excludes) ? q.excludes.filter((e): e is string => typeof e === 'string') : []
+  // Backend 28590ee sends travelFeeMnt/discountMnt = 0 meaning "not calculated"
+  // when they are listed in `excludes`. They must not be shown as a real 0 ₮.
   return {
     id: q.id,
     currency: 'MNT',
     lines,
     subtotalMnt: q.subtotalMnt,
-    travelFeeMnt: isInteger(q.travelFeeMnt) ? q.travelFeeMnt : null,
-    discountMnt: isInteger(q.discountMnt) ? q.discountMnt : null,
+    travelFeeMnt: isInteger(q.travelFeeMnt) && !excludes.includes('TRAVEL_FEE') ? q.travelFeeMnt : null,
+    discountMnt: isInteger(q.discountMnt) && !excludes.includes('DISCOUNT') ? q.discountMnt : null,
     totalMnt: q.totalMnt,
     pricingVersion: q.pricingVersion,
     expiresAt: q.expiresAt,
     isFixture: q.isFixture === true,
     orderVersion: isInteger(q.orderVersion) ? q.orderVersion : null,
-    excludes: Array.isArray(q.excludes) ? q.excludes.filter((e): e is string => typeof e === 'string') : [],
+    excludes,
   }
 }

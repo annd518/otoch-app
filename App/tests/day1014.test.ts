@@ -7,6 +7,7 @@ import { INITIAL_DRAFT, bookingDraftReducer, buildDraftInput, planDraftSave, typ
 import {
   QUOTE_NOT_IMPLEMENTED_MESSAGE,
   createDraftOrder,
+  getOrder,
   isQuoteExpired,
   reportRedFlagBlock,
   requestQuote,
@@ -24,7 +25,6 @@ import {
   safeDeeplinks,
 } from '../services/payment'
 import { makeClient, makeMockClient } from './helpers'
-import { getOrder } from '../services/orders'
 
 // The implemented server needs the current order version for a quote.
 async function quoteFor(client: ReturnType<typeof makeMockClient>['client'], orderId: string) {
@@ -366,13 +366,23 @@ describe('backend 76b7e9e contract details', () => {
     assert.equal(inv.ok ? '' : inv.code, 'QUOTE_MISMATCH')
   })
 
-  it('payment: key required, mock flagged as isMock, second key while pending -> PAYMENT_IN_PROGRESS with paymentId', async () => {
-    const { client, id } = await cleared()
+  it('payment: key required, mock flagged as isMock, second key while pending -> PAYMENT_IN_PROGRESS with paymentId (documented contract)', async () => {
+    const { client, id } = await cleared('payment-in-progress-contract')
     const q = await quoteFor(client, id)
     if (!q.ok) return assert.fail('quote')
     const inv = await createInvoice(client, id, q.data.id, 'key-a')
     assert.ok(inv.ok && inv.data.isMock)
     const second = await createInvoice(client, id, q.data.id, 'key-b')
     assert.equal(inProgressPaymentId(second), inv.ok ? inv.data.id : '')
+  })
+
+  it('server 28590ee behaviour: second key while pending -> ORDER_NOT_EDITABLE without paymentId', async () => {
+    const { client, id } = await cleared()
+    const q = await quoteFor(client, id)
+    if (!q.ok) return assert.fail('quote')
+    await createInvoice(client, id, q.data.id, 'key-a')
+    const second = await createInvoice(client, id, q.data.id, 'key-b')
+    assert.equal(second.ok ? '' : second.code, 'ORDER_NOT_EDITABLE')
+    assert.equal(inProgressPaymentId(second), null)
   })
 })

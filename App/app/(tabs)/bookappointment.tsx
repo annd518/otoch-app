@@ -77,6 +77,8 @@ export default function BookAppointment() {
   const dates = useMemo(() => upcomingDates(new Date()), [])
 
   const [openBlocks, setOpenBlocks] = useState(0)
+  const [awaiting, setAwaiting] = useState<string[]>([])
+  const [serverBlocked, setServerBlocked] = useState(0)
 
   // Reload when the tab gains focus, e.g. after adding a parent. Also retry
   // red flag blocks the server has not confirmed yet.
@@ -88,6 +90,13 @@ export default function BookAppointment() {
       })
       syncPendingBlocks().then((open) => {
         if (active) setOpenBlocks(open.length)
+      })
+      // Restored from the server after a restart or a re-login.
+      apiService.listOrders("AWAITING_PAYMENT").then((r) => {
+        if (active) setAwaiting(r.ok ? r.data.map((o) => o.id) : [])
+      })
+      apiService.listOrders("BLOCKED_RED_FLAG").then((r) => {
+        if (active) setServerBlocked(r.ok ? r.data.length : 0)
       })
       return () => {
         active = false
@@ -196,6 +205,23 @@ export default function BookAppointment() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {awaiting.map((id) => (
+          <TouchableOpacity
+            key={id}
+            style={styles.awaitingBanner}
+            onPress={() => router.push({ pathname: "/booking/payment", params: { orderId: id } })}
+          >
+            <Text style={styles.awaitingText}>Төлбөр хүлээгдэж буй захиалга байна. Нэхэмжлэхийг нээх</Text>
+          </TouchableOpacity>
+        ))}
+        {serverBlocked > 0 && openBlocks === 0 ? (
+          <View style={styles.pendingBanner}>
+            <Text style={styles.pendingBannerText}>
+              Өмнө нь аюулын шинжээр зогссон захиалга серверт бүртгэлтэй байна. Түүнийг үргэлжлүүлэх боломжгүй.
+              Яаралтай тусламж хэрэгтэй бол {EMERGENCY_PHONE} руу залгана уу.
+            </Text>
+          </View>
+        ) : null}
         {openBlocks > 0 ? (
           <View style={styles.pendingBanner}>
             <Text style={styles.pendingBannerText}>
@@ -442,6 +468,8 @@ const styles = StyleSheet.create({
   chipTextActive: { fontSize: 14, color: "#fff", fontWeight: "700" },
   noteText: { fontSize: 12, color: "#888", marginTop: 8 },
   disabledRow: { opacity: 0.4 },
+  awaitingBanner: { backgroundColor: "#e3f2fd", borderRadius: 12, padding: 12, marginBottom: 12 },
+  awaitingText: { color: "#1565c0", fontSize: 14, fontWeight: "700" },
   pendingBanner: { backgroundColor: "#fdecea", borderRadius: 12, padding: 12, marginBottom: 16, gap: 6 },
   pendingBannerText: { color: "#b71c1c", fontSize: 13, lineHeight: 18 },
   input: {

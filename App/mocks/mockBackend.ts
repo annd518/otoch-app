@@ -1,6 +1,6 @@
 // FABRICATED development backend for endpoints the server has not implemented
 // or has implemented only on a branch. Response shapes follow the implemented
-// server on work/backend-l1-1 (76b7e9e) and docs/l1-1-api.md §0.3-§7. Used only
+// server on work/backend-l1-1 (28590ee) and docs/l1-1-api.md §0.3-§7. Used only
 // when utils/env.ts enables mocks, which is never the case in release builds.
 //
 // Scenario tokens (EXPO_PUBLIC_MOCK_SCENARIO, comma separated):
@@ -16,6 +16,9 @@
 //   quote-501                     quote answers 501 NOT_IMPLEMENTED like the current server
 //   quote-expired                 quotes are already expired
 //   payment-expire | payment-fail payment ends EXPIRED / FAILED instead of PAID
+//   payment-in-progress-contract  a second key while pending gets 409 PAYMENT_IN_PROGRESS
+//                                 with paymentId (documented contract); by default the
+//                                 mock answers ORDER_NOT_EDITABLE like the server (28590ee)
 import type { FetchLike, HttpResponseLike, UploadLike } from '../services/httpClient'
 import { isRecord } from '../services/apiResult'
 import { pathOfUrl } from '../services/endpoints'
@@ -137,6 +140,26 @@ export function createMockBackend(options: MockBackendOptions = {}) {
     ignoredFields: ignored,
   })
 
+  // Full invoice, as POST and GET payment return it on the server (28590ee).
+  const invoicePayload = (invoice: { id: string; amountMnt: number; expiresAt: string }, status: string) => ({
+    id: invoice.id,
+    provider: 'QPAY',
+    mode: 'mock',
+    isMock: true,
+    status,
+    amountMnt: invoice.amountMnt,
+    currency: 'MNT',
+    qrText: `MOCK_QR_NOT_PAYABLE:${invoice.id}`,
+    qrImageBase64: MOCK_QR_PNG,
+    deeplinks: [
+      { name: '[MOCK] Bank app', logo: null, link: 'mockbank://q?qPay_QRcode=MOCK' },
+      { name: 'Web link (must be filtered)', logo: null, link: 'https://example.invalid/pay' },
+    ],
+    expiresAt: invoice.expiresAt,
+    paidAt: status === 'PAID' ? new Date().toISOString() : null,
+    failureCode: null,
+  })
+
   const fetch: FetchLike = async (url, init) => {
     await sleep(300)
     const path = pathOfUrl(url)
@@ -185,6 +208,12 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       orders.set(order.id, order)
       if (key) byIdempotencyKey.set(key, order.id)
       return respond(201, { success: true, message: 'Ноорог үүслээ (mock)', data: view(order, ignoredFields(body, DRAFT_FIELDS)) })
+    }
+
+    if (path === '/api/orders' && init.method === 'GET') {
+      const status = /[?&]status=([^&]+)/.exec(url)?.[1]
+      const list = [...orders.values()].filter((o) => !status || o.status === status || (status === 'AWAITING_PAYMENT' && [...invoices.values()].some((i) => i.orderId === o.id && i.status === 'PENDING')))
+      return respond(200, { success: true, message: 'Захиалгууд', data: { orders: list.map((o) => view(o).order) } })
     }
 
     const orderMatch = /^\/api\/orders\/([^/]+)(\/.*)?$/.exec(path)
@@ -299,6 +328,8 @@ export function createMockBackend(options: MockBackendOptions = {}) {
           isFixture: true,
         })),
         subtotalMnt: service,
+        travelFeeMnt: 0,
+        discountMnt: 0,
         totalMnt: service,
         excludes: ['TRAVEL_FEE', 'DISCOUNT', 'VAT'],
         pricingVersion: 'LIST_PRICE_ONLY_V1',
@@ -319,7 +350,11 @@ export function createMockBackend(options: MockBackendOptions = {}) {
         if (known.quoteId !== String(body.quoteId)) return fail(409, 'IDEMPOTENCY_KEY_REUSED', 'Ижил түлхүүрээр өөр quote')
       } else {
         const pending = [...invoices.values()].find((i) => i.orderId === order.id && i.status === 'PENDING')
-        if (pending) return fail(409, 'PAYMENT_IN_PROGRESS', 'Төлбөр хүлээгдэж байна', { paymentId: pending.id })
+        if (pending) {
+          return tokens.has('payment-in-progress-contract')
+            ? fail(409, 'PAYMENT_IN_PROGRESS', 'Төлбөр хүлээгдэж байна', { paymentId: pending.id })
+            : fail(409, 'ORDER_NOT_EDITABLE', 'Захиалгын төлөв (AWAITING_PAYMENT) энэ үйлдлийг зөвшөөрөхгүй')
+        }
         if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
         const quote = quotes.get(String(body.quoteId))
         if (!quote || quote.orderId !== order.id) return fail(409, 'QUOTE_MISMATCH', 'Үнийн санал энэ захиалгынх биш')
@@ -346,24 +381,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
         success: true,
         message: 'Нэхэмжлэх үүслээ (mock, бодит QPay биш)',
         data: {
-          payment: {
-            id: invoice.id,
-            provider: 'QPAY',
-            mode: 'mock',
-            isMock: true,
-            status: 'PENDING',
-            amountMnt: invoice.amountMnt,
-            currency: 'MNT',
-            qrText: `MOCK_QR_NOT_PAYABLE:${invoice.id}`,
-            qrImageBase64: MOCK_QR_PNG,
-            deeplinks: [
-              { name: '[MOCK] Bank app', logo: null, link: 'mockbank://q?qPay_QRcode=MOCK' },
-              { name: 'Web link (must be filtered)', logo: null, link: 'https://example.invalid/pay' },
-            ],
-            expiresAt: invoice.expiresAt,
-            paidAt: null,
-            failureCode: null,
-          },
+          payment: invoicePayload(invoice, invoice.status),
           orderStatus: 'AWAITING_PAYMENT',
           ...(known ? { idempotentReplay: true } : {}),
         },
@@ -381,18 +399,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       return respond(200, {
         success: true,
         message: 'Төлбөрийн төлөв (mock)',
-        data: {
-          payment: {
-            id: invoice.id,
-            mode: 'mock',
-            isMock: true,
-            status,
-            amountMnt: invoice.amountMnt,
-            paidAt: status === 'PAID' ? new Date().toISOString() : null,
-            failureCode: null,
-          },
-          orderStatus: status === 'PAID' ? 'PAID' : 'AWAITING_PAYMENT',
-        },
+        data: { payment: invoicePayload(invoice, status), orderStatus: status === 'PAID' ? 'PAID' : status === 'PENDING' ? 'AWAITING_PAYMENT' : 'DRAFT' },
       })
     }
 
