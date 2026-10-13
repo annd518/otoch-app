@@ -7,6 +7,7 @@ import path from 'node:path'
 import { QPayConfigError, currentQPayMode, getQPayAdapter } from '../src/services/qpay'
 import { getStorage } from '../src/services/storage'
 import { fixtureDataAllowed } from '../src/services/orders'
+import { createApp, trustProxySetting } from '../src/app'
 
 const saved = { ...process.env }
 afterEach(() => { process.env = { ...saved } })
@@ -63,5 +64,18 @@ describe('production config refuses dev/test fallbacks', () => {
         const guard = seed.indexOf('if (isProduction)')
         const demo = seed.indexOf('for (const u of demoUsers)')
         assert.ok(guard > 0 && demo > guard, 'production guard must return before demo users are written')
+    })
+})
+
+describe('reverse proxy (Render, load balancers)', () => {
+    it('TRUST_PROXY="1" trusts exactly one hop (Express would read the string "1" as an IP)', () => {
+        assert.equal(trustProxySetting(undefined), undefined)
+        assert.equal(trustProxySetting(" "), undefined)
+        assert.equal(trustProxySetting("1"), 1)
+        assert.equal(trustProxySetting("loopback"), "loopback")
+        env({ TRUST_PROXY: "1" })
+        const trust = createApp().get('trust proxy fn') as (addr: string, hop: number) => boolean
+        assert.equal(trust('10.0.0.1', 0), true)
+        assert.equal(trust('10.0.0.1', 1), false)
     })
 })

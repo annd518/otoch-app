@@ -28,6 +28,11 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/assets ./assets
 COPY prisma/schema.prisma ./prisma/schema.prisma
+# Committed migrations, so a platform pre-deploy step can run `prisma migrate deploy`
+# from this image (render.yaml); the CLI is fetched at that step, not shipped.
+COPY prisma/migrations ./prisma/migrations
+# Private bucket probe for the deployed container (docs/release/l1-1-release-6-10.md)
+COPY scripts/storage-probe.cjs ./scripts/storage-probe.cjs
 USER node
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
