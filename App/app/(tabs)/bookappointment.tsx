@@ -233,10 +233,6 @@ export default function Booking() {
                 typeof point.lng === "number"
                   ? zoneContaining(zones, { lat: point.lat, lng: point.lng })
                   : null;
-              if (zone) {
-                setSlots([]);
-                setSlotsLoading(Boolean(details.date));
-              }
               dispatch({
                 type: "updateDetails",
                 patch: {

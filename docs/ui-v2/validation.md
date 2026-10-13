@@ -1,3 +1,5 @@
+> Нүүр хуудас/аватарын эцсийн шалгалт: main `d08d254`-тай нэгтгэсэн. Mobile178/178, lint/typecheck, server typecheck, iOS/Android JS export давсан. Газрын зургийн шинэ код дахь хуучин slot setter дуудлагыг одоогийн keyed slot state-тэй нийцүүлсэн. Native галерей/permission acceptance болон DB seed хийгдээгүй.
+
 > Нүүр хуудас/аватар: “Профайл” таб, гарчгийг “Нүүр хуудас” болгосон. Галерейгээс 1:1 зураг сонгох, солих/хасах, бүртгэл тус бүрээр төхөөрөмжид хадгалах боломж нэмсэн; native cache URI-г documents дахь өөрийн avatar хавтсанд хуулна. Demo seed Монгол нэр/Улаанбаатарын хаяг/8 оронтой жишээ утас ашиглана; хуучин demo account-ийн нэрийг зөвхөн тухайн test account-д Монгол жишээгээр харуулна. Seed/бодит DB-д ажиллуулаагүй. Mobile173/173, lint/typecheck болон server typecheck давсан; native gallery permission/device acceptance хүлээгдэнэ.
 
 > Фонт/календарийн эцсийн шалгалт (main `3e03c4d`-тай нэгтгэсэн): mobile 173/173, lint/typecheck, iOS/Android JS export давсан. JS export нь native/device acceptance биш.
