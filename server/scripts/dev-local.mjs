@@ -7,6 +7,7 @@ import { networkInterfaces } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import 'dotenv/config'
+import { stopLeftoverApi, stopProcessTree } from './dev-processes.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dbUrl = new URL(process.env.DATABASE_URL)
@@ -44,7 +45,14 @@ if (!process.argv.includes('--external-db')) {
     console.log(`Embedded PostgreSQL running on port ${dbUrl.port}`)
 }
 
+let api
+let stopping = false
 const shutdown = async () => {
+    if (stopping) return
+    stopping = true
+    // The API chain (npx -> nodemon -> tsx -> node) is not stopped by our exit on
+    // Windows; without this a leftover kept port 8000 and served old code.
+    if (api) stopProcessTree(api.pid)
     if (pg) await pg.stop().catch(() => {})
     process.exit(0)
 }
@@ -67,5 +75,8 @@ const lanIps = Object.values(networkInterfaces())
 console.log(`\nAPI will be reachable at http://localhost:${port}`)
 for (const ip of lanIps) console.log(`  from your phone: http://${ip}:${port}`)
 
-const api = spawn('npx', ['nodemon'], { cwd: root, stdio: 'inherit', shell: true })
+// A leftover API of THIS server folder from an earlier run would hold the port
+stopLeftoverApi(port, root)
+
+api = spawn('npx', ['nodemon'], { cwd: root, stdio: 'inherit', shell: true })
 api.on('exit', shutdown)
