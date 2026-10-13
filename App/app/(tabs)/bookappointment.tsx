@@ -16,6 +16,7 @@ import { BookingCalendar } from "@/components/BookingCalendar";
 import { useSingleFlight } from "@/components/useSingleFlight";
 import { LocationPicker } from "@/components/LocationPicker";
 import { zoneContaining } from "@/utils/geo";
+import { missingForStepOne } from "@/utils/bookingStepOne";
 import {
   Banner,
   Button,
@@ -48,6 +49,7 @@ const time = (iso: string) =>
 export default function Booking() {
   const { state, dispatch } = useBookingDraft();
   const { details, service } = state;
+  const stepOneMissing = missingForStepOne(details);
   const [step, setStep] = useState(1),
     [parents, setParents] = useState<Parent[]>([]),
     [zones, setZones] = useState<Zone[]>([]),
@@ -302,15 +304,12 @@ export default function Booking() {
           )}
           <Button
             title="Үргэлжлүүлэх"
-            disabled={
-              !details.timeSlot ||
-              !details.zoneId ||
-              details.lat === undefined ||
-              details.lng === undefined ||
-              details.addressText.trim().length < 5
-            }
+            disabled={stepOneMissing.length > 0}
             onPress={() => setStep(2)}
           />
+          {stepOneMissing.length > 0 && (
+            <Copy variant="caption">{`Дутуу: ${stepOneMissing.join(", ")}`}</Copy>
+          )}
         </>
       )}
       {step === 2 && (
