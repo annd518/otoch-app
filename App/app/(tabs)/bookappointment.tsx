@@ -14,6 +14,8 @@ import type { Slot, Zone } from "@/services/clientV2";
 import { createIdempotencyKey } from "@/utils/id";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { useSingleFlight } from "@/components/useSingleFlight";
+import { LocationPicker } from "@/components/LocationPicker";
+import { zoneContaining } from "@/utils/geo";
 import {
   Banner,
   Button,
@@ -219,37 +221,31 @@ export default function Booking() {
               message="Серверт батлагдсан бүс нэмэгдэх хүртэл цаг захиалах боломжгүй."
             />
           )}
-          <Input
-            label="Өргөрөг"
-            keyboardType="decimal-pad"
-            value={details.lat?.toString() ?? ""}
-            onChangeText={(value) =>
+          <LocationPicker
+            value={{ lat: details.lat, lng: details.lng }}
+            zones={zones}
+            selectedZoneId={details.zoneId}
+            onChange={(point) => {
+              // No zone chosen yet: pick the one that contains the point
+              const zone =
+                !details.zoneId &&
+                typeof point.lat === "number" &&
+                typeof point.lng === "number"
+                  ? zoneContaining(zones, { lat: point.lat, lng: point.lng })
+                  : null;
+              if (zone) {
+                setSlots([]);
+                setSlotsLoading(Boolean(details.date));
+              }
               dispatch({
                 type: "updateDetails",
                 patch: {
-                  lat:
-                    value.trim() && Number.isFinite(Number(value))
-                      ? Number(value)
-                      : undefined,
+                  lat: point.lat,
+                  lng: point.lng,
+                  ...(zone && { zoneId: zone.id, timeSlot: "" }),
                 },
-              })
-            }
-          />
-          <Input
-            label="Уртраг"
-            keyboardType="decimal-pad"
-            value={details.lng?.toString() ?? ""}
-            onChangeText={(value) =>
-              dispatch({
-                type: "updateDetails",
-                patch: {
-                  lng:
-                    value.trim() && Number.isFinite(Number(value))
-                      ? Number(value)
-                      : undefined,
-                },
-              })
-            }
+              });
+            }}
           />
           <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
           <BookingCalendar

@@ -1,8 +1,11 @@
 import type { HttpClient } from "./httpClient";
 import { isRecord } from "./apiResult";
+import { zoneBounds, type ZoneBounds } from "../utils/geo";
 export interface Zone {
   id: string;
   name: string;
+  // null when the server sends no/invalid bounds: the zone is listed but not drawn
+  bounds: ZoneBounds | null;
 }
 export interface Slot {
   id: string;
@@ -30,7 +33,11 @@ export const clientV2 = (client: HttpClient) => ({
             typeof z.id === "string" &&
             typeof z.name === "string",
         )
-          ? (data.zones as Zone[])
+          ? data.zones.map((z: Record<string, unknown>) => ({
+              id: z.id as string,
+              name: z.name as string,
+              bounds: zoneBounds(z),
+            }))
           : null,
     }),
   availability: (zoneId: string, date: string, serviceCode: string) =>
