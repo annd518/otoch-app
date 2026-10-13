@@ -28,10 +28,24 @@ function corsOrigin(): cors.CorsOptions["origin"] {
   return allowed.length ? allowed : false;
 }
 
+/**
+ * TRUST_PROXY: a hop count ("1" behind one load balancer, e.g. Render) or
+ * Express address names/CIDRs ("loopback", "10.0.0.0/8"). A numeric string must
+ * become a number: Express reads the string "1" as an IP address and trusts nothing,
+ * so every client would share the proxy's IP (and its OTP rate limit).
+ */
+export function trustProxySetting(raw: string | undefined): number | string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (/^\d+$/.test(value)) return Number(value);
+  return value;
+}
+
 export function createApp() {
   const app = express();
 
-  if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY);
+  const trustProxy = trustProxySetting(process.env.TRUST_PROXY);
+  if (trustProxy !== undefined) app.set("trust proxy", trustProxy);
 
   // Middleware
   app.use(express.json({ limit: "1mb" }));

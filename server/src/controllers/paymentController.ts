@@ -28,6 +28,10 @@ interface AuthenticatedRequest extends Request {
 
 const PAYMENT_TTL_MINUTES = 30;
 const CHECK_THROTTLE_MS = 2_000;
+// Real QPay (sandbox): status reads by the app poll at most this often; the
+// callback still forces an immediate check. QPay asks clients not to poll
+// payment/check aggressively.
+const PROVIDER_CHECK_THROTTLE_MS = 10_000;
 
 const createSchema = z.object({
   quoteId: z.string().trim().min(1, "quoteId шаардлагатай"),
@@ -460,7 +464,8 @@ export async function syncPayment(
   if (
     !opts.force &&
     payment.lastCheckedAt &&
-    Date.now() - payment.lastCheckedAt.getTime() < CHECK_THROTTLE_MS
+    Date.now() - payment.lastCheckedAt.getTime() <
+      (payment.mode === "mock" ? CHECK_THROTTLE_MS : PROVIDER_CHECK_THROTTLE_MS)
   )
     return payment;
 
