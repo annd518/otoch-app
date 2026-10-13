@@ -1,6 +1,7 @@
 import { theme } from "@/design/theme";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 
 import type { SelectedService } from "@/services/bookingDraft";
 import type { Quote } from "@/services/apiTypes";

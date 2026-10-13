@@ -12,7 +12,7 @@ import {
 import type { BookingForm, Parent } from "@/services/apiTypes";
 import type { Slot, Zone } from "@/services/clientV2";
 import { createIdempotencyKey } from "@/utils/id";
-import { ulaanbaatarDate } from "@/utils/datetime";
+import { BookingCalendar } from "@/components/BookingCalendar";
 import { useSingleFlight } from "@/components/useSingleFlight";
 import {
   Banner,
@@ -49,9 +49,17 @@ export default function Booking() {
   const [step, setStep] = useState(1),
     [parents, setParents] = useState<Parent[]>([]),
     [zones, setZones] = useState<Zone[]>([]),
-    [slots, setSlots] = useState<Slot[]>([]),
-    [error, setError] = useState(""),
-    [slotsLoading, setSlotsLoading] = useState(false);
+    [slotResult, setSlotResult] = useState<{ key: string; slots: Slot[] }>({
+      key: "",
+      slots: [],
+    }),
+    [error, setError] = useState("");
+  const slotQueryKey =
+    details.zoneId && details.date && service
+      ? `${details.zoneId}:${details.date}:${service.code}`
+      : "";
+  const slots = slotResult.key === slotQueryKey ? slotResult.slots : [];
+  const slotsLoading = !!slotQueryKey && slotResult.key !== slotQueryKey;
   const [acceptedAt] = useState(() => new Date().toISOString());
   const form = details.bookingForm ?? initialForm(acceptedAt);
   const setForm = (patch: Partial<BookingForm>) =>
@@ -87,14 +95,13 @@ export default function Booking() {
       .availability(details.zoneId, details.date, service.code)
       .then((r) => {
         if (!active) return;
-        setSlotsLoading(false);
-        if (r.ok) setSlots(r.data);
-        else setError(r.message);
+        setSlotResult({ key: slotQueryKey, slots: r.ok ? r.data : [] });
+        if (!r.ok) setError(r.message);
       });
     return () => {
       active = false;
     };
-  }, [details.zoneId, details.date, service]);
+  }, [details.zoneId, details.date, service, slotQueryKey]);
   const save = useSingleFlight(
     useCallback(async () => {
       setError("");
@@ -136,11 +143,6 @@ export default function Booking() {
       });
       router.push(nextStepAfterDetails(state, r.data.requiresReferral));
     }, [state, dispatch]),
-  );
-  const [dates] = useState(() =>
-    Array.from({ length: 14 }, (_, i) =>
-      ulaanbaatarDate(new Date(Date.now() + i * 86400000)),
-    ),
   );
   if (isBlocked(state)) return <Redirect href="/booking/emergency" />;
   if (!service)
@@ -204,8 +206,6 @@ export default function Booking() {
               label={z.name}
               selected={details.zoneId === z.id}
               onPress={() => {
-                setSlots([]);
-                setSlotsLoading(Boolean(details.zoneId && details.date));
                 dispatch({
                   type: "updateDetails",
                   patch: { zoneId: z.id, timeSlot: "" },
@@ -252,21 +252,34 @@ export default function Booking() {
             }
           />
           <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
-          {dates.map((date) => (
-            <Chip
-              key={date}
-              label={date}
-              selected={details.date === date}
-              onPress={() => {
-                setSlots([]);
-                setSlotsLoading(Boolean(details.zoneId && details.date));
-                dispatch({
-                  type: "updateDetails",
-                  patch: { date, timeSlot: "" },
-                });
-              }}
-            />
-          ))}
+          <BookingCalendar
+            date={details.date}
+            slot={details.timeSlot}
+            durationMin={service.formConfig?.windowMin ?? 60}
+            onDate={(date) => {
+              dispatch({
+                type: "updateDetails",
+                patch: { date, timeSlot: "" },
+              });
+            }}
+            onTime={(slot) => {
+              const available = slots.find(
+                (s) => time(s.startsAt) === slot.slice(0, 5),
+              );
+              dispatch({
+                type: "updateDetails",
+                patch: {
+                  timeSlot: available
+                    ? `${time(available.startsAt)}-${time(available.endsAt)}`
+                    : slot,
+                },
+              });
+            }}
+          />
+          <Copy>
+            24 цаг ажиллана. Доор тухайн өдрийн серверээс ирсэн сул цагууд
+            харагдана.
+          </Copy>
           {slotsLoading ? (
             <StateView title="Сул цаг шалгаж байна" loading />
           ) : (
@@ -292,7 +305,7 @@ export default function Booking() {
           {details.zoneId && details.date && !slotsLoading && !slots.length && (
             <StateView
               title="Сул цаг алга"
-              message="Өөр өдөр эсвэл бүс сонгоно уу."
+              message="Сонгосон өдөр серверт сул цаг бүртгэгдээгүй байна. Цаг сонгож болно; захиалга баталгаажуулахад багтаамжийг сервер дахин шалгана."
             />
           )}
           <Button
