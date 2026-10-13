@@ -1,0 +1,83 @@
+# OTOCH synthetic-data STAGING on Render (Singapore) — docs/release/l1-1-release-6-10.md §2.
+#
+# Applying this Blueprint creates PAID resources. Do it only after the owner approves the
+# plans and price shown in the Render dashboard. Nothing here is a secret: values marked
+# `sync: false` are typed into the Render dashboard, generated ones never leave Render.
+#
+# Same settings as docker-compose.staging-test.yml (APP_ENV=staging-test, mock SMS/QPay,
+# private S3-compatible bucket). Synthetic data only — never real patients or customers.
+databases:
+  - name: otoch-staging-db
+    region: singapore
+    plan: 0.5c-1g # smallest paid Postgres in the Blueprint spec; check the price before applying
+    postgresMajorVersion: "17"
+    databaseName: otoch_staging
+    user: otoch
+    ipAllowList: [] # reachable only from Render services in the same account
+
+services:
+  - type: web
+    name: otoch-staging-api
+    runtime: docker
+    region: singapore
+    plan: 0.5c-512mb # smallest paid web plan (free instances sleep); check the price before applying
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    healthCheckPath: /api/health
+    # Committed migrations only (never db push / migrate reset). The CLI version matches
+    # server/package-lock.json.
+    preDeployCommand: npx --yes prisma@6.18.0 migrate deploy --schema prisma/schema.prisma
+    autoDeployTrigger: off # deploy deliberately after tests pass on main
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: APP_ENV
+        value: staging-test
+      - key: TRUST_PROXY
+        value: "1" # Render's load balancer: real client IPs for OTP rate limits
+      - key: DATABASE_URL
+        fromDatabase:
+          name: otoch-staging-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: QPAY_CALLBACK_SECRET
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false # https://<service>.onrender.com (or the custom domain)
+      - key: CORS_ORIGINS
+        sync: false # staff web origin(s), comma separated
+      # Payments: mock until QPay sandbox credentials exist, then set QPAY_MODE=sandbox
+      # and QPAY_BASE_URL=https://merchant-sandbox.qpay.mn plus the three QPAY_* secrets.
+      - key: QPAY_MODE
+        value: mock
+      - key: QPAY_BASE_URL
+        sync: false
+      - key: QPAY_USERNAME
+        sync: false
+      - key: QPAY_PASSWORD
+        sync: false
+      - key: QPAY_INVOICE_CODE
+        sync: false
+      # Private referral images: Cloudflare R2 (S3-compatible), bucket NOT public
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_ENDPOINT
+        sync: false # https://<account-id>.r2.cloudflarestorage.com
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      # Phone login on staging: mock SMS plus fixed-code tester/reviewer numbers
+      - key: SMS_DRIVER
+        value: mock
+      - key: OTP_TEST_ACCOUNTS
+        sync: false # "+976XXXXXXXX:NNNNNN,..." — share codes with testers privately
+      - key: ALLOW_FIXTURE_DATA
+        value: "true" # staging knowingly runs on fixture prices/questions

@@ -41,14 +41,39 @@ async function session(user: {
   });
   return { token, refreshToken, user };
 }
+/**
+ * Fixed-code test accounts for store review and staging testers, who cannot
+ * receive SMS: OTP_TEST_ACCOUNTS="+97699000001:483920,+97699000002:715306".
+ * Off unless set. Listed numbers never get an SMS; the code is never returned
+ * or logged. Trivial codes (000000, 123456, ...) are ignored.
+ */
+const TRIVIAL_CODES = new Set(["123456", "654321", "012345", "123123"]);
+export function testAccountCode(phone: string): string | null {
+  const raw = process.env.OTP_TEST_ACCOUNTS;
+  if (!raw) return null;
+  for (const entry of raw.split(",")) {
+    const [p, c] = entry.trim().split(":");
+    if (p !== phone || !c || !/^\d{6}$/.test(c)) continue;
+    if (/^(\d)\1{5}$/.test(c) || TRIVIAL_CODES.has(c)) return null;
+    return c;
+  }
+  return null;
+}
 export async function requestOtp(req: Request, res: Response) {
   const parsed = requestSchema.safeParse(req.body);
   if (!parsed.success) throw validationError(parsed.error);
   const { phone } = parsed.data;
+  const fixed = testAccountCode(phone);
   const mock =
-    process.env.SMS_DRIVER === "mock" && process.env.NODE_ENV !== "production";
+    !fixed &&
+    process.env.SMS_DRIVER === "mock" &&
+    process.env.NODE_ENV !== "production";
   const url = process.env.SMS_WEBHOOK_URL;
-  if (!mock && (!url?.startsWith("https://") || !process.env.SMS_WEBHOOK_TOKEN))
+  if (
+    !fixed &&
+    !mock &&
+    (!url?.startsWith("https://") || !process.env.SMS_WEBHOOK_TOKEN)
+  )
     throw new ApiError(
       503,
       "SMS_UNAVAILABLE",
@@ -56,7 +81,7 @@ export async function requestOtp(req: Request, res: Response) {
     );
   const ipHash = hash(req.ip ?? "unknown");
   const now = new Date(),
-    code = String(randomInt(0, 1000000)).padStart(6, "0");
+    code = fixed ?? String(randomInt(0, 1000000)).padStart(6, "0");
   const row = await prisma.$transaction(async (tx) => {
     // Rate counts and challenge issuance must be atomic across server processes.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
@@ -100,7 +125,7 @@ export async function requestOtp(req: Request, res: Response) {
       },
     });
   });
-  if (!mock) {
+  if (!mock && !fixed) {
     try {
       const response = await fetch(url!, {
         method: "POST",
