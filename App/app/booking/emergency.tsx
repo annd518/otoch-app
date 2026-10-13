@@ -7,9 +7,9 @@ import {
   BackHandler,
   Linking,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon as Ionicons } from "@/components/ui/Icon";
 import { useRouter } from "expo-router";

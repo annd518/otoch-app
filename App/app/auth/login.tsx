@@ -4,13 +4,13 @@ import React, { useState } from "react";
 import {
   StyleSheet,
   View,
-  Text,
   TextInput,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
