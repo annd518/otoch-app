@@ -10,14 +10,14 @@ const prisma = new PrismaClient();
 export const DEMO_PASSWORD = "Demo123!";
 
 const demoUsers: { name: string; email: string; role: Role }[] = [
-  { name: "Ramesh Kumar", email: "child@demo.com", role: "CHILD" },
-  { name: "Sita Nurse", email: "nurse@demo.com", role: "NURSE" },
+  { name: "Б. Тэмүүлэн", email: "child@demo.com", role: "CHILD" },
+  { name: "Г. Номин", email: "nurse@demo.com", role: "NURSE" },
   {
-    name: "Dr. Medical Admin",
+    name: "Д. Энхцэцэг",
     email: "medadmin@demo.com",
     role: "MEDICAL_ADMIN",
   },
-  { name: "Platform Admin", email: "admin@demo.com", role: "ADMIN" },
+  { name: "А. Бат-Эрдэнэ", email: "admin@demo.com", role: "ADMIN" },
 ];
 
 const daysFromNow = (days: number) =>
@@ -107,26 +107,28 @@ async function main() {
 
   const anita = await prisma.parent.create({
     data: {
-      name: "Anita Sharma",
+      name: "Д. Цэцэг",
       age: 78,
+      birthYear: 1948,
       gender: "Female",
-      address: "Lalitpur, Ward-5, near Sunrise Apartments",
-      diseases: "Hypertension, Type 2 Diabetes",
-      medications: "Metformin 500mg, Amlodipine 5mg",
-      emergencyContact: "9800000001",
+      address: "Улаанбаатар, Баянзүрх дүүрэг, 26-р хороо, Дүнжингарав хороолол",
+      diseases: "Даралт ихсэлт, чихрийн шижин",
+      medications: null,
+      emergencyContact: "99000001",
       children: { connect: { id: child.id } },
     },
   });
 
   const hari = await prisma.parent.create({
     data: {
-      name: "Hari Sharma",
+      name: "Б. Бат",
       age: 82,
+      birthYear: 1944,
       gender: "Male",
-      address: "Lalitpur, Ward-5, near Sunrise Apartments",
-      diseases: "Arthritis",
-      medications: "Paracetamol as needed",
-      emergencyContact: "9800000002",
+      address: "Улаанбаатар, Баянзүрх дүүрэг, 26-р хороо, Дүнжингарав хороолол",
+      diseases: "Үе мөчний өвдөлт",
+      medications: null,
+      emergencyContact: "99000002",
       children: { connect: { id: child.id } },
     },
   });

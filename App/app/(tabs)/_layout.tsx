@@ -57,7 +57,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Профайл",
+          title: "Нүүр хуудас",
           tabBarIcon: ({ color }) => <UserRound size={24} color={color} />,
         }}
       />
