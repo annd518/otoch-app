@@ -138,7 +138,16 @@ function sandboxAdapter(): QPayAdapter {
         if (token && token.expiresAt > Date.now() + 30_000) return `Bearer ${token.value}`
         const basic = Buffer.from(`${username}:${password}`).toString('base64')
         const data = await call('/v2/auth/token', {}, `Basic ${basic}`)
-        token = { value: data.access_token, expiresAt: Date.now() + (Number(data.expires_in) || 3600) * 1000 }
+        if (typeof data.access_token !== 'string' || !data.access_token) {
+            throw new QPayProviderError('qpay auth without access_token', true)
+        }
+        // QPay sandbox returns expires_in as a Unix timestamp in seconds.
+        // Also accept a duration for provider versions using OAuth-style expiry.
+        const expiry = Number(data.expires_in)
+        const expiresAt = Number.isFinite(expiry) && expiry > 0
+            ? (expiry >= 1_000_000_000 ? expiry * 1000 : Date.now() + expiry * 1000)
+            : Date.now() + 3600 * 1000
+        token = { value: data.access_token, expiresAt }
         return `Bearer ${token.value}`
     }
     return {
