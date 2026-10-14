@@ -33,10 +33,10 @@ const testTypeData = [
 const COLORS = ["#5B9BD5", "#89CFF0", "#9BD673", "#FFD966"];
 
 const sampleReports = [
-  { id: "r1", patient: "Ram Thapa", testType: "Blood Test", date: "2025-10-30", status: "COMPLETED" },
-  { id: "r2", patient: "Sita Sharma", testType: "Urine Test", date: "2025-10-31", status: "PENDING" },
-  { id: "r3", patient: "Maya KC", testType: "X-Ray", date: "2025-10-29", status: "COMPLETED" },
-  { id: "r4", patient: "Hari Adhikari", testType: "MRI", date: "2025-10-28", status: "VERIFIED" },
+  { id: "r1", patient: "Б. Бат", testType: "Blood Test", date: "2025-10-30", status: "COMPLETED" },
+  { id: "r2", patient: "Д. Цэцэг", testType: "Urine Test", date: "2025-10-31", status: "PENDING" },
+  { id: "r3", patient: "Г. Номин", testType: "X-Ray", date: "2025-10-29", status: "COMPLETED" },
+  { id: "r4", patient: "Д. Ганболд", testType: "MRI", date: "2025-10-28", status: "VERIFIED" },
 ];
 
 function StatusBadge({ status }: { status: string }) {

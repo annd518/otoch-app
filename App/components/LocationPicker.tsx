@@ -45,6 +45,8 @@ export function LocationPicker({
   const [manual, setManual] = useState(false);
   const touched = useRef(false);
   const map = useRef<MapView>(null);
+  // Map centre right now (the pin tip), whether or not a gesture was detected
+  const center = useRef<LatLng>({ lat: region.latitude, lng: region.longitude });
 
   const hasPoint =
     typeof value.lat === "number" && typeof value.lng === "number";
@@ -52,9 +54,13 @@ export function LocationPicker({
     hasPoint && !!selected?.bounds && !isInside(selected.bounds, value as LatLng);
 
   const onRegionChangeComplete = (r: Region, details?: Details) => {
+    center.current = { lat: r.latitude, lng: r.longitude };
+    // Auto-commit only after a real user gesture. Apple Maps (iOS) may not
+    // report touches to JS, so the "use this point" button below always works.
     if (!touched.current && !details?.isGesture) return;
-    onChange(roundPoint({ lat: r.latitude, lng: r.longitude }));
+    onChange(roundPoint(center.current));
   };
+  const confirmCenter = () => onChange(roundPoint(center.current));
 
   const setManualCoord = (patch: Partial<LatLng>) => {
     const next = { ...value, ...patch };
@@ -82,6 +88,9 @@ export function LocationPicker({
           style={StyleSheet.absoluteFill}
           initialRegion={region}
           onRegionChangeComplete={onRegionChangeComplete}
+          onPanDrag={() => {
+            touched.current = true;
+          }}
           rotateEnabled={false}
           pitchEnabled={false}
           toolbarEnabled={false}
@@ -109,10 +118,14 @@ export function LocationPicker({
           <MapPin size={40} color={t.color.error} fill={t.color.background} />
         </View>
       </View>
+      <Button
+        title={hasPoint ? "Улаан тэмдгийн цэгээр шинэчлэх" : "Энэ цэгийг хаяг болгох"}
+        onPress={confirmCenter}
+      />
       <Copy variant="caption" style={{ color: t.color.secondary }}>
         {hasPoint
           ? `Сонгосон цэг: ${value.lat!.toFixed(5)}, ${value.lng!.toFixed(5)}`
-          : "Цэг сонгоогүй байна"}
+          : "Цэг сонгоогүй байна: улаан тэмдгийг байрандаа тааруулаад дээрх товчийг дарна уу."}
       </Copy>
       {outside && (
         <Banner error>

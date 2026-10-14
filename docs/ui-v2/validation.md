@@ -1,3 +1,12 @@
+## Монгол жишээ хүний мэдээлэл
+
+- Mobile-ийн хуучин `child@demo.com` demo өвчтөнүүдийн нэр, хаяг, холбоо барих утсыг Монгол жишээгээр харуулна. Бодит аккаунтад энэ хөрвүүлэлт үйлчлэхгүй.
+- Seed-ийн үзлэгийн жишээ тэмдэглэл болон вэбийн жишээ хүний нэр, байршил шинэчлэгдсэн. Гаднын хүний зураг оронд ерөнхий аватар ашиглав. Сэтгэгдлийг жишээ гэж тэмдэглэв.
+- Бодит/локал DB-д seed, update, migration ажиллуулаагүй.
+
+> Нүүрийн UI/UX шинэчлэл: утсан дээр бүтэн өргөнтэй дарагдах үйлчилгээний карт, таблет дээр хоёр багана; Noto Sans 18/16px гарчиг/тайлбар, давтагдсан том товчийн оронд карт бүхэлдээ дарагдана. Жижиг дэлгэцийн табын нэр тайрагдахгүй, safe area/үсгийн хэмжээнд табын өндөр зохицоно. Web native map импортын алдааг `LocationPicker.web.tsx`-ийн гараар координат оруулах fallback-аар тусгаарласан; native газрын зургийн код хэвээр.
+> Шалгалт: mobile178/178, lint/typecheck, static web/SSR export давсан. Mock API-тай browser 320/390/768px дээр runtime error/хөндлөн overflow 0. Зураг: [320px](screenshots/home-refresh/home-320.png), [390px](screenshots/home-refresh/home-390.png), [768px](screenshots/home-refresh/home-768.png). Browser зураг нь native iPhone/Android болон native 200% font acceptance биш.
+
 > Нүүр хуудас/аватарын эцсийн шалгалт: main `d08d254`-тай нэгтгэсэн. Mobile178/178, lint/typecheck, server typecheck, iOS/Android JS export давсан. Газрын зургийн шинэ код дахь хуучин slot setter дуудлагыг одоогийн keyed slot state-тэй нийцүүлсэн. Native галерей/permission acceptance болон DB seed хийгдээгүй.
 
 > Нүүр хуудас/аватар: “Профайл” таб, гарчгийг “Нүүр хуудас” болгосон. Галерейгээс 1:1 зураг сонгох, солих/хасах, бүртгэл тус бүрээр төхөөрөмжид хадгалах боломж нэмсэн; native cache URI-г documents дахь өөрийн avatar хавтсанд хуулна. Demo seed Монгол нэр/Улаанбаатарын хаяг/8 оронтой жишээ утас ашиглана; хуучин demo account-ийн нэрийг зөвхөн тухайн test account-д Монгол жишээгээр харуулна. Seed/бодит DB-д ажиллуулаагүй. Mobile173/173, lint/typecheck болон server typecheck давсан; native gallery permission/device acceptance хүлээгдэнэ.

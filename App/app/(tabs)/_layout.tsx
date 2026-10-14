@@ -1,12 +1,15 @@
 import { Redirect, Tabs } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { View } from "react-native";
+import { View, useWindowDimensions } from "react-native";
 import { House, CalendarDays, FileText, UserRound } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { storage } from "@/utils/storage";
 import { theme } from "@/design/theme";
-import { StateView } from "@/components/ui";
+import { StateView, Copy } from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 export default function TabLayout() {
+  const { width, fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
   const { restore } = useBookingDraft();
   useEffect(() => {
@@ -33,7 +36,25 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.color.brand,
         tabBarInactiveTintColor: theme.color.secondary,
-        tabBarStyle: { minHeight: 64 },
+        tabBarStyle: {
+          height: Math.max(72, 32 + 36 * fontScale) + insets.bottom,
+        },
+        tabBarLabelPosition: "below-icon",
+        tabBarLabel: ({ color, children }) => (
+          <Copy
+            variant="caption"
+            style={{
+              color,
+              fontFamily: "NotoSans_600SemiBold",
+              fontSize: width < 360 ? 12 : 13,
+              lineHeight: 18,
+              textAlign: "center",
+              paddingHorizontal: 2,
+            }}
+          >
+            {children}
+          </Copy>
+        ),
         tabBarLabelStyle: { fontFamily: "NotoSans_600SemiBold", fontSize: 14 },
       }}
     >
