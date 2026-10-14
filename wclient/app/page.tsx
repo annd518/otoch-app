@@ -589,7 +589,7 @@ export default function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 scroll-animate">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Бодит түүхүүд
+              Туршилтын хэрэглэгчдийн жишээ сэтгэгдэл
             </h2>
           </div>
 
@@ -598,21 +598,21 @@ export default function Home() {
               {
                 quote:
                   "Сувилагч ээжийн маань даралт ихсэлтийг эрт илрүүлсэн. Түүний амийг аварсан.",
-                author: "Ramesh S.",
-                location: "Dubai",
+                author: "Б. Тэмүүлэн",
+                location: "Улаанбаатар",
                 emoji: "🙏",
               },
               {
-                quote: "Аав маань Маяа эгчид их дуртай. Одоо эмээ цагтаа уудаг болсон!",
-                author: "Prajwal S.",
-                location: "Melbourne",
+                quote: "Аав маань Номин сувилагчид их дуртай. Одоо эмээ цагтаа уудаг болсон!",
+                author: "С. Энхболд",
+                location: "Дархан",
                 emoji: "❤️",
               },
               {
                 quote:
                   "Би эцэг эх, үр хүүхдийн хоорондын гүүр. Хамгийн утга учиртай ажил.",
-                author: "Maya T.",
-                location: "Сувилагч, Катманду",
+                author: "Г. Номин",
+                location: "Сувилагч, Улаанбаатар",
                 emoji: "👩‍⚕️",
               },
             ].map((testimonial, i) => (

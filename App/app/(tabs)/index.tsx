@@ -1,17 +1,31 @@
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import React, { useCallback, useState } from "react";
 import { theme } from "@/design/theme";
-import { Syringe, Bandage, HeartPulse, HandHeart } from "lucide-react-native";
-import { Linking, View, useWindowDimensions } from "react-native";
+import {
+  Syringe,
+  Bandage,
+  HeartPulse,
+  HandHeart,
+  ChevronRight,
+  CalendarDays,
+} from "lucide-react-native";
+import {
+  Linking,
+  View,
+  Pressable,
+  StyleSheet,
+  useWindowDimensions,
+} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
 import { groups, orderStatus } from "@/design/catalog";
-import { Button, Banner, Card, Copy, Screen, StateView } from "@/components/ui";
+import { Button, Banner, Card, Copy, Screen } from "@/components/ui";
 export default function Home() {
   const { dispatch } = useBookingDraft();
   const { width, fontScale } = useWindowDimensions();
-  const columns = width >= 380 && fontScale < 1.4 ? 2 : 1;
+  const columns = width >= 720 && fontScale < 1.3 ? 2 : 1;
+  const stacked = fontScale >= 1.8;
   const icons = [Syringe, Bandage, HeartPulse, HandHeart];
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
@@ -68,35 +82,74 @@ export default function Home() {
           />
         </Card>
       ) : (
-        <StateView
-          title="Идэвхтэй захиалга алга"
-          message="Өөрт тохирох үйлчилгээг доороос сонгоорой."
-        />
+        <Card style={{ backgroundColor: theme.color.muted, padding: 16 }}>
+          <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+            <CalendarDays color={theme.color.secondary} size={24} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Copy variant="label">Идэвхтэй захиалга алга</Copy>
+              <Copy style={styles.description}>
+                Шинэ захиалгаа эндээс хянах боломжтой.
+              </Copy>
+            </View>
+          </View>
+        </Card>
       )}
+      <View style={{ gap: 4 }}>
+        <Copy variant="heading" style={styles.sectionTitle}>
+          Үйлчилгээнүүд
+        </Copy>
+        <Copy style={styles.description}>
+          Өөрт тохирох үйлчилгээг сонгоорой.
+        </Copy>
+      </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
         {groups.map((group, index) => {
           const Icon = icons[index];
           return (
-            <Card
+            <Pressable
               key={group.code}
-              style={{ width: columns === 2 ? "48%" : "100%" }}
+              accessibilityRole="button"
+              accessibilityLabel={`${group.title}. ${group.description}. Үйлчилгээ үзэх`}
+              onPress={() =>
+                router.push({
+                  pathname: "/booking/catalog",
+                  params: { group: group.code },
+                })
+              }
+              style={({ pressed }) => [
+                styles.serviceCard,
+                {
+                  width: columns === 2 ? "48%" : "100%",
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
             >
-              <Icon color={theme.color.brand} size={32} />
-              <Copy variant="heading" style={{ fontSize: 20, lineHeight: 28 }}>
-                {group.title}
-              </Copy>
-              <Copy>{group.description}</Copy>
-              <Button
-                secondary
-                title="Үйлчилгээ үзэх"
-                onPress={() =>
-                  router.push({
-                    pathname: "/booking/catalog",
-                    params: { group: group.code },
-                  })
-                }
-              />
-            </Card>
+              <View
+                style={{
+                  flexDirection: stacked ? "column" : "row",
+                  gap: 14,
+                  alignItems: stacked ? "flex-start" : "center",
+                }}
+              >
+                <View style={styles.iconBadge}>
+                  <Icon color={theme.color.brand} size={26} strokeWidth={1.8} />
+                </View>
+                <View
+                  style={{ flex: stacked ? undefined : 1, gap: 6, minWidth: 0 }}
+                >
+                  <Copy variant="label" style={styles.categoryTitle}>
+                    {group.title}
+                  </Copy>
+                  <Copy style={styles.description}>{group.description}</Copy>
+                  <Copy variant="label" style={styles.viewLink}>
+                    Үйлчилгээ үзэх
+                  </Copy>
+                </View>
+                {!stacked && (
+                  <ChevronRight color={theme.color.brand} size={20} />
+                )}
+              </View>
+            </Pressable>
           );
         })}
       </View>
@@ -114,3 +167,45 @@ export default function Home() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionTitle: {
+    fontFamily: "NotoSans_600SemiBold",
+    fontSize: 20,
+    lineHeight: 28,
+  },
+  categoryTitle: {
+    fontFamily: "NotoSans_600SemiBold",
+    fontSize: 18,
+    lineHeight: 26,
+    color: theme.color.navy,
+  },
+  description: {
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 16,
+    lineHeight: 24,
+    color: theme.color.secondary,
+  },
+  viewLink: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: theme.color.brand,
+    marginTop: 2,
+  },
+  serviceCard: {
+    backgroundColor: theme.color.background,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    padding: 18,
+    minHeight: 112,
+  },
+  iconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: theme.color.info,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

@@ -26,35 +26,35 @@ type TestItem = {
 const sampleTests: TestItem[] = [
   {
     id: "t1",
-    patient: "Ram Thapa",
+    patient: "Б. Бат",
     testType: "Blood Sugar",
     scheduledFor: "2025-11-02 09:30",
     status: "PENDING",
-    img: "https://randomuser.me/api/portraits/men/45.jpg",
+    img: "/demo-avatar.svg",
   },
   {
     id: "t2",
-    patient: "Sita Sharma",
+    patient: "Д. Цэцэг",
     testType: "CBC",
     scheduledFor: "2025-11-02 10:00",
     status: "IN_PROGRESS",
-    img: "https://randomuser.me/api/portraits/women/65.jpg",
+    img: "/demo-avatar.svg",
   },
   {
     id: "t3",
-    patient: "Maya KC",
+    patient: "Г. Номин",
     testType: "Lipid Panel",
     scheduledFor: "2025-10-30 08:45",
     status: "COMPLETED",
-    img: "https://randomuser.me/api/portraits/women/22.jpg",
+    img: "/demo-avatar.svg",
   },
   {
     id: "t4",
-    patient: "Hari Adhikari",
+    patient: "Д. Ганболд",
     testType: "Urinalysis",
     scheduledFor: "2025-10-29 14:00",
     status: "REPORTED",
-    img: "https://randomuser.me/api/portraits/men/18.jpg",
+    img: "/demo-avatar.svg",
   },
 ]
 
