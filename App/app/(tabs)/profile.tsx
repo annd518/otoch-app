@@ -8,6 +8,7 @@ import { getAvatar, saveAvatar, removeAvatar } from "@/utils/avatar";
 import { draftStore } from "@/utils/draftStore";
 import { theme } from "@/design/theme";
 import { useSingleFlight } from "@/components/useSingleFlight";
+import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import type { AppUser, Parent } from "@/services/apiTypes";
 import { Banner, Button, Card, Copy, Screen } from "@/components/ui";
@@ -234,6 +235,7 @@ export default function Profile() {
         title="Нууцлалын бодлого"
         onPress={() => open(process.env.EXPO_PUBLIC_PRIVACY_URL)}
       />
+      <SupportContactActions />
       <Button
         secondary
         title="Данс устгах хүсэлт"
