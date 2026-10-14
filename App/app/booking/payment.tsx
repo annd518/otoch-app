@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon as Ionicons } from "@/components/ui/Icon";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
+import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { apiService } from "@/services/api";
 import { isBlocked } from "@/services/bookingDraft";
@@ -292,10 +293,7 @@ export default function PaymentScreen() {
               color={theme.color.error}
             />
             <Text style={styles.error}>{phase.message}</Text>
-            <Text style={styles.muted}>
-              Тусламжийн суваг одоогоор батлагдаагүй тул энд холбоо барих
-              мэдээлэл өгөхгүй.
-            </Text>
+            <SupportContactActions fallback="Тусламжийн суваг одоогоор батлагдаагүй тул энд холбоо барих мэдээлэл өгөхгүй." />
           </View>
         )}
 

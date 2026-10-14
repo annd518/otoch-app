@@ -164,6 +164,9 @@ export type BookingDraftAction =
     }
   | { type: "attachmentRemoved"; localId: string }
   | { type: "setQuote"; quote: Quote | null }
+  // Restores a draft kept on the device (services/draftPersistence.ts). Applies
+  // only to an untouched draft, so it never overwrites what the user started.
+  | { type: "hydrate"; state: BookingDraftState }
   | { type: "reset" };
 
 // Answering the questionnaire bumps the server-side version; keep it in sync
@@ -186,6 +189,8 @@ export function bookingDraftReducer(
   action: BookingDraftAction,
 ): BookingDraftState {
   if (action.type === "reset") return INITIAL_DRAFT;
+  if (action.type === "hydrate")
+    return state === INITIAL_DRAFT ? action.state : state;
   // A draft stopped by a red flag cannot be edited or continued. Only an
   // explicit reset (a brand new booking) leaves this state.
   if (

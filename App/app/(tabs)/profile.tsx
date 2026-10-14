@@ -5,8 +5,10 @@ import { apiService } from "@/services/api";
 import { storage } from "@/utils/storage";
 import * as ImagePicker from "expo-image-picker";
 import { getAvatar, saveAvatar, removeAvatar } from "@/utils/avatar";
+import { draftStore } from "@/utils/draftStore";
 import { theme } from "@/design/theme";
 import { useSingleFlight } from "@/components/useSingleFlight";
+import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import type { AppUser, Parent } from "@/services/apiTypes";
 import { Banner, Button, Card, Copy, Screen } from "@/components/ui";
@@ -105,6 +107,9 @@ export default function Profile() {
     .join("");
   const logout = async () => {
     await apiService.logout();
+    // An unsaved booking must not stay on a device the user signed out of.
+    // Cleared after the session ends, so a pending save cannot write it back.
+    await draftStore.clear();
     dispatch({ type: "reset" });
     router.replace("/auth/phone");
   };
@@ -230,6 +235,7 @@ export default function Profile() {
         title="Нууцлалын бодлого"
         onPress={() => open(process.env.EXPO_PUBLIC_PRIVACY_URL)}
       />
+      <SupportContactActions />
       <Button
         secondary
         title="Данс устгах хүсэлт"
