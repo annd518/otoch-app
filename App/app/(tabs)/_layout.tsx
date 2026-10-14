@@ -5,17 +5,21 @@ import { House, CalendarDays, FileText, UserRound } from "lucide-react-native";
 import { storage } from "@/utils/storage";
 import { theme } from "@/design/theme";
 import { StateView } from "@/components/ui";
+import { useBookingDraft } from "@/context/BookingDraftContext";
 export default function TabLayout() {
   const [auth, setAuth] = useState<"checking" | "in" | "out">("checking");
+  const { restore } = useBookingDraft();
   useEffect(() => {
     let active = true;
-    void storage.getValidSession().then((s) => {
+    void storage.getValidSession().then(async (s) => {
+      // An unsaved booking from before an app restart comes back here.
+      if (s) await restore();
       if (active) setAuth(s ? "in" : "out");
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [restore]);
   if (auth === "checking")
     return (
       <View style={{ flex: 1, padding: 16 }}>
