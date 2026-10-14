@@ -34,15 +34,15 @@ export default function ClientProfilePage() {
   const clients: ClientProfile[] = [
     {
       id: "1",
-      name: "Ram Thapa",
+      name: "Б. Бат",
       age: 32,
       gender: "Male",
       bloodPressure: "120/80 mmHg",
-      location: "Kathmandu",
+      location: "Улаанбаатар, Баянзүрх дүүрэг",
       weight: "72 kg",
       height: "175 cm",
       testType: "Blood Sugar",
-      image: "https://randomuser.me/api/portraits/men/45.jpg",
+      image: "/demo-avatar.svg",
       report: {
         reportId: "RPT001",
         summary: "Цусан дахь сахарын хэмжээ бага зэрэг өндөр.",
@@ -53,15 +53,15 @@ export default function ClientProfilePage() {
     },
     {
       id: "2",
-      name: "Sita Sharma",
+      name: "Д. Цэцэг",
       age: 29,
       gender: "Female",
       bloodPressure: "118/75 mmHg",
-      location: "Pokhara",
+      location: "Улаанбаатар, Хан-Уул дүүрэг",
       weight: "60 kg",
       height: "168 cm",
       testType: "CBC",
-      image: "https://randomuser.me/api/portraits/women/65.jpg",
+      image: "/demo-avatar.svg",
     },
   ];
 
