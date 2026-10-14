@@ -167,7 +167,7 @@ async function main() {
       visitType: "FULL",
       status: "WAITING_APPROVAL",
       nurseId: nurse.id,
-      notes: "Mild joint pain, otherwise stable.",
+      notes: "Туршилтын үзлэг: үе мөч бага зэрэг өвдөлттэй.",
       vitals: {
         create: {
           bp: "135/85",
@@ -175,7 +175,7 @@ async function main() {
           pulse: "76",
           oxygen: "97",
           temperature: "98.4",
-          notes: "Mild joint pain",
+          notes: "Туршилтын тэмдэглэл: үе мөчний өвдөлт.",
           medicines: "Paracetamol",
         },
       },
@@ -222,7 +222,7 @@ async function main() {
         status: h.status,
         nurseId: nurse.id,
         approvedById: medAdmin.id,
-        approvalNote: "Vitals within acceptable range.",
+        approvalNote: "Туршилтын үзлэгийн үзүүлэлтийг хянасан.",
         approvedAt: date,
         completedAt: date,
         vitals: {
@@ -232,7 +232,7 @@ async function main() {
             pulse: h.pulse,
             oxygen: h.oxygen,
             temperature: h.temperature,
-            notes: "Routine check",
+            notes: "Туршилтын давтан үзлэг.",
             medicines: "Metformin, Amlodipine",
             createdAt: date,
           },
