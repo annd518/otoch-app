@@ -11,6 +11,7 @@ import { API_PATHS } from "../config/api";
 import { createMockBackend } from "../mocks/mockBackend";
 import { apiConfig, mockScenario, mockedEndpoints } from "../utils/env";
 import { storage } from "../utils/storage";
+import { demoPatient, demoPatientName } from "../utils/demoPersona";
 import type { ApiResult } from "./apiResult";
 import type {
   Attachment,
@@ -248,16 +249,34 @@ export const apiService = {
       };
     }
   },
-  records: () => cachedRead("records", () => clientV2(client).records()),
-  getParent: (id: string) =>
-    client.request({
+  records: () =>
+    cachedRead("records", async () => {
+      const result = await clientV2(client).records();
+      const user = await storage.getUser();
+      return result.ok
+        ? {
+            ...result,
+            data: result.data.map((record) => ({
+              ...record,
+              patientName: demoPatientName(user?.email, record.patientName),
+            })),
+          }
+        : result;
+    }),
+  getParent: async (id: string) => {
+    const result = await client.request({
       method: "GET",
       path: `/api/parents/${encodeURIComponent(id)}`,
       parse: (data) =>
         typeof data === "object" && data !== null && "parent" in data
           ? parseParent(data.parent)
           : null,
-    }),
+    });
+    const user = await storage.getUser();
+    return result.ok
+      ? { ...result, data: demoPatient(user?.email, result.data) }
+      : result;
+  },
   updateParent: (id: string, body: NewParentInput) =>
     client.request({
       method: "PUT",
@@ -282,12 +301,19 @@ export const apiService = {
     return logoutFlow(storage);
   },
 
-  getParents(): Promise<ApiResult<Parent[]>> {
-    return client.request({
+  async getParents(): Promise<ApiResult<Parent[]>> {
+    const result = await client.request({
       method: "GET",
       path: API_PATHS.parents.list,
       parse: parseParentList,
     });
+    const user = await storage.getUser();
+    return result.ok
+      ? {
+          ...result,
+          data: result.data.map((patient) => demoPatient(user?.email, patient)),
+        }
+      : result;
   },
 
   createParent(input: NewParentInput): Promise<ApiResult<Parent>> {
