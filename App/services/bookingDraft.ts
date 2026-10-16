@@ -496,8 +496,15 @@ export function needsReferral(
     state.service?.requiresReferral === true ||
     (state.service?.formConfig?.referral === "partial" &&
       state.details.bookingForm?.postoperative === true) ||
+    medicationPhotoChosen(state) ||
     orderRequiresReferral
   );
+}
+
+/** Step 3 chose to give the medicine as a prescription photo: a photo is then required. */
+export function medicationPhotoChosen(state: BookingDraftState): boolean {
+  const form = state.details.bookingForm;
+  return form?.medicationSource === "PHOTO" && !!form.medication;
 }
 
 export function uploadedReferralCount(state: BookingDraftState): number {
@@ -513,8 +520,12 @@ export function referralTextOk(text: string | null | undefined): boolean {
   return (text?.trim().length ?? 0) >= MIN_REFERRAL_TEXT;
 }
 
-/** A photo on the server or a long enough typed prescription. */
+/**
+ * A photo on the server or a long enough typed prescription; only a photo
+ * when the medicine was to be given as a photo.
+ */
 export function hasReferralInput(state: BookingDraftState): boolean {
+  if (medicationPhotoChosen(state)) return uploadedReferralCount(state) > 0;
   return (
     uploadedReferralCount(state) > 0 ||
     referralTextOk(state.details.bookingForm?.referralText)

@@ -30,6 +30,7 @@ import {
   MAX_REFERRAL_TEXT,
   MIN_REFERRAL_TEXT,
   isBlocked,
+  medicationPhotoChosen,
   planDraftSave,
   referralTextOk,
   uploadedReferralCount,
@@ -76,8 +77,12 @@ export default function ReferralScreen() {
   // doctor's handwriting, others cannot take or pick a photo.
   const form = state.details.bookingForm;
   const savedText = form?.referralText ?? "";
+  // Step 3 chose "Зураг оруулах" for the medicine: only a photo will do here
+  const photoRequired = medicationPhotoChosen(state);
   const [mode, setMode] = useState<"photo" | "text">(() =>
-    savedText.trim() && state.attachments.length === 0 ? "text" : "photo",
+    !photoRequired && savedText.trim() && state.attachments.length === 0
+      ? "text"
+      : "photo",
   );
   const [text, setText] = useState(savedText);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -235,7 +240,7 @@ export default function ReferralScreen() {
   };
 
   const canContinue =
-    (uploaded > 0 || referralTextOk(text)) &&
+    (uploaded > 0 || (!photoRequired && referralTextOk(text))) &&
     !busy &&
     !continueToReview.running;
 
@@ -261,11 +266,19 @@ export default function ReferralScreen() {
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
         <Stepper step={3} />
-        <Text style={styles.rules}>
-          Жорын зургийг оруулах эсвэл жорт бичигдсэнийг гараар бичих: аль нэг
-          нь хангалттай.
-        </Text>
-        {form && (
+        {!photoRequired && (
+          <Text style={styles.rules}>
+            Жорын зургийг оруулах эсвэл жорт бичигдсэнийг гараар бичих: аль нэг
+            нь хангалттай.
+          </Text>
+        )}
+        {photoRequired && (
+          <Text style={styles.rules}>
+            Эмийн мэдээллийг зургаар оруулахаар сонгосон тул жорын зургийг
+            оруулна уу.
+          </Text>
+        )}
+        {form && !photoRequired && (
           <View style={styles.modeRow}>
             {(["photo", "text"] as const).map((m) => (
               <TouchableOpacity

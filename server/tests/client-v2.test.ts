@@ -423,6 +423,81 @@ it("medication, first dose and expiry guards cannot be bypassed", async () => {
     assert.equal(q.json.error.code, expected);
   }
 });
+it("medication by photo: name/dose/route not typed, but the photo, expiry and dose number are still required", async () => {
+  const expiresAt = new Date(Date.now() + 30 * 86400000).toISOString();
+  const order = async (medication: Record<string, unknown>, extra = {}) => {
+    const d = await api(srv.baseUrl, "POST", "/api/orders", {
+      token,
+      body: {
+        parentId,
+        items: [{ serviceCode: "S02" }],
+        bookingForm: { ...form, medicationSource: "PHOTO", medication, ...extra },
+        zoneId: "TEST_V2_ZONE",
+        scheduledFor: startsAt.toISOString(),
+        timeSlot: "09:00-10:00",
+        address: { text: "Тест хаяг 123", lat: 48, lng: 107 },
+      },
+    });
+    assert.equal(d.status, 201, JSON.stringify(d.json));
+    await clear(d.json.data.order.id);
+    return d.json.data.order.id as string;
+  };
+  const quoteCode = async (id: string) =>
+    (
+      await api(srv.baseUrl, "POST", `/api/orders/${id}/quote`, {
+        token,
+        body: {},
+      })
+    ).json.error?.code;
+  const photoOnly = { name: "", dose: "", route: "", expiresAt, doseNumber: 2 };
+
+  // safety checks still apply by photo
+  assert.equal(
+    await quoteCode(await order({ ...photoOnly, doseNumber: 1 })),
+    "FIRST_DOSE_NOT_ALLOWED",
+  );
+  const noExpiry = await api(srv.baseUrl, "POST", "/api/orders", {
+    token,
+    body: {
+      parentId,
+      items: [{ serviceCode: "S02" }],
+      bookingForm: {
+        ...form,
+        medicationSource: "PHOTO",
+        medication: { ...photoOnly, expiresAt: "" },
+      },
+    },
+  });
+  assert.equal(noExpiry.status, 400);
+  // typed referral text is not enough once the photo option was chosen
+  const id = await order(photoOnly, {
+    referralText: "Туршилтын жор: эмийн нэр, тун",
+  });
+  const before = await api(srv.baseUrl, "GET", `/api/orders/${id}`, { token });
+  assert.equal(before.json.data.order.requirements.referralAttachment, true);
+  assert.equal(await quoteCode(id), "REFERRAL_REQUIRED");
+  await prisma.attachment.create({
+    data: {
+      orderId: id,
+      uploaderId: (await prisma.order.findUniqueOrThrow({ where: { id } })).childId,
+      storageDriver: "memory",
+      storageKey: `test/${id}.jpg`,
+      mimeType: "image/jpeg",
+      sizeBytes: 1,
+      sha256: "0",
+    },
+  });
+  const after = await api(srv.baseUrl, "GET", `/api/orders/${id}`, { token });
+  assert.equal(after.json.data.order.requirements.referralAttachment, false);
+  const code = await quoteCode(id);
+  assert.ok(
+    !["MEDICATION_REQUIRED", "REFERRAL_REQUIRED", "FIRST_DOSE_NOT_ALLOWED", "MED_EXPIRED"].includes(code),
+    String(code),
+  );
+  // without medicationSource the old rule holds: everything typed
+  const typed = await order(photoOnly, { medicationSource: undefined });
+  assert.equal(await quoteCode(typed), "MEDICATION_REQUIRED");
+});
 it("approved Cyrillic note exports a private PDF; foreign users cannot read it", async () => {
   const visit = await prisma.visit.create({
     data: {

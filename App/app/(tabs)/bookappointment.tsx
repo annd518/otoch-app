@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
 import { router, Redirect, useFocusEffect } from "expo-router";
 import { syncPendingBlocks } from "@/services/blockSync";
 import { apiService } from "@/services/api";
@@ -17,6 +18,7 @@ import { useSingleFlight } from "@/components/useSingleFlight";
 import { LocationPicker } from "@/components/LocationPicker";
 import { zoneContaining } from "@/utils/geo";
 import { missingForStepOne } from "@/utils/bookingStepOne";
+import { medicationMissing } from "@/utils/medicationStep";
 import {
   Banner,
   Button,
@@ -188,6 +190,21 @@ export default function Booking() {
     route: "",
     expiresAt: "",
     doseNumber: 1,
+  };
+  const medMissing = medicationMissing(form, {
+    required: medicationRequired,
+    firstDoseCheck,
+    scheduledAt,
+  });
+  const medicationKeys =
+    form.medicationSource === "PHOTO"
+      ? (["expiresAt"] as const)
+      : (["name", "dose", "route", "expiresAt"] as const);
+  const medicationLabels = {
+    name: "Эмийн нэр",
+    dose: "Тун",
+    route: "Хэрэглэх арга",
+    expiresAt: "Хугацаа дуусах огноо (YYYY-MM-DD)",
   };
   return (
     <Screen title="Сувилагч дуудах">
@@ -426,18 +443,36 @@ export default function Booking() {
           )}
           {medicationFieldsVisible && (
             <>
-              {(["name", "dose", "route", "expiresAt"] as const).map(
-                (key, i) => (
+              <Copy variant="label">
+                Эмийн мэдээллийг хэрхэн оруулах вэ?
+              </Copy>
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <Chip
+                  label="Зураг оруулах"
+                  selected={form.medicationSource === "PHOTO"}
+                  onPress={() =>
+                    setForm({ medicationSource: "PHOTO", medication })
+                  }
+                />
+                <Chip
+                  label="Гараар бичих"
+                  selected={form.medicationSource === "TEXT"}
+                  onPress={() =>
+                    setForm({ medicationSource: "TEXT", medication })
+                  }
+                />
+              </View>
+              {form.medicationSource === "PHOTO" && (
+                <Banner>
+                  Эмийн нэр, тун, хэрэглэх аргыг дараагийн алхамд жорын
+                  зургаар оруулна. Доорх мэдээллийг энд бөглөнө үү.
+                </Banner>
+              )}
+              {!!form.medicationSource &&
+                medicationKeys.map((key) => (
                   <Input
                     key={key}
-                    label={
-                      [
-                        "Эмийн нэр",
-                        "Тун",
-                        "Хэрэглэх арга",
-                        "Хугацаа дуусах огноо (YYYY-MM-DD)",
-                      ][i]
-                    }
+                    label={medicationLabels[key]}
                     value={
                       key === "expiresAt"
                         ? medication.expiresAt.slice(0, 10)
@@ -455,9 +490,8 @@ export default function Booking() {
                       })
                     }
                   />
-                ),
-              )}
-              {firstDoseCheck && (
+                ))}
+              {!!form.medicationSource && firstDoseCheck && (
                 <Input
                   label="Хэд дэх тун"
                   keyboardType="number-pad"
@@ -472,14 +506,21 @@ export default function Booking() {
                   }
                 />
               )}
-              <Banner>
-                {firstDoseCheck ? "Эхний тунг гэрт хийхгүй. " : ""}
-                Эмийн нэр, тун, аргыг заалттайгаа тулган оруулна уу.
-              </Banner>
+              {form.medicationSource === "TEXT" && (
+                <Banner>
+                  {firstDoseCheck ? "Эхний тунг гэрт хийхгүй. " : ""}
+                  Эмийн нэр, тун, аргыг заалттайгаа тулган оруулна уу.
+                </Banner>
+              )}
+              {form.medicationSource === "PHOTO" && firstDoseCheck && (
+                <Banner>Эхний тунг гэрт хийхгүй.</Banner>
+              )}
               {!medicationRequired && (
                 <Button
                   title="Эмийн мэдээлэл оруулахгүй"
-                  onPress={() => setForm({ medication: null })}
+                  onPress={() =>
+                    setForm({ medication: null, medicationSource: undefined })
+                  }
                 />
               )}
             </>
@@ -488,19 +529,14 @@ export default function Booking() {
             network
             title="Заалт, асуулгыг бөглөх"
             busy={save.running}
-            disabled={
-              (medicationRequired || form.medication !== null) &&
-              (!form.medication?.name ||
-                !form.medication.dose ||
-                !form.medication.route ||
-                !Number.isFinite(Date.parse(form.medication.expiresAt)) ||
-                (firstDoseCheck && form.medication.doseNumber < 2) ||
-                Date.parse(form.medication.expiresAt) <= scheduledAt)
-            }
+            disabled={medMissing.length > 0}
             onPress={() => {
               void save.run();
             }}
           />
+          {medMissing.length > 0 && (
+            <Copy variant="caption">{`Дутуу: ${medMissing.join(", ")}`}</Copy>
+          )}
         </>
       )}
       {step > 1 && (

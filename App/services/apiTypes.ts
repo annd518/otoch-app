@@ -168,6 +168,8 @@ export interface BookingForm {
   } | null;
   // Prescription / referral typed in instead of a photo
   referralText?: string | null;
+  // Medicine name/dose/route typed in (TEXT) or as a prescription photo (PHOTO)
+  medicationSource?: "TEXT" | "PHOTO";
 }
 export interface DraftOrderInput {
   bookingForm?: BookingForm;
