@@ -2,7 +2,13 @@ import React, { useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { Button, Card, Copy, Input } from "@/components/ui";
 import { theme } from "@/design/theme";
-import { calendarDays, isSelectableDay, timeWindow } from "@/utils/calendar";
+import {
+  calendarDays,
+  earliestStartOn,
+  isSelectableDay,
+  startAllowed,
+  timeWindow,
+} from "@/utils/calendar";
 import { isValidCalendarDate, ulaanbaatarDate } from "@/utils/datetime";
 
 export function BookingCalendar({
@@ -18,7 +24,10 @@ export function BookingCalendar({
   onDate: (date: string) => void;
   onTime: (slot: string) => void;
 }) {
-  const today = ulaanbaatarDate(new Date());
+  const now = new Date();
+  const today = ulaanbaatarDate(now);
+  // Starts must be at least 2 hours from now: "HH:MM", null (any) or "24:00" (none left)
+  const earliest = date ? earliestStartOn(date, now) : null;
   const [page, setPage] = useState(() =>
     (isValidCalendarDate(date) ? date : today).slice(0, 7),
   );
@@ -29,12 +38,12 @@ export function BookingCalendar({
     [minute, setMinute] = useState("00");
   const yearValid =
     /^\d{4}$/.test(yearText) && Number(yearText) >= Number(today.slice(0, 4));
+  const start = `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
   const selectedTime =
-    /^\d{1,2}$/.test(hour) && /^\d{1,2}$/.test(minute)
-      ? timeWindow(
-          `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`,
-          durationMin,
-        )
+    /^\d{1,2}$/.test(hour) &&
+    /^\d{1,2}$/.test(minute) &&
+    startAllowed(date, start, now)
+      ? timeWindow(start, durationMin)
       : null;
   const move = (delta: number) => {
     const next = new Date(Date.UTC(year, month - 1 + delta, 1));
@@ -106,7 +115,10 @@ export function BookingCalendar({
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
               {calendarDays(year, month).map((day, i) => {
-                const enabled = !!day && isSelectableDay(day, today),
+                const enabled =
+                    !!day &&
+                    isSelectableDay(day, today) &&
+                    earliestStartOn(day, now) !== "24:00",
                   selected = day === date;
                 return (
                   <Pressable
@@ -151,8 +163,12 @@ export function BookingCalendar({
         }
         disabled={!date}
         onPress={() => {
-          setHour(slot ? slot.slice(0, 2) : "09");
-          setMinute(slot ? slot.slice(3, 5) : "00");
+          const first =
+            earliest && earliest !== "24:00" && earliest > "09:00"
+              ? earliest
+              : "09:00";
+          setHour(slot ? slot.slice(0, 2) : first.slice(0, 2));
+          setMinute(slot ? slot.slice(3, 5) : first.slice(3, 5));
           setChooser("time");
         }}
       />
@@ -227,6 +243,17 @@ export function BookingCalendar({
             ) : (
               <>
                 <Copy>{date} · Улаанбаатарын цаг</Copy>
+                {earliest === "24:00" ? (
+                  <Copy>
+                    Энэ өдөр захиалах боломжтой цаг үлдээгүй. Дараагийн өдрийг
+                    сонгоно уу.
+                  </Copy>
+                ) : earliest ? (
+                  <Copy>
+                    Одоогоос 2 цагийн дараа буюу {earliest}-аас хойш эхлэх цаг
+                    сонгоно уу.
+                  </Copy>
+                ) : null}
                 <View style={{ flexDirection: "row", gap: 12 }}>
                   <View style={{ flex: 1 }}>
                     <Input
@@ -252,13 +279,27 @@ export function BookingCalendar({
                 >
                   {Array.from({ length: 24 }, (_, h) =>
                     String(h).padStart(2, "0"),
-                  ).map((h) => (
+                  ).map((h) => {
+                    // the whole hour is before the earliest allowed start
+                    const tooEarly = !!earliest && `${h}:59` < earliest;
+                    return (
                     <Pressable
                       key={h}
                       accessibilityRole="button"
                       accessibilityLabel={`${h} цаг`}
-                      accessibilityState={{ selected: hour === h }}
-                      onPress={() => setHour(h)}
+                      accessibilityState={{
+                        selected: hour === h,
+                        disabled: tooEarly,
+                      }}
+                      disabled={tooEarly}
+                      onPress={() => {
+                        setHour(h);
+                        if (
+                          earliest &&
+                          `${h}:${minute.padStart(2, "0")}` < earliest
+                        )
+                          setMinute(earliest.slice(3, 5));
+                      }}
                       style={[
                         cell,
                         {
@@ -268,12 +309,14 @@ export function BookingCalendar({
                             hour === h
                               ? theme.color.info
                               : theme.color.background,
+                          opacity: tooEarly ? 0.35 : 1,
                         },
                       ]}
                     >
                       <Copy>{h}</Copy>
                     </Pressable>
-                  ))}
+                    );
+                  })}
                 </View>
                 <Button
                   title="Цаг сонгох"

@@ -19,7 +19,12 @@ import { useSingleFlight } from "@/components/useSingleFlight";
 import { LocationPicker } from "@/components/LocationPicker";
 import { zoneContaining } from "@/utils/geo";
 import { missingForStepOne } from "@/utils/bookingStepOne";
-import { medicationMissing } from "@/utils/medicationStep";
+import {
+  expiryFromInput,
+  expiryProblem,
+  formatDateInput,
+  medicationMissing,
+} from "@/utils/medicationStep";
 import { ReferralUploader } from "@/components/ReferralUploader";
 import {
   Banner,
@@ -69,6 +74,10 @@ export default function Booking() {
   const slots = slotResult.key === slotQueryKey ? slotResult.slots : [];
   const slotsLoading = !!slotQueryKey && slotResult.key !== slotQueryKey;
   const [acceptedAt] = useState(() => new Date().toISOString());
+  // What is typed in the expiry field; the form only keeps a complete, real date
+  const [expiryText, setExpiryText] = useState(() =>
+    (details.bookingForm?.medication?.expiresAt ?? "").slice(0, 10),
+  );
   const form = details.bookingForm ?? initialForm(acceptedAt);
   const setForm = (patch: Partial<BookingForm>) =>
     dispatch({
@@ -222,8 +231,9 @@ export default function Booking() {
     name: "Эмийн нэр",
     dose: "Тун",
     route: "Хэрэглэх арга",
-    expiresAt: "Хугацаа дуусах огноо (YYYY-MM-DD)",
+    expiresAt: "Хугацаа дуусах огноо (он-сар-өдөр)",
   };
+  const expiryError = expiryProblem(expiryText, scheduledAt, new Date());
   return (
     <Screen title="Сувилагч дуудах">
       <Stepper step={step} />
@@ -497,22 +507,28 @@ export default function Booking() {
                   <Input
                     key={key}
                     label={medicationLabels[key]}
-                    value={
-                      key === "expiresAt"
-                        ? medication.expiresAt.slice(0, 10)
-                        : medication[key]
-                    }
-                    onChangeText={(value) =>
+                    value={key === "expiresAt" ? expiryText : medication[key]}
+                    {...(key === "expiresAt" && {
+                      keyboardType: "number-pad" as const,
+                      placeholder: "2027-03-15",
+                      maxLength: 10,
+                      error: expiryError ?? undefined,
+                    })}
+                    onChangeText={(value) => {
+                      if (key !== "expiresAt") {
+                        setForm({ medication: { ...medication, [key]: value } });
+                        return;
+                      }
+                      // digits only, dashes added; "" until the date is complete
+                      const text = formatDateInput(value);
+                      setExpiryText(text);
                       setForm({
                         medication: {
                           ...medication,
-                          [key]:
-                            key === "expiresAt"
-                              ? `${value}T23:59:59+08:00`
-                              : value,
+                          expiresAt: expiryFromInput(text),
                         },
-                      })
-                    }
+                      });
+                    }}
                   />
                 ))}
               {!!form.medicationSource && firstDoseCheck && (
