@@ -49,6 +49,12 @@ const initialForm = (acceptedAt: string): BookingForm => ({
   postoperative: false,
   medication: null,
 });
+// Two equal-width choices side by side ("Зураг оруулах" / "Гараар бичих")
+const choiceStyle = {
+  flex: 1,
+  alignItems: "center",
+  justifyContent: "center",
+} as const;
 const time = (iso: string) =>
   new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
@@ -78,6 +84,12 @@ export default function Booking() {
   const [expiryText, setExpiryText] = useState(() =>
     (details.bookingForm?.medication?.expiresAt ?? "").slice(0, 10),
   );
+  // What is typed in the dose number field; it may be empty while typing
+  // (the form then keeps 1, which the first-dose check refuses)
+  const [doseText, setDoseText] = useState(() => {
+    const n = details.bookingForm?.medication?.doseNumber ?? 0;
+    return n >= 2 ? String(n) : "";
+  });
   const form = details.bookingForm ?? initialForm(acceptedAt);
   const setForm = (patch: Partial<BookingForm>) =>
     dispatch({
@@ -481,6 +493,7 @@ export default function Booking() {
                   onPress={() =>
                     setForm({ medicationSource: "PHOTO", medication })
                   }
+                  style={choiceStyle}
                 />
                 <Chip
                   label="Гараар бичих"
@@ -488,6 +501,7 @@ export default function Booking() {
                   onPress={() =>
                     setForm({ medicationSource: "TEXT", medication })
                   }
+                  style={choiceStyle}
                 />
               </View>
               {form.medicationSource === "PHOTO" && (
@@ -535,15 +549,24 @@ export default function Booking() {
                 <Input
                   label="Хэд дэх тун"
                   keyboardType="number-pad"
-                  value={String(medication.doseNumber)}
-                  onChangeText={(value) =>
+                  placeholder="Жишээ нь: 2"
+                  maxLength={2}
+                  value={doseText}
+                  error={
+                    doseText && Number(doseText) < 2
+                      ? "Эхний тунг гэрт хийхгүй."
+                      : undefined
+                  }
+                  onChangeText={(value) => {
+                    const digits = value.replace(/\D/g, "").slice(0, 2);
+                    setDoseText(digits);
                     setForm({
                       medication: {
                         ...medication,
-                        doseNumber: Number(value) || 1,
+                        doseNumber: Math.max(1, Number(digits) || 1),
                       },
-                    })
-                  }
+                    });
+                  }}
                 />
               )}
               {form.medicationSource === "TEXT" && (

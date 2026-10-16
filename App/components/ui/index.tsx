@@ -8,7 +8,9 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type StyleProp,
   type TextInputProps,
+  type ViewStyle,
   type TextProps,
   type ViewProps,
 } from "react-native";
@@ -147,10 +149,12 @@ export function Chip({
   label,
   selected,
   onPress,
+  style,
 }: {
   label: string;
   selected?: boolean;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
@@ -163,6 +167,7 @@ export function Chip({
           backgroundColor: t.color.info,
           borderColor: t.color.brand,
         },
+        style,
       ]}
     >
       <Copy variant="label">{label}</Copy>
