@@ -11,6 +11,8 @@ export interface MedicationRules {
   firstDoseCheck: boolean;
   // service start (ms); NaN when the slot is not chosen yet
   scheduledAt: number;
+  // prescription photos already stored on the server
+  uploadedPhotos: number;
 }
 
 /** What is still missing in the medication part, in screen order; [] when done. */
@@ -23,6 +25,8 @@ export function medicationMissing(
   const m = form.medication;
   if (!m) return ["эмийн мэдээлэл"];
   const missing: string[] = [];
+  if (form.medicationSource === "PHOTO" && rules.uploadedPhotos === 0)
+    missing.push("жорын зураг");
   if (form.medicationSource === "TEXT") {
     if (!m.name.trim()) missing.push("эмийн нэр");
     if (!m.dose.trim()) missing.push("тун");

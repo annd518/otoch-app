@@ -107,7 +107,9 @@ const bookingFormSchema = z.object({
       name: z.string().trim().max(200),
       dose: z.string().trim().max(100),
       route: z.string().trim().max(100),
-      expiresAt: z.string().datetime({ offset: true }),
+      // "" while a draft is still being filled (the photo is uploaded to the
+      // saved draft first); quote/payment refuse it with MEDICATION_REQUIRED
+      expiresAt: z.union([z.literal(""), z.string().datetime({ offset: true })]),
       doseNumber: z.number().int().min(1),
     })
     .nullable(),

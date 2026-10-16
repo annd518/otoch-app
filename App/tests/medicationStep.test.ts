@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import type { BookingForm } from '../services/apiTypes'
-import { INITIAL_DRAFT, hasReferralInput, medicationPhotoChosen, needsReferral, type BookingDraftState, type LocalAttachment } from '../services/bookingDraft'
+import { INITIAL_DRAFT, bookingDraftReducer, hasReferralInput, medicationPhotoChosen, needsReferral, type BookingDraftState, type LocalAttachment } from '../services/bookingDraft'
 import { parseOrder } from '../services/orders'
 import { medicationMissing } from '../utils/medicationStep'
 
 const scheduledAt = Date.parse('2026-10-20T09:00:00+08:00')
 const later = '2026-12-31T23:59:59+08:00'
-const rules = { required: true, firstDoseCheck: true, scheduledAt }
+const rules = { required: true, firstDoseCheck: true, scheduledAt, uploadedPhotos: 1 }
 const empty = { name: '', dose: '', route: '', expiresAt: '', doseNumber: 1 }
 const form = (over: Partial<BookingForm> = {}): BookingForm => ({
   consent: { service: true, sensitiveData: true, version: 'V2_2026_10', acceptedAt: '2026-10-16T00:00:00.000Z' },
@@ -50,6 +50,27 @@ describe('step 3: medicine by photo or typed (one must be chosen)', () => {
       ['үйлчилгээний өдрөөс хойш дуусах хугацаа'],
     )
     assert.deepEqual(medicationMissing(form({ medicationSource: 'PHOTO', medication: { ...empty, expiresAt: later, doseNumber: 2 } }), rules), [])
+  })
+
+  it('photo: step 3 stays incomplete until a prescription photo is on the server', () => {
+    const photoForm = form({ medicationSource: 'PHOTO', medication: { ...empty, expiresAt: later, doseNumber: 2 } })
+    assert.deepEqual(medicationMissing(photoForm, { ...rules, uploadedPhotos: 0 }), ['жорын зураг'])
+    assert.deepEqual(medicationMissing(photoForm, rules), [])
+  })
+
+  it('an upload bumps the server version; the draft keeps the highest version it has seen', () => {
+    const saved: BookingDraftState = {
+      ...INITIAL_DRAFT,
+      server: {
+        orderId: 'o1', version: 3, status: 'DRAFT', parentId: 'p1', serviceCode: 'S02',
+        ignoredFields: [], referralUploadAvailable: true, source: 'real',
+      },
+    }
+    const up = bookingDraftReducer(saved, { type: 'serverVersionSeen', version: 5 })
+    assert.equal(up.server?.version, 5)
+    // a late reply for an earlier upload never moves it back
+    assert.equal(bookingDraftReducer(up, { type: 'serverVersionSeen', version: 4 }).server?.version, 5)
+    assert.equal(bookingDraftReducer(INITIAL_DRAFT, { type: 'serverVersionSeen', version: 9 }).server, null)
   })
 
   it('photo chosen: the referral step is required and only a photo satisfies it', () => {

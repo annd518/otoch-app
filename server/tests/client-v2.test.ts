@@ -468,7 +468,23 @@ it("medication by photo: name/dose/route not typed, but the photo, expiry and do
       },
     },
   });
-  assert.equal(noExpiry.status, 400);
+  // a draft may be saved without it (photo first), pricing still refuses it
+  assert.equal(noExpiry.status, 201);
+  await clear(noExpiry.json.data.order.id);
+  assert.equal(await quoteCode(noExpiry.json.data.order.id), "MEDICATION_REQUIRED");
+  const badExpiry = await api(srv.baseUrl, "POST", "/api/orders", {
+    token,
+    body: {
+      parentId,
+      items: [{ serviceCode: "S02" }],
+      bookingForm: {
+        ...form,
+        medicationSource: "PHOTO",
+        medication: { ...photoOnly, expiresAt: "2026-13-45" },
+      },
+    },
+  });
+  assert.equal(badExpiry.status, 400);
   // typed referral text is not enough once the photo option was chosen
   const id = await order(photoOnly, {
     referralText: "Туршилтын жор: эмийн нэр, тун",
