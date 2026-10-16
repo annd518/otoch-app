@@ -6,6 +6,7 @@ import {
   CircleCheck,
   CreditCard,
   Images,
+  PencilLine,
   Phone,
   Stethoscope,
 } from "lucide-react-native";
@@ -23,6 +24,7 @@ export function Icon({
     "alert-circle-outline": AlertCircle,
     "camera-outline": Camera,
     "images-outline": Images,
+    "create-outline": PencilLine,
     "card-outline": CreditCard,
     "checkmark-circle": CircleCheck,
     call: Phone,

@@ -83,6 +83,9 @@ function parseSavedForm(value: unknown): BookingForm | null {
     familyPresent: value.familyPresent,
     postoperative: value.postoperative === true,
     medication,
+    ...(typeof value.referralText === "string" && {
+      referralText: value.referralText,
+    }),
   };
 }
 

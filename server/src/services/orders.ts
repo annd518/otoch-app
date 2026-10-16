@@ -70,8 +70,18 @@ export const requiresReferral = (order: OrderWithItems) =>
         (order.bookingForm as { postoperative?: boolean } | null)
           ?.postoperative === true),
   );
+/** Shortest typed referral (prescription) text that counts instead of a photo. */
+export const MIN_REFERRAL_TEXT = 10;
+export const MAX_REFERRAL_TEXT = 2000;
+const referralText = (order: OrderWithItems) => {
+  const v = (order.bookingForm as { referralText?: unknown } | null)
+    ?.referralText;
+  return typeof v === "string" ? v.trim() : "";
+};
+// A referral is either a photo or the same content typed in by the customer
 const hasReferral = (order: OrderWithItems) =>
-  order.attachments.some((a) => a.kind === "REFERRAL");
+  order.attachments.some((a) => a.kind === "REFERRAL") ||
+  referralText(order).length >= MIN_REFERRAL_TEXT;
 
 /** A quote is usable only for the exact order version it was made for, and before it expires. */
 export function isQuoteValid(
@@ -230,7 +240,7 @@ export function assertOrderReadyForPricing(
     throw new ApiError(
       422,
       "REFERRAL_REQUIRED",
-      "Энэ үйлчилгээнд эмчийн заалтын зураг шаардлагатай",
+      "Энэ үйлчилгээнд эмчийн заалт (зураг эсвэл бичвэр) шаардлагатай",
     );
   }
 }
@@ -454,7 +464,7 @@ function assertV2Form(order: OrderWithItems, now: Date) {
     throw new ApiError(
       422,
       "REFERRAL_REQUIRED",
-      "Мэс заслын дараах шарханд эпикриз шаардлагатай",
+      "Мэс заслын дараах шарханд эпикриз (зураг эсвэл бичвэр) шаардлагатай",
     );
   if (
     !order.zoneId ||

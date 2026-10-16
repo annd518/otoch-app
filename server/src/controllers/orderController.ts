@@ -5,6 +5,7 @@ import { ApiError, FieldErrors, ok, validationError } from "../utils/http";
 import { getCatalogVersion } from "../services/catalog";
 import {
   PRICING_VERSION,
+  MAX_REFERRAL_TEXT,
   QUOTE_TTL_MINUTES,
   RED_FLAG_BLOCK_ADVICE,
   assertNoFixtureDataInProduction,
@@ -110,6 +111,13 @@ const bookingFormSchema = z.object({
       doseNumber: z.number().int().min(1),
     })
     .nullable(),
+  // Referral / prescription typed in by the customer instead of a photo
+  referralText: z
+    .string()
+    .trim()
+    .max(MAX_REFERRAL_TEXT, `Заалт ${MAX_REFERRAL_TEXT} тэмдэгтээс хэтрэхгүй`)
+    .nullable()
+    .optional(),
 });
 const DRAFT_FIELDS = [
   "parentId",

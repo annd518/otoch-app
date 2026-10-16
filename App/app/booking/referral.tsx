@@ -1,13 +1,14 @@
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { Stepper } from "@/components/ui";
 import { theme } from "@/design/theme";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Image,
   Linking,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
@@ -16,6 +17,7 @@ import { Icon as Ionicons } from "@/components/ui/Icon";
 import * as ImagePicker from "expo-image-picker";
 import { Redirect, useRouter } from "expo-router";
 
+import { useSingleFlight } from "@/components/useSingleFlight";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { apiService } from "@/services/api";
 import {
@@ -25,7 +27,11 @@ import {
   remainingSlots,
 } from "@/services/attachments";
 import {
+  MAX_REFERRAL_TEXT,
+  MIN_REFERRAL_TEXT,
   isBlocked,
+  planDraftSave,
+  referralTextOk,
   uploadedReferralCount,
   type LocalAttachment,
 } from "@/services/bookingDraft";
@@ -66,6 +72,50 @@ export default function ReferralScreen() {
   const source = apiService.sourceOf("attachments");
   const [cameraBlocked, setCameraBlocked] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
+  // The prescription can be a photo or typed in: some people cannot read the
+  // doctor's handwriting, others cannot take or pick a photo.
+  const form = state.details.bookingForm;
+  const savedText = form?.referralText ?? "";
+  const [mode, setMode] = useState<"photo" | "text">(() =>
+    savedText.trim() && state.attachments.length === 0 ? "text" : "photo",
+  );
+  const [text, setText] = useState(savedText);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // A changed text is saved on the draft (bookingForm.referralText) before
+  // the review screen asks the server for a quote.
+  const continueToReview = useSingleFlight(
+    useCallback(async () => {
+      setSaveError(null);
+      const trimmed = text.trim();
+      if (form && trimmed !== savedText.trim()) {
+        const bookingForm = { ...form, referralText: trimmed || null };
+        const plan = planDraftSave(
+          { ...state, details: { ...state.details, bookingForm }, dirty: true },
+          createIdempotencyKey,
+        );
+        if (plan.kind !== "update") {
+          setSaveError("Захиалгын мэдээлэл дутуу байна. Өмнөх алхам руу буцна уу.");
+          return;
+        }
+        dispatch({ type: "updateDetails", patch: { bookingForm } });
+        const r = await apiService.updateDraftOrder(plan.orderId, plan.patch);
+        if (!r.ok) {
+          if (r.code === "RED_FLAG_BLOCKED") {
+            dispatch({ type: "redFlagBlocked", advice: null });
+            router.replace("/booking/emergency");
+          } else setSaveError(r.message);
+          return;
+        }
+        dispatch({
+          type: "draftSaved",
+          order: r.data,
+          source: apiService.sourceOf("orders"),
+        });
+      }
+      router.push("/booking/review");
+    }, [text, savedText, form, state, dispatch, router]),
+  );
 
   if (isBlocked(state)) return <Redirect href="/booking/emergency" />;
   if (!orderId) return <Redirect href="/(tabs)/bookappointment" />;
@@ -184,7 +234,10 @@ export default function ReferralScreen() {
     dispatch({ type: "attachmentRemoved", localId: attachment.localId });
   };
 
-  const canContinue = uploaded > 0 && !busy;
+  const canContinue =
+    (uploaded > 0 || referralTextOk(text)) &&
+    !busy &&
+    !continueToReview.running;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -199,7 +252,7 @@ export default function ReferralScreen() {
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Эмчийн заалт</Text>
           <Text style={styles.headerSubtitle}>
-            Алхам 3: заалтын зургийг оруулна уу
+            Алхам 3: заалтын зураг эсвэл бичвэр
           </Text>
         </View>
       </View>
@@ -208,136 +261,198 @@ export default function ReferralScreen() {
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
         <Stepper step={3} />
-        {source === "real" &&
-          state.server?.referralUploadAvailable === false && (
-            <View style={styles.permissionCard}>
-              <Text style={styles.permissionText}>
-                Сервер одоогоор зураг хүлээн авах боломжгүй байна (upload
-                хэрэгжээгүй). Зураг илгээгдэхгүй.
-              </Text>
-            </View>
-          )}
-        {source === "mock" && (
-          <View style={styles.mockBanner}>
-            <Text style={styles.mockBannerText}>
-              MOCK upload: зураг серверт хадгалагдахгүй. Зөвхөн хөгжүүлэлтийн
-              горим.
-            </Text>
-          </View>
-        )}
         <Text style={styles.rules}>
-          JPEG эсвэл PNG, нэг зураг 10 MB хүртэл, нийт {fileLimit} хүртэл. PDF
-          одоогоор дэмжигдэхгүй.
+          Жорын зургийг оруулах эсвэл жорт бичигдсэнийг гараар бичих: аль нэг
+          нь хангалттай.
         </Text>
-
-        <View style={styles.pickRow}>
-          <TouchableOpacity
-            style={[
-              styles.pickButton,
-              remaining === 0 && styles.pickButtonDisabled,
-            ]}
-            onPress={() => void takePhoto()}
-            disabled={remaining === 0}
-          >
-            <Ionicons
-              name="camera-outline"
-              size={24}
-              color={theme.color.brand}
-            />
-            <Text style={styles.pickText}>Камераар авах</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.pickButton,
-              remaining === 0 && styles.pickButtonDisabled,
-            ]}
-            onPress={() => void pickFromLibrary()}
-            disabled={remaining === 0}
-          >
-            <Ionicons
-              name="images-outline"
-              size={24}
-              color={theme.color.brand}
-            />
-            <Text style={styles.pickText}>Галерейгаас сонгох</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.counter}>
-          {state.attachments.length}/{fileLimit} зураг
-        </Text>
-
-        {cameraBlocked && (
-          <View style={styles.permissionCard}>
-            <Text style={styles.permissionText}>
-              Камерын зөвшөөрөл хаалттай байна. Утасны тохиргооноос нээнэ үү.
-            </Text>
-            <TouchableOpacity onPress={() => void Linking.openSettings()}>
-              <Text style={styles.linkText}>Тохиргоо нээх</Text>
-            </TouchableOpacity>
+        {form && (
+          <View style={styles.modeRow}>
+            {(["photo", "text"] as const).map((m) => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modeButton, mode === m && styles.modeButtonActive]}
+                onPress={() => setMode(m)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: mode === m }}
+              >
+                <Ionicons
+                  name={m === "photo" ? "camera-outline" : "create-outline"}
+                  size={22}
+                  color={mode === m ? theme.color.background : theme.color.brand}
+                />
+                <Text
+                  style={[styles.modeText, mode === m && styles.modeTextActive]}
+                >
+                  {m === "photo" ? "Зураг оруулах" : "Гараар бичих"}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
-        {pickError ? <Text style={styles.errorText}>{pickError}</Text> : null}
-
-        {state.attachments.map((attachment) => (
-          <View key={attachment.localId} style={styles.itemCard}>
-            {attachment.uri ? (
-              <Image source={{ uri: attachment.uri }} style={styles.thumb} />
-            ) : (
-              <Text>Серверт хадгалсан зураг</Text>
-            )}
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemName} numberOfLines={1}>
-                {attachment.name}
+        {mode === "text" && (
+          <View style={styles.textCard}>
+            <Text style={styles.itemName}>Жорт бичигдсэн зүйл</Text>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={MAX_REFERRAL_TEXT}
+              textAlignVertical="top"
+              placeholder="Жишээ нь: эмийн нэр, тун, өдөрт хэдэн удаа, хэдэн өдөр"
+              placeholderTextColor={theme.color.secondary}
+              accessibilityLabel="Жорт бичигдсэн зүйл"
+              style={styles.textInput}
+            />
+            <Text style={styles.counter}>
+              {text.trim().length}/{MAX_REFERRAL_TEXT}
+            </Text>
+            {!referralTextOk(text) && (
+              <Text style={styles.hint}>
+                Хамгийн багадаа {MIN_REFERRAL_TEXT} тэмдэгт бичнэ үү.
               </Text>
-              {attachment.status === "uploading" && (
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${Math.round(attachment.progress * 100)}%` },
-                    ]}
-                  />
+            )}
+            <Text style={styles.hint}>
+              Жорын бичгийг уншиж чадахгүй бол «Зураг оруулах»-ыг сонгоно уу.
+            </Text>
+          </View>
+        )}
+        {mode === "photo" && (
+          <>
+            {source === "real" &&
+              state.server?.referralUploadAvailable === false && (
+                <View style={styles.permissionCard}>
+                  <Text style={styles.permissionText}>
+                    Сервер одоогоор зураг хүлээн авах боломжгүй байна (upload
+                    хэрэгжээгүй). Зураг илгээгдэхгүй.
+                  </Text>
                 </View>
               )}
-              {attachment.status === "uploaded" && (
-                <Text style={styles.okText}>
-                  {source === "mock"
-                    ? "Mock-д илгээгдсэн (серверт биш)"
-                    : attachment.storage && attachment.storage !== "s3"
-                      ? `Серверт хадгалагдсан (${attachment.storage}, хөгжүүлэлтийн storage)`
-                      : "Серверт хадгалагдсан"}
+            {source === "mock" && (
+              <View style={styles.mockBanner}>
+                <Text style={styles.mockBannerText}>
+                  MOCK upload: зураг серверт хадгалагдахгүй. Зөвхөн хөгжүүлэлтийн
+                  горим.
                 </Text>
-              )}
-              {attachment.status === "failed" && (
-                <Text style={styles.errorTextSmall}>{attachment.error}</Text>
-              )}
-              <View style={styles.itemActions}>
-                {attachment.status === "failed" && (
-                  <TouchableOpacity onPress={() => void upload(attachment)}>
-                    <Text style={styles.linkText}>Дахин илгээх</Text>
-                  </TouchableOpacity>
-                )}
-                {attachment.status !== "uploading" && (
-                  <TouchableOpacity onPress={() => void remove(attachment)}>
-                    <Text style={styles.removeText}>Устгах</Text>
-                  </TouchableOpacity>
-                )}
               </View>
+            )}
+            <Text style={styles.rules}>
+              JPEG эсвэл PNG, нэг зураг 10 MB хүртэл, нийт {fileLimit} хүртэл. PDF
+              одоогоор дэмжигдэхгүй.
+            </Text>
+
+            <View style={styles.pickRow}>
+              <TouchableOpacity
+                style={[
+                  styles.pickButton,
+                  remaining === 0 && styles.pickButtonDisabled,
+                ]}
+                onPress={() => void takePhoto()}
+                disabled={remaining === 0}
+              >
+                <Ionicons
+                  name="camera-outline"
+                  size={24}
+                  color={theme.color.brand}
+                />
+                <Text style={styles.pickText}>Камераар авах</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.pickButton,
+                  remaining === 0 && styles.pickButtonDisabled,
+                ]}
+                onPress={() => void pickFromLibrary()}
+                disabled={remaining === 0}
+              >
+                <Ionicons
+                  name="images-outline"
+                  size={24}
+                  color={theme.color.brand}
+                />
+                <Text style={styles.pickText}>Галерейгаас сонгох</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        ))}
+            <Text style={styles.counter}>
+              {state.attachments.length}/{fileLimit} зураг
+            </Text>
+
+            {cameraBlocked && (
+              <View style={styles.permissionCard}>
+                <Text style={styles.permissionText}>
+                  Камерын зөвшөөрөл хаалттай байна. Утасны тохиргооноос нээнэ үү.
+                </Text>
+                <TouchableOpacity onPress={() => void Linking.openSettings()}>
+                  <Text style={styles.linkText}>Тохиргоо нээх</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {pickError ? <Text style={styles.errorText}>{pickError}</Text> : null}
+
+            {state.attachments.map((attachment) => (
+              <View key={attachment.localId} style={styles.itemCard}>
+                {attachment.uri ? (
+                  <Image source={{ uri: attachment.uri }} style={styles.thumb} />
+                ) : (
+                  <Text>Серверт хадгалсан зураг</Text>
+                )}
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {attachment.name}
+                  </Text>
+                  {attachment.status === "uploading" && (
+                    <View style={styles.progressTrack}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          { width: `${Math.round(attachment.progress * 100)}%` },
+                        ]}
+                      />
+                    </View>
+                  )}
+                  {attachment.status === "uploaded" && (
+                    <Text style={styles.okText}>
+                      {source === "mock"
+                        ? "Mock-д илгээгдсэн (серверт биш)"
+                        : attachment.storage && attachment.storage !== "s3"
+                          ? `Серверт хадгалагдсан (${attachment.storage}, хөгжүүлэлтийн storage)`
+                          : "Серверт хадгалагдсан"}
+                    </Text>
+                  )}
+                  {attachment.status === "failed" && (
+                    <Text style={styles.errorTextSmall}>{attachment.error}</Text>
+                  )}
+                  <View style={styles.itemActions}>
+                    {attachment.status === "failed" && (
+                      <TouchableOpacity onPress={() => void upload(attachment)}>
+                        <Text style={styles.linkText}>Дахин илгээх</Text>
+                      </TouchableOpacity>
+                    )}
+                    {attachment.status !== "uploading" && (
+                      <TouchableOpacity onPress={() => void remove(attachment)}>
+                        <Text style={styles.removeText}>Устгах</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
+        {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
         <TouchableOpacity
           style={[
             styles.primaryButton,
             !canContinue && styles.primaryButtonDisabled,
           ]}
-          onPress={() => router.push("/booking/review")}
+          onPress={() => void continueToReview.run()}
           disabled={!canContinue}
         >
-          <Text style={styles.primaryButtonText}>Үргэлжлүүлэх</Text>
+          <Text style={styles.primaryButtonText}>
+            {continueToReview.running ? "Хадгалж байна..." : "Үргэлжлүүлэх"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -386,6 +501,51 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: theme.color.secondary,
     lineHeight: 28,
+  },
+  modeRow: { flexDirection: "row", gap: 12 },
+  modeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.color.brand,
+    backgroundColor: theme.color.background,
+  },
+  modeButtonActive: { backgroundColor: theme.color.brand },
+  modeText: {
+    color: theme.color.brand,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  modeTextActive: { color: theme.color.background },
+  textCard: {
+    backgroundColor: theme.color.background,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: theme.color.info,
+  },
+  textInput: {
+    minHeight: 160,
+    borderWidth: 1,
+    borderColor: theme.color.border,
+    borderRadius: 10,
+    padding: 12,
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 18,
+    lineHeight: 26,
+    color: theme.color.text,
+  },
+  hint: {
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 16,
+    color: theme.color.secondary,
   },
   pickRow: { flexDirection: "row", gap: 12 },
   pickButton: {

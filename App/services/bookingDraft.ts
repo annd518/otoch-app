@@ -503,3 +503,20 @@ export function needsReferral(
 export function uploadedReferralCount(state: BookingDraftState): number {
   return state.attachments.filter((a) => a.status === "uploaded").length;
 }
+
+// Same limits as the server: a typed prescription counts instead of a photo
+// once it has at least MIN_REFERRAL_TEXT characters.
+export const MIN_REFERRAL_TEXT = 10;
+export const MAX_REFERRAL_TEXT = 2000;
+
+export function referralTextOk(text: string | null | undefined): boolean {
+  return (text?.trim().length ?? 0) >= MIN_REFERRAL_TEXT;
+}
+
+/** A photo on the server or a long enough typed prescription. */
+export function hasReferralInput(state: BookingDraftState): boolean {
+  return (
+    uploadedReferralCount(state) > 0 ||
+    referralTextOk(state.details.bookingForm?.referralText)
+  );
+}

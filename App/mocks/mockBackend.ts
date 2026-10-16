@@ -61,6 +61,7 @@ interface MockOrder {
   notes: string | null
   redFlagStatus: 'NOT_ANSWERED' | 'CLEAR' | 'FLAGGED'
   requiresReferral: boolean
+  referralText: string | null
   attachments: string[]
   createFingerprint: string
 }
@@ -209,6 +210,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
         redFlagStatus: 'NOT_ANSWERED',
         // fabricated rule for the mock catalog: the IV service needs a referral
         requiresReferral: codes.some((c) => c.includes('_IV')),
+        referralText: null,
         attachments: [],
         createFingerprint: JSON.stringify(body),
       }
@@ -246,6 +248,7 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       if (body.timeSlot !== undefined) order.timeSlot = typeof body.timeSlot === 'string' ? body.timeSlot : null
       if (body.address !== undefined) order.address = body.address
       if (body.notes !== undefined) order.notes = typeof body.notes === 'string' ? body.notes : null
+      if (isRecord(body.bookingForm)) order.referralText = typeof body.bookingForm.referralText === 'string' ? body.bookingForm.referralText : null
       order.version += 1
       return respond(200, { success: true, message: 'Ноорог шинэчлэгдлээ (mock)', data: view(order, ignoredFields(body, ['version', ...DRAFT_FIELDS])) })
     }
@@ -314,8 +317,8 @@ export function createMockBackend(options: MockBackendOptions = {}) {
       if (order.status === 'BLOCKED_RED_FLAG') return fail(422, 'RED_FLAG_BLOCKED', 'Энэ захиалга хаагдсан')
       if (order.redFlagStatus !== 'CLEAR') return fail(422, 'RED_FLAG_REQUIRED', 'Эхлээд аюулын шинжийн асуулгад хариулна уу')
       if (!order.scheduledFor || !order.address) return fail(422, 'ORDER_INCOMPLETE', 'Захиалгын мэдээлэл дутуу байна')
-      if (order.requiresReferral && order.attachments.length === 0) {
-        return fail(422, 'REFERRAL_REQUIRED', 'Энэ үйлчилгээнд эмчийн заалтын зураг шаардлагатай')
+      if (order.requiresReferral && order.attachments.length === 0 && (order.referralText?.trim().length ?? 0) < 10) {
+        return fail(422, 'REFERRAL_REQUIRED', 'Энэ үйлчилгээнд эмчийн заалт (зураг эсвэл бичвэр) шаардлагатай')
       }
       if (tokens.has('quote-501')) return fail(501, 'NOT_IMPLEMENTED', 'Серверийн үнийн санал (quote) хараахан хэрэгжээгүй байна')
       seq += 1

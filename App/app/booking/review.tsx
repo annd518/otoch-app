@@ -17,7 +17,9 @@ import { useBookingDraft } from "@/context/BookingDraftContext";
 import { apiService } from "@/services/api";
 import {
   isBlocked,
+  hasReferralInput,
   needsReferral,
+  referralTextOk,
   uploadedReferralCount,
 } from "@/services/bookingDraft";
 import { isQuoteStale } from "@/services/orders";
@@ -89,8 +91,7 @@ export default function ReviewScreen() {
     return <Redirect href="/(tabs)/bookappointment" />;
 
   const { service, details, server, quote } = state;
-  const referralMissing =
-    needsReferral(state) && uploadedReferralCount(state) === 0;
+  const referralMissing = needsReferral(state) && !hasReferralInput(state);
   const expired = quote ? isQuoteStale(quote, server.version, now) : false;
   const canPay = Boolean(quote) && !expired && !referralMissing && !state.dirty;
 
@@ -104,11 +105,19 @@ export default function ReviewScreen() {
     ],
     ["Аюулын шинж", "Илрээгүй (асуулга серверт хадгалагдсан)"],
   ];
-  if (needsReferral(state))
+  if (needsReferral(state)) {
+    const photos = uploadedReferralCount(state);
+    const parts = [
+      ...(photos > 0 ? [`${photos} зураг`] : []),
+      ...(referralTextOk(details.bookingForm?.referralText)
+        ? ["гараар бичсэн"]
+        : []),
+    ];
     rows.push([
-      "Заалтын зураг",
-      `${uploadedReferralCount(state)} серверт хадгалагдсан`,
+      "Эмчийн заалт",
+      parts.length ? `${parts.join(", ")} (серверт хадгалагдсан)` : "-",
     ]);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -168,7 +177,8 @@ export default function ReviewScreen() {
         ) : null}
         {referralMissing ? (
           <Text style={styles.error}>
-            Заалтын зураг серверт хадгалагдаагүй тул үргэлжлэх боломжгүй.
+            Эмчийн заалт (зураг эсвэл бичвэр) серверт хадгалагдаагүй тул
+            үргэлжлэх боломжгүй.
           </Text>
         ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}

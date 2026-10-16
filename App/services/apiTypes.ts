@@ -166,6 +166,8 @@ export interface BookingForm {
     expiresAt: string;
     doseNumber: number;
   } | null;
+  // Prescription / referral typed in instead of a photo
+  referralText?: string | null;
 }
 export interface DraftOrderInput {
   bookingForm?: BookingForm;

@@ -408,6 +408,32 @@ describe('private referral upload', () => {
         assert.equal((await quote(f, order.id)).status, 201)
     })
 
+    it('a typed referral (prescription) text counts instead of a photo', async () => {
+        const f = await family('up-t')
+        const order = await newOrder(f, { items: [{ serviceCode: 'HOME_IV_THERAPY' }] })
+        await clearRedFlag(f, order.id)
+        assert.equal(errorCode(await quote(f, order.id)), 'REFERRAL_REQUIRED')
+        const form = (referralText: string) => ({
+            consent: { service: true, sensitiveData: true, version: 'V2_2026_10', acceptedAt: new Date().toISOString() },
+            familyPresent: false,
+            medication: null,
+            referralText,
+        })
+        const patch = async (referralText: string) => {
+            const { version } = await getOrder(f, order.id)
+            return api(srv.baseUrl, 'PATCH', `/api/orders/${order.id}`, { token: f.token, body: { version, bookingForm: form(referralText) } })
+        }
+        assert.equal((await patch('x'.repeat(2001))).status, 400)
+        assert.equal((await patch('  Эм 1 тун  ')).status, 200)
+        assert.equal(errorCode(await quote(f, order.id)), 'REFERRAL_REQUIRED', 'shorter than 10 chars after trim')
+        assert.equal((await patch('Туршилтын жор: эмийн нэр, тун, давтамж')).status, 200)
+        const saved = await getOrder(f, order.id)
+        assert.equal(saved.requirements.referralAttachment, false)
+        assert.equal(saved.bookingForm.referralText, 'Туршилтын жор: эмийн нэр, тун, давтамж')
+        assert.equal(saved.attachments.length, 0)
+        assert.equal((await quote(f, order.id)).status, 201)
+    })
+
     it('blocked orders accept no uploads', async () => {
         const f = await family('up-g')
         const order = await newOrder(f)
