@@ -111,6 +111,8 @@ const bookingFormSchema = z.object({
       doseNumber: z.number().int().min(1),
     })
     .nullable(),
+  // How the medicine name/dose/route are given: typed (default) or as a photo
+  medicationSource: z.enum(["TEXT", "PHOTO"]).optional(),
   // Referral / prescription typed in by the customer instead of a photo
   referralText: z
     .string()

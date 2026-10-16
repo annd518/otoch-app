@@ -78,10 +78,23 @@ const referralText = (order: OrderWithItems) => {
     ?.referralText;
   return typeof v === "string" ? v.trim() : "";
 };
+const hasReferralPhoto = (order: OrderWithItems) =>
+  order.attachments.some((a) => a.kind === "REFERRAL");
 // A referral is either a photo or the same content typed in by the customer
 const hasReferral = (order: OrderWithItems) =>
-  order.attachments.some((a) => a.kind === "REFERRAL") ||
-  referralText(order).length >= MIN_REFERRAL_TEXT;
+  hasReferralPhoto(order) || referralText(order).length >= MIN_REFERRAL_TEXT;
+/**
+ * The customer chose to give the medicine name, dose and route as a photo of
+ * the prescription instead of typing them (bookingForm.medicationSource).
+ * Without the field the old behaviour applies: everything is typed.
+ */
+export const medicationByPhoto = (order: OrderWithItems) => {
+  const form = order.bookingForm as {
+    medicationSource?: unknown;
+    medication?: unknown;
+  } | null;
+  return form?.medicationSource === "PHOTO" && !!form.medication;
+};
 
 /** A quote is usable only for the exact order version it was made for, and before it expires. */
 export function isQuoteValid(
@@ -172,7 +185,9 @@ export function serializeOrder(order: OrderWithItems) {
     attachments: order.attachments.map(serializeAttachment),
     requirements: {
       redFlagAnswers: redFlagRequired && order.redFlagStatus !== "CLEAR",
-      referralAttachment: requiresReferral(order) && !hasReferral(order),
+      referralAttachment:
+        (requiresReferral(order) && !hasReferral(order)) ||
+        (medicationByPhoto(order) && !hasReferralPhoto(order)),
       referralUploadAvailable: getStorage() !== null,
     },
     // Only a quote that still matches this exact order version is returned
@@ -422,9 +437,12 @@ function assertV2Form(order: OrderWithItems, now: Date) {
     medication ||
     order.items.some((i) => serviceConfig(i.service).medicationRequired)
   ) {
+    // By photo, name/dose/route come from the prescription photo; the expiry
+    // date and the dose number are still asked (safety checks below).
+    const byPhoto = medicationByPhoto(order);
     if (
       !medication ||
-      !["name", "dose", "route", "expiresAt"].every(
+      !(byPhoto ? ["expiresAt"] : ["name", "dose", "route", "expiresAt"]).every(
         (k) =>
           typeof medication[k] === "string" &&
           String(medication[k]).trim().length > 0,
@@ -454,6 +472,12 @@ function assertV2Form(order: OrderWithItems, now: Date) {
         422,
         "MED_EXPIRED",
         "Эмийн хугацаа үйлчилгээний өдрөөс хойш байх шаардлагатай",
+      );
+    if (byPhoto && !hasReferralPhoto(order))
+      throw new ApiError(
+        422,
+        "REFERRAL_REQUIRED",
+        "Эмийн мэдээллийг зургаар оруулахаар сонгосон тул жорын зураг шаардлагатай",
       );
   }
   if (

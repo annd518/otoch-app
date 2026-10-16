@@ -86,6 +86,10 @@ function parseSavedForm(value: unknown): BookingForm | null {
     ...(typeof value.referralText === "string" && {
       referralText: value.referralText,
     }),
+    ...((value.medicationSource === "TEXT" ||
+      value.medicationSource === "PHOTO") && {
+      medicationSource: value.medicationSource,
+    }),
   };
 }
 
