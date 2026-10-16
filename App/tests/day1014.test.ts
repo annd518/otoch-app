@@ -9,6 +9,7 @@ import {
   createDraftOrder,
   getOrder,
   isQuoteExpired,
+  updateDraftOrder,
   reportRedFlagBlock,
   requestQuote,
   submitRedFlagAnswers,
@@ -193,6 +194,28 @@ describe('quote', () => {
     const noReferral = await quoteFor(client, ivId)
     assert.equal(noReferral.ok ? '' : noReferral.code, 'REFERRAL_REQUIRED')
     await uploadReferral(client, ivId, { uri: 'file:///a.jpg', name: 'a.jpg', type: 'image/jpeg' })
+    assert.equal((await quoteFor(client, ivId)).ok, true)
+  })
+
+  it('a typed prescription (10+ characters) counts instead of a referral photo', async () => {
+    const { client } = makeMockClient()
+    const ivId = await clearedDraft(client, 'MOCK_HOME_IV')
+    const typed = async (referralText: string) => {
+      const order = await getOrder(client, ivId)
+      if (!order.ok) throw new Error('order')
+      const bookingForm = {
+        consent: { service: true, sensitiveData: true, version: 'V2_2026_10' as const, acceptedAt: new Date().toISOString() },
+        familyPresent: false,
+        postoperative: false,
+        medication: null,
+        referralText,
+      }
+      assert.ok((await updateDraftOrder(client, ivId, { version: order.data.version, bookingForm })).ok)
+    }
+    await typed('  богино  ')
+    const short = await quoteFor(client, ivId)
+    assert.equal(short.ok ? '' : short.code, 'REFERRAL_REQUIRED')
+    await typed('Туршилтын жор: эмийн нэр, тун')
     assert.equal((await quoteFor(client, ivId)).ok, true)
   })
 

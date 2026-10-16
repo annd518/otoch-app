@@ -13,6 +13,8 @@ type Order = {
   nurse: { name: string } | null;
   eta: string | null;
   isMock: boolean;
+  bookingForm?: { referralText?: string | null } | null;
+  attachments?: { id: string }[];
   timeline: { id: string; status: string; at: string }[];
 };
 const labels: Record<string, string> = {
@@ -177,6 +179,15 @@ export default function StaffOrders() {
           <p>Хаяг: {selected.address?.text ?? "Ороогүй"}</p>
           <p>Сувилагч: {selected.nurse?.name ?? "Томилогдоогүй"}</p>
           <p>Ирэх хугацаа: {date(selected.eta)}</p>
+          <p>Эмчийн заалтын зураг: {selected.attachments?.length ?? 0}</p>
+          {selected.bookingForm?.referralText && (
+            <div>
+              <p>Эмчийн заалт (хэрэглэгч гараар бичсэн):</p>
+              <p className="whitespace-pre-wrap rounded-lg bg-gray-50 p-3">
+                {selected.bookingForm.referralText}
+              </p>
+            </div>
+          )}
           {user?.role !== "NURSE" &&
             ["PAID", "ASSIGNED"].includes(selected.status) && (
               <div className="space-y-2">
