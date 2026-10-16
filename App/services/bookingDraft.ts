@@ -11,6 +11,7 @@ import type {
   RedFlagAdvice,
 } from "./apiTypes";
 import type { ApiMode } from "../utils/apiConfig";
+import { startAllowed } from "../utils/calendar";
 import {
   isValidCalendarDate,
   slotStartToUlaanbaatarIso,
@@ -392,6 +393,8 @@ export function validateDetails(
     const utc = slotStartToUtcIso(date, details.timeSlot);
     if (!utc || new Date(utc).getTime() <= now.getTime())
       errors.timeSlot = "Сонгосон цаг өнгөрсөн байна";
+    else if (!startAllowed(date, details.timeSlot.slice(0, 5), now))
+      errors.timeSlot = "Одоогоос хамгийн багадаа 2 цагийн дараах цаг сонгоно уу";
   }
   if (details.notes.length > 500)
     errors.notes = "Нэмэлт заавар 500 тэмдэгтээс ихгүй байна";
