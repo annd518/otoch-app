@@ -163,6 +163,8 @@ export type BookingDraftAction =
       patch: Partial<LocalAttachment>;
     }
   | { type: "attachmentRemoved"; localId: string }
+  // The server reported this order version (e.g. after an upload); it only grows
+  | { type: "serverVersionSeen"; version: number }
   | { type: "setQuote"; quote: Quote | null }
   // Restores a draft kept on the device (services/draftPersistence.ts). Applies
   // only to an untouched draft, so it never overwrites what the user started.
@@ -349,6 +351,10 @@ export function bookingDraftReducer(
           (a) => a.localId !== action.localId,
         ),
       };
+    case "serverVersionSeen":
+      return state.server && action.version > state.server.version
+        ? { ...state, server: { ...state.server, version: action.version } }
+        : state;
     case "setQuote":
       // a new quote needs a new invoice attempt
       return {

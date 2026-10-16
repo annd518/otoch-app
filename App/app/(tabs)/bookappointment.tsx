@@ -7,6 +7,7 @@ import { useBookingDraft } from "@/context/BookingDraftContext";
 import {
   isBlocked,
   planDraftSave,
+  uploadedReferralCount,
   nextStepAfterDetails,
   validateDetails,
 } from "@/services/bookingDraft";
@@ -19,6 +20,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { zoneContaining } from "@/utils/geo";
 import { missingForStepOne } from "@/utils/bookingStepOne";
 import { medicationMissing } from "@/utils/medicationStep";
+import { ReferralUploader } from "@/components/ReferralUploader";
 import {
   Banner,
   Button,
@@ -108,23 +110,27 @@ export default function Booking() {
       active = false;
     };
   }, [details.zoneId, details.date, service, slotQueryKey]);
-  const save = useSingleFlight(
-    useCallback(async () => {
+  // Saves the draft on the server (create or update) without leaving the
+  // screen; null when it could not be saved (the error is shown).
+  const persist = useCallback(async (): Promise<{
+    orderId: string;
+    requiresReferral: boolean;
+  } | null> => {
       setError("");
       const errors = validateDetails(state, new Date());
       if (Object.keys(errors).length) {
         setError(Object.values(errors).join("\n"));
-        return;
+        return null;
       }
       const plan = planDraftSave(state, createIdempotencyKey);
       if (plan.kind === "invalid") {
         setError("Мэдээллээ бүрэн бөглөнө үү");
-        return;
+        return null;
       }
-      if (plan.kind === "none") {
-        router.push(nextStepAfterDetails(state));
-        return;
-      }
+      if (plan.kind === "none")
+        return state.server
+          ? { orderId: state.server.orderId, requiresReferral: false }
+          : null;
       if (plan.kind === "create")
         dispatch({
           type: "createStarted",
@@ -140,15 +146,25 @@ export default function Booking() {
           dispatch({ type: "redFlagBlocked", advice: null });
           router.replace("/booking/emergency");
         } else setError(r.message);
-        return;
+        return null;
       }
       dispatch({
         type: "draftSaved",
         order: r.data,
         source: apiService.sourceOf("orders"),
       });
-      router.push(nextStepAfterDetails(state, r.data.requiresReferral));
-    }, [state, dispatch]),
+      return { orderId: r.data.id, requiresReferral: r.data.requiresReferral };
+  }, [state, dispatch]);
+  const save = useSingleFlight(
+    useCallback(async () => {
+      const saved = await persist();
+      if (saved)
+        router.push(nextStepAfterDetails(state, saved.requiresReferral));
+    }, [persist, state]),
+  );
+  // Step 3 "Зураг оруулах": a photo can only be uploaded to a saved draft
+  const ensureDraft = useSingleFlight(
+    useCallback(async () => (await persist())?.orderId ?? null, [persist]),
   );
   if (isBlocked(state)) return <Redirect href="/booking/emergency" />;
   if (!service)
@@ -195,7 +211,9 @@ export default function Booking() {
     required: medicationRequired,
     firstDoseCheck,
     scheduledAt,
+    uploadedPhotos: uploadedReferralCount(state),
   });
+  const uploading = state.attachments.some((a) => a.status === "uploading");
   const medicationKeys =
     form.medicationSource === "PHOTO"
       ? (["expiresAt"] as const)
@@ -463,10 +481,16 @@ export default function Booking() {
                 />
               </View>
               {form.medicationSource === "PHOTO" && (
-                <Banner>
-                  Эмийн нэр, тун, хэрэглэх аргыг дараагийн алхамд жорын
-                  зургаар оруулна. Доорх мэдээллийг энд бөглөнө үү.
-                </Banner>
+                <>
+                  <Banner>
+                    Жорын зургийг шууд авах, галерейгаас эсвэл файлаас сонгоно
+                    уу. Эмийн нэр, тун, хэрэглэх аргыг зургаас уншина.
+                  </Banner>
+                  <ReferralUploader
+                    orderId={state.server?.orderId ?? null}
+                    ensureOrderId={ensureDraft.run}
+                  />
+                </>
               )}
               {!!form.medicationSource &&
                 medicationKeys.map((key) => (
@@ -529,7 +553,7 @@ export default function Booking() {
             network
             title="Заалт, асуулгыг бөглөх"
             busy={save.running}
-            disabled={medMissing.length > 0}
+            disabled={medMissing.length > 0 || uploading}
             onPress={() => {
               void save.run();
             }}
