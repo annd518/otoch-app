@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   container: { gap: 12 },
   mockBanner: {
     backgroundColor: theme.color.subtle,
-    borderRadius: 12,
+    borderRadius: 22,
     padding: 12,
   },
   mockBannerText: {
@@ -366,12 +366,13 @@ const styles = StyleSheet.create({
   },
   pickRow: { flexDirection: "row", gap: 8 },
   pickButton: {
+    ...theme.depth.soft,
     flex: 1,
     alignItems: "center",
     gap: 6,
     paddingVertical: 14,
     paddingHorizontal: 4,
-    borderRadius: 12,
+    borderRadius: 22,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: theme.color.brand,
@@ -393,7 +394,7 @@ const styles = StyleSheet.create({
   },
   permissionCard: {
     backgroundColor: theme.color.subtle,
-    borderRadius: 12,
+    borderRadius: 22,
     padding: 12,
     gap: 6,
   },
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     backgroundColor: theme.color.background,
-    borderRadius: 12,
+    borderRadius: 22,
     padding: 10,
     borderWidth: 1,
     borderColor: theme.color.info,

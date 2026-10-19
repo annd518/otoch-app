@@ -9,6 +9,6 @@ export const depth = {
   inset: {
     boxShadow: "inset 2px 2px 5px #D1D9E6, inset -2px -2px 5px #FFFFFF",
   },
-  action: { boxShadow: "0px 5px 12px rgba(17,88,159,0.24)" },
+  action: { boxShadow: "0px 7px 16px rgba(11,79,165,0.24)" },
   flat: { boxShadow: "none" },
 } satisfies Record<string, ViewStyle>;

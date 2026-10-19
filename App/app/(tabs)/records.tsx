@@ -1,9 +1,19 @@
+import { dateTimeLabel } from "@/design/dateLabels";
+import { FileHeart, FileText } from "lucide-react-native";
+import {
+  FeatureSummary,
+  SectionHeading,
+  Button,
+  Card,
+  Copy,
+  Screen,
+  StateView,
+} from "@/components/ui";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { apiService } from "@/services/api";
 import type { ClinicalRecord } from "@/services/clientV2";
-import { Button, Card, Copy, Screen, StateView } from "@/components/ui";
 export default function Records() {
   const openPdf = async (id: string) => {
     const r = await apiService.getRecordPdf(id);
@@ -37,6 +47,11 @@ export default function Records() {
   );
   return (
     <Screen title="Тэмдэглэл" back={false}>
+      <FeatureSummary
+        icon={FileHeart}
+        title="Таны үйлчилгээний тэмдэглэл"
+        description="Серверт бүртгэгдсэн тэмдэглэл, боломжтой PDF тайланг эндээс нээнэ."
+      />
       {loading ? (
         <StateView title="Тэмдэглэл ачаалж байна" loading />
       ) : error ? (
@@ -51,12 +66,8 @@ export default function Records() {
       ) : rows.length ? (
         rows.map((r) => (
           <Card key={r.id}>
-            <Copy variant="heading">{r.patientName}</Copy>
-            <Copy>
-              {new Date(r.at).toLocaleString("mn-MN", {
-                timeZone: "Asia/Ulaanbaatar",
-              })}
-            </Copy>
+            <SectionHeading icon={FileText} title={r.patientName} />
+            <Copy>{dateTimeLabel(r.at)}</Copy>
             <Copy>{r.notes ?? "Бичгэн тэмдэглэл ороогүй байна."}</Copy>
             {r.pdfAvailable ? (
               <Button

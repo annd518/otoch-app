@@ -1,3 +1,13 @@
+## Бүх хэрэглэгчийн дэлгэц — premium pass
+
+- [Хамрах хүрээ, дэлгэц бүрийн бүртгэл](all-screens-premium.md). Onboarding/Home benchmark; discovery-д илүү depth, forms/clinical/payment-д тайван hierarchy. Нэмэлт dependency, backend/nurse-app/wclient өөрчлөлт байхгүй.
+- Typecheck/cache-free lint PASS; **222/222** unit/regression PASS (3 шинэ UTC+8 display-date тест орсон). iOS/Android Hermes + web static/SSR export PASS. Native/signed build биш.
+- Chrome synthetic session + mock HTTP: 28 screenshot; onboarding, Home, каталог/бүлэг, үйлчилгээ/бэлтгэл, phone/OTP/email/register, initial profile, booking 1–3 → 6 negative red flag → review/quote, mock pending/paid, emergency, orders/tracking/records/profile/patient, notifications, small/error. Runtime errors **0**, шалгасан viewport бүрт horizontal overflow **0**. Энэ нь бодит backend/SMS/QPay/bucket integration биш.
+- Static catalog query гарчгийн hydration mismatch-ийг query title hydration-ийн дараа үзүүлэхээр зассан. Серверийн каталог шүүх болон navigation өөрчлөгдөөгүй. Date labels UTC+8/24h; API payload огноо өөрчлөгдөөгүй.
+- [Бүх зурагтай gallery](screenshots/all-premium/index.html), [каталог](screenshots/all-premium/catalog.png), [алхам 2](screenshots/all-premium/booking-2.png), [асуулга](screenshots/all-premium/red-flags.png), [review](screenshots/all-premium/review.png), [төлбөр](screenshots/all-premium/payment.png), [tracking](screenshots/all-premium/tracking.png), [профайл](screenshots/all-premium/profile.png).
+- Зургууд нь viewport/scroll байрлалын review. Context-гүй referral route зураг нь guard/empty төлөв. Upload permission/HEIC, camera, native keyboard/safe area/VoiceOver/TalkBack/200% fontScale, хуучин Android shadow fallback төхөөрөмж дээр хүлээгдэнэ. Бодит/локал DB-д хүрээгүй.
+- UI хэрэгжүүлэлт локал; visual review хүлээн авсан гэсэн үг биш. Commit/push/merge/deploy хийгээгүй.
+
 ## Home only — onboarding benchmark, 2026-10-19
 
 - Зөвхөн `App/app/(tabs)/index.tsx` өөрчлөгдсөн. Onboarding-ийн existing palette/hero/vector, 24–28 radius, headline hierarchy, gradient CTA/depth хэлийг Home-д хэрэглэсэн. Нэг гол raised care card; үйлчилгээний depth бага, хоосон status flat; 103 хэсэг neutral жижиг yellow accent-тай. Бусад дэлгэц, shared theme, tabs/navigation, API/services өөрчлөгдөөгүй.

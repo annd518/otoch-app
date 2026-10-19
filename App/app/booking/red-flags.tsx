@@ -1,3 +1,4 @@
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { Stepper } from "@/components/ui";
 import { theme } from "@/design/theme";
@@ -315,15 +316,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.color.info,
   },
-  backButton: { minHeight: 56, padding: 8, marginRight: 4 },
+  backButton: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    ...theme.depth.soft,
+  },
   headerText: { flex: 1 },
   headerTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 22,
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 24,
     fontWeight: "800",
     color: theme.color.text,
   },
@@ -352,7 +363,7 @@ const styles = StyleSheet.create({
     color: theme.color.error,
     textAlign: "center",
   },
-  list: { padding: 16, gap: 12 },
+  list: { padding: 20, gap: 12 },
   fixtureBanner: {
     backgroundColor: theme.color.subtle,
     borderRadius: 12,
@@ -377,7 +388,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
   },
   questionText: {
     fontFamily: "NotoSans_400Regular",
@@ -392,7 +403,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
     alignItems: "center",
     backgroundColor: theme.color.background,
   },
@@ -434,7 +445,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     ...theme.depth.action,
-    minHeight: 56,
+    minHeight: 60,
     backgroundColor: theme.color.brand,
     borderRadius: theme.radius.card,
     paddingVertical: 16,

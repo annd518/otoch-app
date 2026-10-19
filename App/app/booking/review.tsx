@@ -1,7 +1,9 @@
+import { ClipboardCheck } from "lucide-react-native";
+import { FeatureSummary, Stepper } from "@/components/ui";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { orderStatus } from "@/design/catalog";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { formatMnt } from "@/utils/money";
-import { Stepper } from "@/components/ui";
 import { theme } from "@/design/theme";
 import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -137,6 +139,11 @@ export default function ReviewScreen() {
       <ScrollView
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
+        <FeatureSummary
+          icon={ClipboardCheck}
+          title="Баталгаажуулахын өмнө"
+          description="Үйлчлүүлэгч, хаяг, цаг болон серверийн үнийн саналаа шалгаарай."
+        />
         <Stepper step={4} />
         <View
           style={[
@@ -226,15 +233,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.color.info,
   },
-  backButton: { minHeight: 56, padding: 8, marginRight: 4 },
+  backButton: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    ...theme.depth.soft,
+  },
   headerText: { flex: 1 },
   headerTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 22,
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 24,
     fontWeight: "800",
     color: theme.color.text,
   },
@@ -244,7 +261,7 @@ const styles = StyleSheet.create({
     color: theme.color.secondary,
     marginTop: 2,
   },
-  container: { padding: 16, gap: 14 },
+  container: { padding: 20, gap: 14 },
   statusCard: {
     backgroundColor: theme.color.info,
     borderRadius: 12,
@@ -263,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
     gap: 10,
   },
   row: { gap: 2 },
@@ -307,7 +324,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.4 },
   primaryButton: {
     ...theme.depth.action,
-    minHeight: 56,
+    minHeight: 60,
     backgroundColor: theme.color.brand,
     borderRadius: theme.radius.card,
     paddingVertical: 16,

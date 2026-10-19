@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react-native";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { theme } from "@/design/theme";
 import React, { useState } from "react";
@@ -85,6 +86,24 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 26,
+                backgroundColor: theme.color.surface,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+                ...theme.depth.raised,
+              }}
+            >
+              <ShieldCheck
+                size={34}
+                color={theme.color.brand}
+                strokeWidth={1.6}
+              />
+            </View>
             <Text style={styles.title}>Бүртгэл үүсгэх</Text>
             <Text style={styles.subtitle}>Эхлэхийн тулд OTOCH-д нэгдээрэй</Text>
           </View>
