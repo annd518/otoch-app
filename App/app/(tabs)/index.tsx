@@ -51,7 +51,7 @@ export default function Home() {
       ),
   );
   return (
-    <Screen title="OTOCH" back={false}>
+    <Screen title="OTOCH" back={false} logo>
       <Copy variant="heading">Таны гэрт сувилахуйн тусламж</Copy>
       <Button
         title="Сувилагч дуудах"

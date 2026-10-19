@@ -3,6 +3,7 @@ import { connectivity } from "@/services/connectivity";
 import { apiService } from "@/services/api";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -252,13 +253,22 @@ function OfflineBanner() {
     </Banner>
   ) : null;
 }
+// The designer's "ОТОЧ" wordmark (cut from the splash logo, white); tinted
+// with the theme colour. 654x183 @3x.
+const WORDMARK = require("../../assets/brand/otoch-wordmark.png");
+const WORDMARK_HEIGHT = 40;
+const WORDMARK_WIDTH = Math.round((WORDMARK_HEIGHT * 654) / 183);
+
 export function Screen({
   title,
   back = true,
+  logo = false,
   children,
 }: {
   title: string;
   back?: boolean;
+  // show the ОТОЧ wordmark instead of the title text (still read out as `title`)
+  logo?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -288,9 +298,32 @@ export function Screen({
               <ArrowLeft color={t.color.brand} size={24} />
             </Pressable>
           )}
-          <Copy variant="title" accessibilityRole="header" style={{ flex: 1 }}>
-            {title}
-          </Copy>
+          {logo ? (
+            <View
+              style={{ flex: 1 }}
+              accessible
+              accessibilityRole="header"
+              accessibilityLabel={title}
+            >
+              <Image
+                source={WORDMARK}
+                resizeMode="contain"
+                style={{
+                  width: WORDMARK_WIDTH,
+                  height: WORDMARK_HEIGHT,
+                  tintColor: t.color.navy,
+                }}
+              />
+            </View>
+          ) : (
+            <Copy
+              variant="title"
+              accessibilityRole="header"
+              style={{ flex: 1 }}
+            >
+              {title}
+            </Copy>
+          )}
         </View>
         {process.env.EXPO_PUBLIC_APP_ENV === "staging-test" && (
           <Banner>
