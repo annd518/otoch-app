@@ -1,0 +1,40 @@
+// OTOCH v2.0 pp.87–94. Minimum dimensions grow with text; never cap font scaling.
+export const theme = {
+  color: {
+    background: "#FFFFFF",
+    subtle: "#F7F4EE",
+    muted: "#EEF1F5",
+    navy: "#0E284B",
+    brand: "#11589F",
+    pressed: "#104B87",
+    text: "#1E2F45",
+    secondary: "#566676",
+    border: "#E3E8EE",
+    disabled: "#72839A",
+    info: "#DEE8F2",
+    error: "#B42318",
+    errorBg: "#FBE3E1",
+    warning: "#9A5800",
+    warningBg: "#FCEFD7",
+    success: "#1B7A4A",
+    successBg: "#E6F3EC",
+  },
+  space: [4, 8, 12, 16, 20, 24, 32, 40, 48],
+  radius: { small: 8, card: 16, large: 24 },
+  type: {
+    heading: {
+      fontFamily: "Montserrat_600SemiBold",
+      fontSize: 24,
+      lineHeight: 32,
+    },
+    title: { fontFamily: "Montserrat_700Bold", fontSize: 28, lineHeight: 36 },
+    body: { fontFamily: "NotoSans_400Regular", fontSize: 18, lineHeight: 28 },
+    label: { fontFamily: "NotoSans_600SemiBold", fontSize: 16, lineHeight: 24 },
+    caption: {
+      fontFamily: "NotoSans_400Regular",
+      fontSize: 14,
+      lineHeight: 20,
+    },
+  },
+  motion: { fast: 120, normal: 200, slow: 320 },
+} as const;
