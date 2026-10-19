@@ -136,15 +136,18 @@ export default function ReviewScreen() {
           <Text style={styles.headerSubtitle}>Төлбөр хийгдээгүй ноорог</Text>
         </View>
       </View>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <Stepper step={4} />
+      </View>
       <ScrollView
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
         <FeatureSummary
+          compact
           icon={ClipboardCheck}
           title="Баталгаажуулахын өмнө"
           description="Үйлчлүүлэгч, хаяг, цаг болон серверийн үнийн саналаа шалгаарай."
         />
-        <Stepper step={4} />
         <View
           style={[
             styles.statusCard,
@@ -206,7 +209,15 @@ export default function ReviewScreen() {
                 : "Үнийн санал авах"}
           </Text>
         </TouchableOpacity>
-
+      </ScrollView>
+      <View
+        style={{
+          padding: 20,
+          backgroundColor: theme.color.surface,
+          borderTopWidth: 1,
+          borderTopColor: theme.color.border,
+        }}
+      >
         <TouchableOpacity
           style={[
             styles.primaryButton,
@@ -221,7 +232,7 @@ export default function ReviewScreen() {
               : "Үнийн санал шаардлагатай"}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

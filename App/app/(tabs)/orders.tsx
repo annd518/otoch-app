@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
@@ -45,34 +45,46 @@ export default function OrdersScreen() {
           ),
   );
   return (
-    <Screen title="Захиалга" back={false}>
+    <Screen
+      title="Захиалга"
+      back={false}
+      sticky={
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8 }}
+        >
+          {[
+            ["active", "Идэвхтэй"],
+            ["past", "Өмнөх"],
+            ["cancelled", "Цуцалсан / зогссон"],
+          ].map(([key, label]) => (
+            <Chip
+              key={key}
+              label={label}
+              selected={filter === key}
+              onPress={() => setFilter(key)}
+            />
+          ))}
+        </ScrollView>
+      }
+      footer={
+        <Button
+          title="Шинэ захиалга"
+          onPress={() => {
+            dispatch({ type: "reset" });
+            router.push("/booking/catalog");
+          }}
+        />
+      }
+    >
       <FeatureSummary
+        compact
         icon={CalendarDays}
         title="Таны тусламжийн хуваарь"
         description="Идэвхтэй болон өмнөх захиалгаа нэг дороос хянаарай."
       />
-      <Button
-        title="Шинэ захиалга"
-        onPress={() => {
-          dispatch({ type: "reset" });
-          router.push("/booking/catalog");
-        }}
-      />
-      <View style={{ gap: 8, flexDirection: "row", flexWrap: "wrap" }}>
-        {[
-          ["active", "Идэвхтэй"],
-          ["past", "Өмнөх"],
-          ["cancelled", "Цуцалсан / зогссон"],
-        ].map(([key, label]) => (
-          <Chip
-            key={key}
-            style={key === "cancelled" ? { width: "100%" } : { flex: 1 }}
-            label={label}
-            selected={filter === key}
-            onPress={() => setFilter(key)}
-          />
-        ))}
-      </View>
+
       {loading ? (
         <StateView title="Захиалга ачаалж байна" loading />
       ) : error ? (

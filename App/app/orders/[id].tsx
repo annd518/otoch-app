@@ -1,9 +1,10 @@
 import { dateTimeLabel, timeLabel } from "@/design/dateLabels";
-import { UserRound, Activity, CalendarDays } from "lucide-react-native";
+import { UserRound, CalendarDays } from "lucide-react-native";
 import {
   SectionHeading,
   StatusPill,
   EventTimeline,
+  FormSection,
   Banner,
   Button,
   Card,
@@ -142,7 +143,36 @@ export default function OrderDetail() {
     router.push("/(tabs)/bookappointment");
   };
   return (
-    <Screen title="Захиалгын дэлгэрэнгүй">
+    <Screen
+      title="Захиалгын дэлгэрэнгүй"
+      footer={
+        order &&
+        (order.status === "DRAFT" ||
+          ["AWAITING_PAYMENT", "PAID"].includes(order.status)) ? (
+          <>
+            {order.status === "DRAFT" && (
+              <Button
+                title="Ноорог үргэлжлүүлэх"
+                onPress={() => {
+                  void resume();
+                }}
+              />
+            )}
+            {["AWAITING_PAYMENT", "PAID"].includes(order.status) && (
+              <Button
+                title="Төлбөрийн мэдээлэл"
+                onPress={() =>
+                  router.push({
+                    pathname: "/booking/payment",
+                    params: { orderId: order.id },
+                  })
+                }
+              />
+            )}
+          </>
+        ) : undefined
+      }
+    >
       {!!error && (
         <Banner error>
           {error}
@@ -177,33 +207,13 @@ export default function OrderDetail() {
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>
-          <Card>
-            <SectionHeading icon={Activity} title="Захиалгын явц" />
+          <FormSection title="Захиалгын явц">
             {order.timeline?.length ? (
               <EventTimeline events={order.timeline} />
             ) : (
               <Copy>Явцын мэдээлэл одоогоор алга.</Copy>
             )}
-          </Card>
-          {order.status === "DRAFT" && (
-            <Button
-              title="Ноорог үргэлжлүүлэх"
-              onPress={() => {
-                void resume();
-              }}
-            />
-          )}
-          {["AWAITING_PAYMENT", "PAID"].includes(order.status) && (
-            <Button
-              title="Төлбөрийн мэдээлэл"
-              onPress={() =>
-                router.push({
-                  pathname: "/booking/payment",
-                  params: { orderId: order.id },
-                })
-              }
-            />
-          )}
+          </FormSection>
           <Copy>Мэдээллийг 10 секунд тутам шинэчилнэ.</Copy>
         </>
       )}

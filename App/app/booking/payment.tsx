@@ -237,6 +237,7 @@ export default function PaymentScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.container}>
         <FeatureSummary
+          compact
           icon={ShieldCheck}
           title="Аюулгүй төлбөр"
           description="Төлөвийг сервер баталгаажуулсны дараа төлөгдсөн гэж харуулна."
@@ -377,12 +378,6 @@ export default function PaymentScreen() {
                 <Text style={styles.bankText}>{bank.name}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => void check()}
-            >
-              <Text style={styles.secondaryButtonText}>Төлбөр шалгах</Text>
-            </TouchableOpacity>
           </>
         )}
 
@@ -431,6 +426,24 @@ export default function PaymentScreen() {
           </View>
         )}
       </ScrollView>
+      {phase.kind === "pending" && (
+        <View
+          style={{
+            padding: 20,
+            backgroundColor: theme.color.surface,
+            borderTopWidth: 1,
+            borderTopColor: theme.color.border,
+          }}
+        >
+          {" "}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => void check()}
+          >
+            <Text style={styles.secondaryButtonText}>Төлбөр шалгах</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }

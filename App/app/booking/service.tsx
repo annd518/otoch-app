@@ -33,7 +33,22 @@ export default function ServiceScreen() {
     };
   }, [code]);
   return (
-    <Screen title="Үйлчилгээ">
+    <Screen
+      title="Үйлчилгээ"
+      footer={
+        service ? (
+          <Button
+            title="Бэлтгэл харах"
+            onPress={() =>
+              router.push({
+                pathname: "/booking/preparation",
+                params: { code: service.code },
+              })
+            }
+          />
+        ) : undefined
+      }
+    >
       {!service ? (
         <StateView title={error || "Үйлчилгээ ачаалж байна"} loading={!error} />
       ) : (
@@ -45,6 +60,7 @@ export default function ServiceScreen() {
             </Banner>
           )}
           <FeatureSummary
+            compact
             icon={careIcon(service.group ?? service.category)}
             title={service.name}
             description={
@@ -77,15 +93,6 @@ export default function ServiceScreen() {
               Эцсийн төлөх дүнг серверийн үнийн саналаар баталгаажуулна.
             </Copy>
           </Card>
-          <Button
-            title="Бэлтгэл харах"
-            onPress={() =>
-              router.push({
-                pathname: "/booking/preparation",
-                params: { code: service.code },
-              })
-            }
-          />
         </>
       )}
     </Screen>

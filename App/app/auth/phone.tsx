@@ -58,8 +58,35 @@ export default function PhoneAuth() {
     );
   });
   return (
-    <Screen title="OTOCH-д нэвтрэх">
+    <Screen
+      title="OTOCH-д нэвтрэх"
+      footer={
+        !challenge ? (
+          <Button
+            network
+            title="Код авах"
+            disabled={!/^\d{8}$/.test(phone)}
+            busy={request.running}
+            onPress={() => {
+              void request.run();
+            }}
+          />
+        ) : (
+          <Button
+            title="Баталгаажуулах"
+            disabled={
+              !/^\d{6}$/.test(code) || Date.parse(challenge.expiresAt) <= now
+            }
+            busy={verify.running}
+            onPress={() => {
+              void verify.run();
+            }}
+          />
+        )
+      }
+    >
       <FeatureSummary
+        compact
         icon={ShieldCheck}
         title="Утсаа баталгаажуулах"
         description="Таны мэдээлэлд зөвхөн та нэвтрэхэд нэг удаагийн код ашиглана."
@@ -79,17 +106,7 @@ export default function PhoneAuth() {
         maxLength={8}
         onChangeText={(value) => setPhone(value.replace(/\D/g, ""))}
       />
-      {!challenge ? (
-        <Button
-          network
-          title="Код авах"
-          disabled={!/^\d{8}$/.test(phone)}
-          busy={request.running}
-          onPress={() => {
-            void request.run();
-          }}
-        />
-      ) : (
+      {challenge && (
         <>
           {challenge.isMock && (
             <Banner>
@@ -113,16 +130,7 @@ export default function PhoneAuth() {
             value={name}
             onChangeText={setName}
           />
-          <Button
-            title="Баталгаажуулах"
-            disabled={
-              !/^\d{6}$/.test(code) || Date.parse(challenge.expiresAt) <= now
-            }
-            busy={verify.running}
-            onPress={() => {
-              void verify.run();
-            }}
-          />
+
           <Button
             secondary
             title={

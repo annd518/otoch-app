@@ -23,23 +23,29 @@ export default function InitialProfile() {
     router.replace("/(tabs)");
   });
   return (
-    <Screen title="Таны мэдээлэл" back={false}>
+    <Screen
+      title="Таны мэдээлэл"
+      back={false}
+      footer={
+        <Button
+          network
+          title="Хадгалах"
+          disabled={name.trim().length < 2}
+          busy={save.running}
+          onPress={() => {
+            void save.run();
+          }}
+        />
+      }
+    >
       <FeatureSummary
+        compact
         icon={UserRound}
         title="Танилцъя"
         description="Үйлчилгээнд ашиглах нэрээ оруулна уу."
       />
       {!!error && <Banner error>{error}</Banner>}
       <Input label="Нэр" value={name} onChangeText={setName} />
-      <Button
-        network
-        title="Хадгалах"
-        disabled={name.trim().length < 2}
-        busy={save.running}
-        onPress={() => {
-          void save.run();
-        }}
-      />
     </Screen>
   );
 }

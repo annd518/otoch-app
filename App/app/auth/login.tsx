@@ -140,19 +140,6 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                loading && styles.primaryButtonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.primaryButtonText}>
-                {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
-              </Text>
-            </TouchableOpacity>
-
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
               <Text style={styles.dividerText}>ЭСВЭЛ</Text>
@@ -169,6 +156,21 @@ export default function LoginScreen() {
             </View>
           </View>
         </ScrollView>
+        <View style={{ padding: 20, backgroundColor: theme.color.surface }}>
+          {" "}
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              loading && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Нэвтэрч байна..." : "Нэвтрэх"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
