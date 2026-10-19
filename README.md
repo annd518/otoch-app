@@ -5,10 +5,10 @@
 Нэг командаар: сервер, админ вэб, Expo тус бүр өөрийн цонхонд нээгдэнэ. Аль ч хавтаснаас ажиллана, эсвэл Explorer-оос `dev.cmd`-ийг давхар товшино.
 
 ```
-D:hulgaiPariwar-Care-dev.cmd          # API + админ вэб + Expo
-D:hulgaiPariwar-Care-dev.cmd web      # API + админ вэб (http://localhost:3000)
-D:hulgaiPariwar-Care-dev.cmd app      # API + Expo
-D:hulgaiPariwar-Care-dev.cmd api      # зөвхөн API (http://localhost:8000)
+D:\hulgai\Pariwar-Care-\dev.cmd          # API + админ вэб + Expo
+D:\hulgai\Pariwar-Care-\dev.cmd web      # API + админ вэб (http://localhost:3000)
+D:\hulgai\Pariwar-Care-\dev.cmd app      # API + Expo
+D:\hulgai\Pariwar-Care-\dev.cmd api      # зөвхөн API (http://localhost:8000)
 ```
 
 Зогсоохдоо тухайн цонхыг хаана. Анх удаа `server`, `wclient`, `App` хавтас бүрт `npm install` хийсэн байх шаардлагатай.
