@@ -66,6 +66,10 @@ export type ErrorCode =
   | "OTP_LOCKED"
   | "OTP_RATE_LIMIT"
   | "SMS_UNAVAILABLE"
+  | "CHECKIN_TOO_FAR"
+  | "CHECKIN_TIME_WINDOW"
+  | "RECORD_INCOMPLETE"
+  | "RECORD_REQUIRED"
   | "INTERNAL_ERROR";
 
 export type FieldErrors = Record<string, string>;

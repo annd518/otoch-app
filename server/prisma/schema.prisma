@@ -130,8 +130,11 @@ enum OrderStatus {
   AWAITING_PAYMENT
   PAID
   ASSIGNED
+  EN_ROUTE
   IN_PROGRESS
   COMPLETED
+  REFUSED
+  INCIDENT
   CANCELLED
   EXPIRED
 }
@@ -173,8 +176,35 @@ model Order {
   quotes         Quote[]
   attachments    Attachment[]
   payments       Payment[]
+  visitRecord    VisitRecord?
 
   @@index([childId, status])
+}
+
+// Nurse's record of one home visit (spec slides 34-36, A/41 appendix 3).
+// One per order. Check-in fields are written by POST .../checkin, the rest by the
+// autosaved PUT .../record; signing it (POST .../finish) completes the order.
+model VisitRecord {
+  id               String    @id @default(cuid())
+  orderId          String    @unique
+  nurseId          String
+  checkinAt        DateTime?
+  checkinMethod    String?
+  checkinLat       Float?
+  checkinLng       Float?
+  checkinDistanceM Int?
+  checklist        Json? // { identified, hygiene, medicationChecked } confirmed at check-in
+  vitals           Json? // { systolic, diastolic, pulse, temperatureC, spo2 }
+  procedures       Json? // string[] of performed procedure codes
+  medicationChecks Json? // { patient, medicine, dose, route, time } 5 rights
+  note             String?
+  signerName       String?
+  signature        String? // PNG data URL drawn on screen
+  signedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model OrderItem {
