@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from "react";
+import React, { useSyncExternalStore, useState } from "react";
 import { connectivity } from "@/services/connectivity";
 import { apiService } from "@/services/api";
 import {
@@ -18,8 +18,12 @@ import {
 import { AppText as Text } from "@/components/AppText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Inbox } from "lucide-react-native";
+import { NeuIconButton } from "./NeuIconButton";
+import { NeuSurface } from "./NeuSurface";
 import { theme as t } from "@/design/theme";
+
+export { NeuSurface, NeuIconButton };
 
 export function Copy({
   variant = "body",
@@ -40,6 +44,7 @@ export function Button({
   busy,
   secondary = false,
   network = false,
+  variant,
 }: {
   title: string;
   onPress: () => void;
@@ -47,13 +52,16 @@ export function Button({
   busy?: boolean;
   secondary?: boolean;
   network?: boolean;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
 }) {
   const offline = useSyncExternalStore(
     connectivity.subscribe,
     connectivity.get,
     () => false,
   );
-  const unavailable = disabled || (network && offline);
+  const unavailable = disabled || busy || (network && offline);
+  const kind = variant ?? (secondary ? "secondary" : "primary");
+  const light = kind === "secondary" || kind === "ghost";
   return (
     <Pressable
       accessibilityRole="button"
@@ -63,27 +71,41 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        unavailable || kind === "ghost"
+          ? t.depth.flat
+          : light
+            ? t.depth.soft
+            : t.depth.action,
+        pressed && { ...t.depth.flat, transform: [{ scale: 0.98 }] },
         {
           backgroundColor: unavailable
             ? t.color.muted
-            : secondary
-              ? t.color.info
-              : pressed
-                ? t.color.pressed
-                : t.color.brand,
+            : light
+              ? kind === "ghost"
+                ? "transparent"
+                : pressed
+                  ? t.color.inset
+                  : t.color.surface
+              : kind === "danger"
+                ? t.color.error
+                : pressed
+                  ? t.color.pressed
+                  : t.color.brand,
         },
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={t.color.background} />
+        <ActivityIndicator
+          color={light || unavailable ? t.color.brand : t.color.onBrand}
+        />
       ) : (
         <Copy
           variant="label"
           style={{
-            fontSize: 18,
+            fontSize: 16,
             color: unavailable
               ? t.color.disabled
-              : secondary
+              : light
                 ? t.color.brand
                 : t.color.background,
             textAlign: "center",
@@ -96,7 +118,7 @@ export function Button({
   );
 }
 export function Card({ style, ...props }: ViewProps) {
-  return <View {...props} style={[styles.card, style]} />;
+  return <NeuSurface {...props} style={[styles.card, style]} />;
 }
 export function Banner({
   children,
@@ -133,6 +155,7 @@ export function Input({
   error,
   ...props
 }: TextInputProps & { label: string; error?: string }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 8 }}>
       <Copy variant="label">{label}</Copy>
@@ -140,7 +163,27 @@ export function Input({
         {...props}
         accessibilityLabel={label}
         placeholderTextColor={t.color.secondary}
-        style={[styles.input, props.style]}
+        onFocus={(event) => {
+          setFocused(true);
+          props.onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          props.onBlur?.(event);
+        }}
+        style={[
+          styles.input,
+          t.depth.inset,
+          {
+            borderColor: error
+              ? t.color.error
+              : focused
+                ? t.color.brand
+                : t.color.border,
+            borderWidth: error || focused ? 2 : 1,
+          },
+          props.style,
+        ]}
       />
       {!!error && <Banner error>{error}</Banner>}
     </View>
@@ -165,6 +208,7 @@ export function Chip({
       style={[
         styles.chip,
         selected && {
+          ...t.depth.inset,
           backgroundColor: t.color.info,
           borderColor: t.color.brand,
         },
@@ -209,6 +253,7 @@ export function StateView({
 }) {
   return (
     <Card>
+      {!loading && <Inbox size={28} color={t.color.brand} accessible={false} />}
       <Copy variant="heading">{title}</Copy>
       {loading ? (
         <View accessibilityLabel="Агуулга ачаалж байна" style={{ gap: 12 }}>
@@ -282,7 +327,8 @@ export function Screen({
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           {back && (
-            <Pressable
+            <NeuIconButton
+              label="Буцах"
               onPress={() =>
                 router.canGoBack() ? router.back() : router.replace("/")
               }
@@ -296,7 +342,7 @@ export function Screen({
               }}
             >
               <ArrowLeft color={t.color.brand} size={24} />
-            </Pressable>
+            </NeuIconButton>
           )}
           {logo ? (
             <View
@@ -340,16 +386,16 @@ export function Screen({
 const styles = StyleSheet.create({
   button: {
     minHeight: 56,
-    borderRadius: 12,
+    borderRadius: t.radius.card,
     paddingHorizontal: 20,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   card: {
-    backgroundColor: t.color.background,
+    backgroundColor: t.color.surface,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: t.radius.card,
     borderWidth: 1,
     borderColor: t.color.border,
     gap: 12,
@@ -362,7 +408,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: t.color.border,
-    backgroundColor: t.color.background,
+    backgroundColor: t.color.surface,
     color: t.color.text,
   },
   chip: {

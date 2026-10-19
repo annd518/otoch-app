@@ -38,6 +38,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: theme.color.secondary,
         tabBarStyle: {
           height: Math.max(72, 32 + 36 * fontScale) + insets.bottom,
+          backgroundColor: theme.color.surface,
+          borderTopColor: theme.color.border,
+          ...theme.depth.soft,
         },
         tabBarLabelPosition: "below-icon",
         tabBarLabel: ({ color, children }) => (

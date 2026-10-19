@@ -162,6 +162,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   callButton: {
+    ...theme.depth.action,
     minHeight: 56,
     flexDirection: "row",
     alignItems: "center",

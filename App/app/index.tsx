@@ -33,15 +33,16 @@ import {
 } from "@/design/onboarding";
 import { storage } from "@/utils/storage";
 
-// Continues the splash: same gradient and the white ОТОЧ wordmark, then three
-// swipeable slides with a large icon each.
-const GRADIENT = require("../assets/splash/splash-bg.png");
+// Keeps the approved splash assets, then transitions into three calm,
+// softly raised onboarding slides using the shared medical palette.
 const WORDMARK = require("../assets/brand/otoch-wordmark.png");
 const ICONS = { home: House, shield: ShieldCheck, clipboard: ClipboardList };
 const BADGES = { heart: HeartPulse, check: CircleCheck, clock: Clock };
 
 export default function Onboarding() {
   const { width } = useWindowDimensions();
+  const [layoutWidth, setLayoutWidth] = useState(0);
+  const pageWidth = layoutWidth || width || 390;
   const scroller = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -65,24 +66,32 @@ export default function Onboarding() {
   const start = () => router.push("/auth/phone");
   const goTo = (next: number) => {
     setPage(next);
-    scroller.current?.scrollTo({ x: next * width, animated: !reduceMotion });
+    scroller.current?.scrollTo({
+      x: next * pageWidth,
+      animated: !reduceMotion,
+    });
   };
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) =>
-    setPage(pageAt(e.nativeEvent.contentOffset.x, width, last + 1));
+    setPage(pageAt(e.nativeEvent.contentOffset.x, pageWidth, last + 1));
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-      <Image
-        source={GRADIENT}
-        resizeMode="stretch"
-        style={StyleSheet.absoluteFill}
-        accessibilityIgnoresInvertColors
-      />
+    <View
+      style={styles.root}
+      onLayout={(event) => setLayoutWidth(event.nativeEvent.layout.width)}
+    >
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <View style={styles.top}>
-          <View accessible accessibilityRole="header" accessibilityLabel="OTOCH">
-            <Image source={WORDMARK} resizeMode="contain" style={styles.wordmark} />
+          <View
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="OTOCH"
+          >
+            <Image
+              source={WORDMARK}
+              resizeMode="contain"
+              style={styles.wordmark}
+            />
           </View>
           <Pressable
             onPress={start}
@@ -104,7 +113,12 @@ export default function Onboarding() {
           style={styles.pager}
         >
           {ONBOARDING_SLIDES.map((slide, i) => (
-            <Slide key={slide.title} slide={slide} width={width} index={i} />
+            <Slide
+              key={slide.title}
+              slide={slide}
+              width={pageWidth}
+              index={i}
+            />
           ))}
         </ScrollView>
 
@@ -167,7 +181,7 @@ function Slide({
       >
         <View style={styles.halo}>
           <View style={styles.circle}>
-            <Icon color={theme.color.background} size={84} strokeWidth={1.6} />
+            <Icon color={theme.color.brand} size={84} strokeWidth={1.6} />
           </View>
           <View style={styles.badge}>
             <Badge color={theme.color.navy} size={30} strokeWidth={2.2} />
@@ -180,10 +194,10 @@ function Slide({
   );
 }
 
-const WHITE_SOFT = "rgba(255,255,255,0.86)";
+const WHITE_SOFT = theme.color.secondary;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.color.navy },
+  root: { flex: 1, backgroundColor: theme.color.surface },
   safe: { flex: 1 },
   top: {
     flexDirection: "row",
@@ -193,7 +207,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   // 654x183 @3x
-  wordmark: { width: 115, height: 32, tintColor: theme.color.background },
+  wordmark: { width: 115, height: 32, tintColor: theme.color.navy },
   skip: { minHeight: 48, minWidth: 48, justifyContent: "center" },
   skipText: { color: WHITE_SOFT, fontSize: 18 },
   pager: { flex: 1 },
@@ -208,7 +222,8 @@ const styles = StyleSheet.create({
     width: 220,
     height: 220,
     borderRadius: 110,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: theme.color.surface,
+    ...theme.depth.raised,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -217,9 +232,10 @@ const styles = StyleSheet.create({
     width: 164,
     height: 164,
     borderRadius: 82,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: theme.color.surface,
+    ...theme.depth.inset,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
+    borderColor: theme.color.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -234,10 +250,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 4,
-    borderColor: "#123F72",
+    borderColor: theme.color.surface,
   },
   title: {
-    color: theme.color.background,
+    color: theme.color.navy,
     fontFamily: "Montserrat_700Bold",
     fontSize: 28,
     lineHeight: 36,
@@ -260,29 +276,39 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: theme.color.border,
   },
-  dotActive: { width: 28, backgroundColor: ONBOARDING_GOLD },
+  dotActive: { width: 28, backgroundColor: theme.color.brand },
   notice: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: theme.color.warningBg,
   },
-  noticeText: { flex: 1, color: theme.color.background, fontSize: 16, lineHeight: 23 },
+  noticeText: {
+    flex: 1,
+    color: theme.color.text,
+    fontSize: 16,
+    lineHeight: 23,
+  },
   primary: {
     minHeight: 56,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.brand,
+    ...theme.depth.action,
   },
-  pressed: { opacity: 0.85 },
+  pressed: {
+    backgroundColor: theme.color.pressed,
+    transform: [{ scale: 0.98 }],
+    ...theme.depth.flat,
+  },
   primaryText: {
-    color: theme.color.navy,
+    color: theme.color.onBrand,
     fontFamily: "Montserrat_700Bold",
     fontSize: 18,
   },

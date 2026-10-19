@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     marginTop: 2,
   },
@@ -447,19 +447,19 @@ const styles = StyleSheet.create({
   mockBannerText: {
     color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
   },
   centered: { alignItems: "center", gap: 12, paddingVertical: 24 },
   muted: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     textAlign: "center",
   },
   error: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.error,
     textAlign: "center",
   },
@@ -470,6 +470,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.background,
   },
   bankButton: {
+    ...theme.depth.soft,
     backgroundColor: theme.color.background,
     borderRadius: 12,
     borderWidth: 1,
@@ -478,7 +479,7 @@ const styles = StyleSheet.create({
   },
   bankText: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.text,
     fontWeight: "600",
     textAlign: "center",
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: theme.radius.card,
     paddingVertical: 14,
     paddingHorizontal: 20,
     alignItems: "center",
@@ -502,7 +503,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: theme.color.brand,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
 });

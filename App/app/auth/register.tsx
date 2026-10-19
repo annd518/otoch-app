@@ -200,7 +200,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: theme.color.surface,
   },
   container: {
     flex: 1,
@@ -218,13 +218,13 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 32,
     fontWeight: "800",
-    color: "#111",
+    color: theme.color.text,
     marginBottom: 8,
   },
   subtitle: {
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
-    color: "#666",
+    color: theme.color.secondary,
     textAlign: "center",
   },
   form: {
@@ -237,38 +237,39 @@ const styles = StyleSheet.create({
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: theme.color.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#f7f8fb",
+    ...theme.depth.inset,
+    backgroundColor: theme.color.surface,
     borderWidth: 1,
-    borderColor: "#e1e4e8",
-    borderRadius: 12,
+    borderColor: theme.color.border,
+    borderRadius: theme.radius.card,
     padding: 16,
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
-    color: "#111",
+    color: theme.color.text,
   },
   primaryButton: {
     minHeight: 56,
-    backgroundColor: "#2f80ed",
+    backgroundColor: theme.color.brand,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     alignItems: "center",
     marginTop: 8,
-    shadowColor: "#2f80ed",
+    shadowColor: theme.color.brand,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#a0c4f0",
+    backgroundColor: theme.color.info,
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: theme.color.onBrand,
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
     fontWeight: "700",
@@ -280,12 +281,12 @@ const styles = StyleSheet.create({
   termsText: {
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
-    color: "#666",
+    color: theme.color.secondary,
     textAlign: "center",
     lineHeight: 28,
   },
   termsLink: {
-    color: "#2f80ed",
+    color: theme.color.brand,
     fontWeight: "600",
   },
   divider: {
@@ -296,11 +297,11 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e1e4e8",
+    backgroundColor: theme.color.border,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: "#999",
+    color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
     fontWeight: "600",
@@ -314,12 +315,12 @@ const styles = StyleSheet.create({
   loginText: {
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
-    color: "#666",
+    color: theme.color.secondary,
   },
   loginLink: {
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
-    color: "#2f80ed",
+    color: theme.color.brand,
     fontWeight: "700",
   },
 });
