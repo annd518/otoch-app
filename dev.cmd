@@ -2,7 +2,7 @@
 rem OTOCH local development: one window per part, from any folder.
 rem
 rem   dev.cmd          API + admin web + mobile app (Expo)
-rem   dev.cmd web      API + admin web
+rem   dev.cmd web      API + admin web (opens the admin panel)
 rem   dev.cmd app      API + mobile app (Expo)
 rem   dev.cmd api      API only
 rem
@@ -37,10 +37,11 @@ if not exist "%ROOT%wclient\node_modules" (
   echo wclient\node_modules is missing. Run once: cd "%ROOT%wclient" ^&^& npm install
   exit /b 0
 )
-echo Starting the admin web on http://localhost:3000 ...
+echo Starting the admin web: http://localhost:3000/dashboard/admin ...
 start "OTOCH admin web :3000" /D "%ROOT%wclient" cmd /k npm run dev
-rem open the browser once the web server had time to start
-start "" /MIN cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:3000"
+rem open the admin panel once the web server had time to start (the login
+rem page first when not signed in; admins land on the panel after login)
+start "" /MIN cmd /c "timeout /t 12 /nobreak >nul & start http://localhost:3000/dashboard/admin"
 exit /b 0
 
 :app
