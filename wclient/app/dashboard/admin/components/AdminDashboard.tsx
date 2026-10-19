@@ -1,65 +1,26 @@
 "use client"
 
-import { Analytics } from "./Analytics"
-import { UserManagement } from "./UserManagement"
-import { NurseAssignment } from "./NurseAssignment"
+import { AdminSummary } from "./AdminSummary"
 import { useRoleProtection } from "@/lib/hooks/useRoleProtection"
+import type { UserRole } from "@/lib/auth/session-core"
+
+// The API (/api/admin/summary) checks the role again from the database.
+const ROLES: UserRole[] = ["ADMIN", "MEDICAL_ADMIN"]
 
 export default function AdminDashboard() {
-  // Only ADMIN role can access this page
-  useRoleProtection(['ADMIN']);
+  useRoleProtection(ROLES);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
+    <div className="min-h-screen bg-gray-50">
       <div className="p-6 max-w-7xl mx-auto">
-        {/* Header with subtle blur background */}
-        <div className="mb-8 relative">
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-2xl" />
-          <div className="relative p-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Админы хянах самбар</h1>
-            <p className="text-gray-600">Платформоо удирдаж, гол үзүүлэлтүүдийг хянах</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Админы хянах самбар</h1>
+          <p className="text-gray-600">
+            Захиалга, төлбөр, хэрэглэгчдийн бодит тоо. Сувилагч томилох нь
+            “Үйлчилгээний захиалгууд” хэсэгт.
+          </p>
         </div>
-
-        {/* Analytics Overview with blur card */}
-        <div className="mb-8 relative">
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-lg rounded-2xl shadow-xl" />
-          <div className="relative p-6">
-            <Analytics />
-          </div>
-        </div>
-
-        {/* User Management Section */}
-        <section className="mb-8">
-          <div className="mb-4 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-white/80 backdrop-blur-sm rounded-xl" />
-            <div className="relative px-6 py-3">
-              <h2 className="text-xl font-semibold text-gray-800">Хэрэглэгчийн удирдлага</h2>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-lg rounded-2xl shadow-lg" />
-            <div className="relative p-6">
-              <UserManagement />
-            </div>
-          </div>
-        </section>
-
-        {/* Nurse Assignment Section */}
-        <section className="mb-8">
-          <div className="mb-4 relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-100/80 to-white/80 backdrop-blur-sm rounded-xl" />
-            <div className="relative px-6 py-3">
-              <h2 className="text-xl font-semibold text-gray-800">Сувилагч томилох</h2>
-            </div>
-          </div>
-          <div className="relative">
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-lg rounded-2xl shadow-lg" />
-            <div className="relative p-6">
-              <NurseAssignment />
-            </div>
-          </div>
-        </section>
+        <AdminSummary />
       </div>
     </div>
   )
