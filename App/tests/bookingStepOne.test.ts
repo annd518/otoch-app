@@ -14,10 +14,13 @@ describe('booking step 1 says what is missing', () => {
     assert.deepEqual(missingForStepOne({ addressText: '  ab ' }), [
       'дэлгэрэнгүй хаяг (5+ тэмдэгт)',
       'газрын зураг дээрх цэг',
-      'үйлчлэх бүс',
       'огноо',
       'цаг',
     ])
+  })
+
+  it('the zone follows the map point: a point outside every zone is named', () => {
+    assert.deepEqual(missingForStepOne({ ...complete, zoneId: undefined }), ['үйлчилгээний бүс доторх цэг'])
   })
 
   it('a map point needs both coordinates (0 is a valid number)', () => {

@@ -18,7 +18,9 @@ export function missingForStepOne(d: StepOneDetails): string[] {
     missing.push(`дэлгэрэнгүй хаяг (${MIN_ADDRESS_LENGTH}+ тэмдэгт)`);
   if (typeof d.lat !== "number" || typeof d.lng !== "number")
     missing.push("газрын зураг дээрх цэг");
-  if (!d.zoneId) missing.push("үйлчлэх бүс");
+  // the zone follows the map point: no zone = the point is outside every zone
+  if (!d.zoneId && typeof d.lat === "number" && typeof d.lng === "number")
+    missing.push("үйлчилгээний бүс доторх цэг");
   if (!d.date) missing.push("огноо");
   if (!d.timeSlot) missing.push("цаг");
   return missing;

@@ -230,6 +230,12 @@ export default function Booking() {
     expiresAt: "",
     doseNumber: 1,
   };
+  // a map point outside every service zone (the zone follows the point)
+  const outsideZones =
+    zones.length > 0 &&
+    typeof details.lat === "number" &&
+    typeof details.lng === "number" &&
+    !details.zoneId;
   const medMissing = medicationMissing(form, {
     required: medicationRequired,
     firstDoseCheck,
@@ -319,20 +325,6 @@ export default function Booking() {
               dispatch({ type: "updateDetails", patch: { addressText } })
             }
           />
-          <Copy variant="heading">Үйлчлэх бүс</Copy>
-          {zones.map((z) => (
-            <Chip
-              key={z.id}
-              label={z.name}
-              selected={details.zoneId === z.id}
-              onPress={() => {
-                dispatch({
-                  type: "updateDetails",
-                  patch: { zoneId: z.id, timeSlot: "" },
-                });
-              }}
-            />
-          ))}
           {!zones.length && (
             <StateView
               title="Үйлчлэх бүс тохируулагдаагүй"
@@ -344,23 +336,30 @@ export default function Booking() {
             zones={zones}
             selectedZoneId={details.zoneId}
             onChange={(point) => {
-              // No zone chosen yet: pick the one that contains the point
+              // The service zone follows the map point (no zone list to pick
+              // from); a different zone has different free times.
               const zone =
-                !details.zoneId &&
-                typeof point.lat === "number" &&
-                typeof point.lng === "number"
+                typeof point.lat === "number" && typeof point.lng === "number"
                   ? zoneContaining(zones, { lat: point.lat, lng: point.lng })
                   : null;
+              const zoneId = zone?.id;
               dispatch({
                 type: "updateDetails",
                 patch: {
                   lat: point.lat,
                   lng: point.lng,
-                  ...(zone && { zoneId: zone.id, timeSlot: "" }),
+                  zoneId,
+                  ...(zoneId !== details.zoneId && { timeSlot: "" }),
                 },
               });
             }}
           />
+          {outsideZones && (
+            <Banner error>
+              Энэ цэг үйлчилгээний бүсээс гадуур байна. Одоогоор зөвхөн
+              үйлчилгээний бүс доторх хаягт сувилагч очно.
+            </Banner>
+          )}
           <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
           <BookingCalendar
             date={details.date}
@@ -386,10 +385,9 @@ export default function Booking() {
               });
             }}
           />
-          <Copy>
-            24 цаг ажиллана. Доор тухайн өдрийн серверээс ирсэн сул цагууд
-            харагдана.
-          </Copy>
+          {slots.length > 0 && (
+            <Copy>Тухайн өдрийн сул цагууд:</Copy>
+          )}
           {slotsLoading ? (
             <StateView title="Сул цаг шалгаж байна" loading />
           ) : (
@@ -411,12 +409,6 @@ export default function Booking() {
                 }
               />
             ))
-          )}
-          {details.zoneId && details.date && !slotsLoading && !slots.length && (
-            <StateView
-              title="Сул цаг алга"
-              message="Сонгосон өдөр серверт сул цаг бүртгэгдээгүй байна. Цаг сонгож болно; захиалга баталгаажуулахад багтаамжийг сервер дахин шалгана."
-            />
           )}
 
           {stepOneMissing.length > 0 && (
