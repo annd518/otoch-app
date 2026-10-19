@@ -1,3 +1,11 @@
+## Home only — onboarding benchmark, 2026-10-19
+
+- Зөвхөн `App/app/(tabs)/index.tsx` өөрчлөгдсөн. Onboarding-ийн existing palette/hero/vector, 24–28 radius, headline hierarchy, gradient CTA/depth хэлийг Home-д хэрэглэсэн. Нэг гол raised care card; үйлчилгээний depth бага, хоосон status flat; 103 хэсэг neutral жижиг yellow accent-тай. Бусад дэлгэц, shared theme, tabs/navigation, API/services өөрчлөгдөөгүй.
+- Одоогийн draft reset → catalog, category group param, active order detail, tel:103 handlers хадгалагдсан. Үнэ/ETA/хэрэглэгчийн нэр/захиалга зохиогоогүй.
+- Typecheck, cache-free lint PASS; 219/219 regression PASS; iOS/Android/web export PASS. Chrome mock HTTP/session: 320/390/768px horizontal overflow 0, runtime errors 0; CTA/category/active-order navigation болон error state PASS.
+- Review: [Home 390](screenshots/home-benchmark/home-benchmark-390.png), [320](screenshots/home-benchmark/home-benchmark-320.png), [768](screenshots/home-benchmark/home-benchmark-768.png), [идэвхтэй захиалга](screenshots/home-benchmark/home-benchmark-active.png), [алдаа](screenshots/home-benchmark/home-benchmark-error.png).
+- Native/device/200% font acceptance хийгдээгүй. Home-ийг харуулж review хүлээнэ; бусад дэлгэц дээр үргэлжлүүлээгүй. Commit/push хийгээгүй.
+
 ## Premium onboarding refinement — 2026-10-19
 
 - Хэрэглэгчийн шинэ лавлах зураг/даалгавраар зөвхөн onboarding visual execution-ийг шинэчилсэн. Header → hero → headline/body → pager → 103 card → CTA бүтэц болон гурван slide/skip/auth navigation хэвээр.
