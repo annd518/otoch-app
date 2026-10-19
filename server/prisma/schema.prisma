@@ -24,6 +24,8 @@ model User {
   deletedAt      DateTime?
   refreshSessions RefreshSession[]
   assignedOrders Order[] @relation("AssignedOrderNurse")
+  nurseProfile   NurseProfile?
+  orderOffers    OrderOffer[]
   parents        Parent[] @relation("ChildParents")
   nurseVisits    Visit[]  @relation("NurseVisits")
   approvedVisits Visit[]  @relation("ApprovedBy")
@@ -177,8 +179,58 @@ model Order {
   attachments    Attachment[]
   payments       Payment[]
   visitRecord    VisitRecord?
+  offers         OrderOffer[]
 
   @@index([childId, status])
+}
+
+enum NurseStatus {
+  PENDING
+  VERIFIED
+  SUSPENDED
+}
+
+// What an admin verified about a nurse (spec slide 35). Only a VERIFIED nurse with a
+// valid licence, the needed skills and isActive = true is offered orders.
+model NurseProfile {
+  userId           String      @id
+  status           NurseStatus @default(PENDING)
+  licenseNo        String?
+  licenseExpiresAt DateTime?
+  skillTags        String[] // INJ, IV, WOUND, CATH, NG, CARE
+  zoneIds          String[] // empty = every zone
+  isActive         Boolean     @default(false) // the nurse's own "online" toggle
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
+// One order offered to one nurse in one dispatch wave (spec slide 70).
+model OrderOffer {
+  id          String      @id @default(cuid())
+  orderId     String
+  nurseId     String
+  wave        Int
+  status      OfferStatus @default(PENDING)
+  expiresAt   DateTime
+  respondedAt DateTime?
+  createdAt   DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  nurse User  @relation(fields: [nurseId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, nurseId])
+  @@index([nurseId, status, expiresAt])
+  @@index([orderId, status])
 }
 
 // Nurse's record of one home visit (spec slides 34-36, A/41 appendix 3).

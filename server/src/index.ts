@@ -1,6 +1,7 @@
 // Load environment variables before any other module reads process.env
 import 'dotenv/config'
 import { createApp } from './app'
+import { startDispatchLoop } from './services/dispatchLoop'
 
 if (!process.env.JWT_SECRET) {
     console.error('JWT_SECRET is not set. Refusing to start.')
@@ -24,4 +25,5 @@ app.listen(Number(PORT), '0.0.0.0', (err?: NodeJS.ErrnoException) => {
         process.exit(1)
     }
     console.log(` Server running on http://localhost:${PORT}`)
+    startDispatchLoop()
 })

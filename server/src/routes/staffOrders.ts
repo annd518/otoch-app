@@ -178,6 +178,12 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
                 : {}),
         },
       });
+      // A hand assignment ends any dispatch offers still open for this order.
+      if (action === "assign")
+        await tx.orderOffer.updateMany({
+          where: { orderId: order.id, status: "PENDING" },
+          data: { status: "CANCELLED", respondedAt: new Date() },
+        });
       await tx.orderEvent.create({
         data: {
           orderId: order.id,

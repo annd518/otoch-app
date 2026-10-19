@@ -1,5 +1,6 @@
 import { staffOrders } from "./routes/staffOrders";
 import { nurseOrders } from "./routes/nurseOrders";
+import { nurseOffers } from "./routes/nurseOffers";
 import { clientV2Routes } from "./controllers/clientV2Controller";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -82,6 +83,7 @@ export function createApp() {
   // API Routes
   app.use("/api/staff/orders", staffOrders);
   app.use("/api/nurse/orders", nurseOrders);
+  app.use("/api/nurse", nurseOffers);
   app.use("/api/client", clientV2Routes);
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);

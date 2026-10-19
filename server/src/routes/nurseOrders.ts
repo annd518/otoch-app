@@ -17,8 +17,12 @@ type Tx = Prisma.TransactionClient;
 type LockedOrder = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 
 export const nurseOrders = Router();
-nurseOrders.use(authenticateToken);
-nurseOrders.use(async (req: NurseRequest, _res, next) => {
+/** Signed-in, existing, not deleted NURSE (checked against the database on every request). */
+export const requireNurse = async (
+  req: NurseRequest,
+  _res: unknown,
+  next: () => void,
+) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
     select: { role: true, deletedAt: true },
@@ -26,7 +30,9 @@ nurseOrders.use(async (req: NurseRequest, _res, next) => {
   if (!user || user.deletedAt || user.role !== "NURSE")
     throw new ApiError(403, "FORBIDDEN", "Сувилагчийн эрх шаардлагатай");
   next();
-});
+};
+nurseOrders.use(authenticateToken);
+nurseOrders.use(requireNurse);
 
 /** Check-in needs the nurse within this distance of the booked address (spec slide 70). */
 export const CHECKIN_MAX_DISTANCE_M = 200;
