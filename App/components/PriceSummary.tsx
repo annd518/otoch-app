@@ -69,8 +69,9 @@ export function PriceSummary({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.color.background,
-    borderRadius: 14,
+    ...theme.depth.soft,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.card,
     padding: 16,
     borderWidth: 1,
     borderColor: theme.color.info,
@@ -85,12 +86,12 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
   },
   value: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: theme.color.text,
   },
@@ -98,14 +99,14 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: theme.color.info, marginVertical: 8 },
   total: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
     color: theme.color.text,
   },
   note: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
-    lineHeight: 28,
+    lineHeight: 25,
   },
 });

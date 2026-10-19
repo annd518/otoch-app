@@ -355,14 +355,14 @@ const styles = StyleSheet.create({
   mockBannerText: {
     color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
   },
   rules: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
-    lineHeight: 28,
+    lineHeight: 25,
   },
   pickRow: { flexDirection: "row", gap: 8 },
   pickButton: {
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   },
   counter: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     textAlign: "right",
   },
@@ -400,17 +400,17 @@ const styles = StyleSheet.create({
   permissionText: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
   },
   errorText: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
   },
   errorTextSmall: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     marginTop: 4,
   },
   itemCard: {
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, justifyContent: "center" },
   itemName: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: theme.color.text,
   },
@@ -446,20 +446,20 @@ const styles = StyleSheet.create({
   okText: {
     color: theme.color.success,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     marginTop: 4,
   },
   itemActions: { flexDirection: "row", gap: 16, marginTop: 6 },
   linkText: {
     color: theme.color.brand,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   removeText: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
   },
 });

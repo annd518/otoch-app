@@ -2,6 +2,7 @@ import { useBookingDraft } from "@/context/BookingDraftContext";
 import React, { useCallback, useState } from "react";
 import { theme } from "@/design/theme";
 import {
+  House,
   Syringe,
   Bandage,
   HeartPulse,
@@ -52,7 +53,22 @@ export default function Home() {
   );
   return (
     <Screen title="OTOCH" back={false} logo>
-      <Copy variant="heading">Таны гэрт сувилахуйн тусламж</Copy>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+        <View
+          style={[
+            styles.iconBadge,
+            { borderRadius: theme.radius.round, width: 64, height: 64 },
+          ]}
+        >
+          <House color={theme.color.brand} size={32} strokeWidth={1.6} />
+        </View>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Copy variant="heading">Сувилахуйн тусламжийг гэртээ</Copy>
+          <Copy style={styles.description}>
+            Өөрт тохирох үйлчилгээгээ сонгоорой.
+          </Copy>
+        </View>
+      </View>
       <Button
         title="Сувилагч дуудах"
         onPress={() => {
@@ -193,8 +209,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   serviceCard: {
-    backgroundColor: theme.color.background,
-    borderRadius: 18,
+    backgroundColor: theme.color.surface,
+    ...theme.depth.soft,
+    borderRadius: theme.radius.card,
     borderWidth: 1,
     borderColor: theme.color.border,
     padding: 18,
@@ -204,7 +221,8 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    backgroundColor: theme.color.info,
+    backgroundColor: theme.color.surface,
+    ...theme.depth.inset,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -158,7 +158,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
   },
   container: {
     flex: 1,
@@ -199,10 +199,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
+    ...theme.depth.inset,
     backgroundColor: theme.color.subtle,
     borderWidth: 1,
     borderColor: theme.color.info,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     padding: 16,
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     backgroundColor: theme.color.brand,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     alignItems: "center",
     shadowColor: theme.color.brand,
     shadowOffset: { width: 0, height: 4 },
@@ -275,7 +276,7 @@ const styles = StyleSheet.create({
   },
   notice: {
     backgroundColor: theme.color.info,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     padding: 14,
     marginBottom: 20,
   },

@@ -54,7 +54,9 @@ export default function ReferralScreen() {
           createIdempotencyKey,
         );
         if (plan.kind !== "update") {
-          setSaveError("Захиалгын мэдээлэл дутуу байна. Өмнөх алхам руу буцна уу.");
+          setSaveError(
+            "Захиалгын мэдээлэл дутуу байна. Өмнөх алхам руу буцна уу.",
+          );
           return;
         }
         dispatch({ type: "updateDetails", patch: { bookingForm } });
@@ -126,7 +128,10 @@ export default function ReferralScreen() {
             {(["photo", "text"] as const).map((m) => (
               <TouchableOpacity
                 key={m}
-                style={[styles.modeButton, mode === m && styles.modeButtonActive]}
+                style={[
+                  styles.modeButton,
+                  mode === m && styles.modeButtonActive,
+                ]}
                 onPress={() => setMode(m)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: mode === m }}
@@ -134,7 +139,9 @@ export default function ReferralScreen() {
                 <Ionicons
                   name={m === "photo" ? "camera-outline" : "create-outline"}
                   size={22}
-                  color={mode === m ? theme.color.background : theme.color.brand}
+                  color={
+                    mode === m ? theme.color.background : theme.color.brand
+                  }
                 />
                 <Text
                   style={[styles.modeText, mode === m && styles.modeTextActive]}
@@ -215,16 +222,16 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     marginTop: 2,
   },
   container: { padding: 16, gap: 12 },
   rules: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
-    lineHeight: 28,
+    lineHeight: 25,
   },
   modeRow: { flexDirection: "row", gap: 12 },
   modeButton: {
@@ -243,12 +250,12 @@ const styles = StyleSheet.create({
   modeText: {
     color: theme.color.brand,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   modeTextActive: { color: theme.color.background },
   textCard: {
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderRadius: 12,
     padding: 12,
     gap: 8,
@@ -256,13 +263,15 @@ const styles = StyleSheet.create({
     borderColor: theme.color.info,
   },
   textInput: {
+    ...theme.depth.inset,
+    backgroundColor: theme.color.surface,
     minHeight: 160,
     borderWidth: 1,
     borderColor: theme.color.border,
     borderRadius: 10,
     padding: 12,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     lineHeight: 26,
     color: theme.color.text,
   },
@@ -273,18 +282,18 @@ const styles = StyleSheet.create({
   },
   counter: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     textAlign: "right",
   },
   errorText: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
   },
   itemName: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: theme.color.text,
   },
@@ -295,9 +304,10 @@ const styles = StyleSheet.create({
     borderTopColor: theme.color.info,
   },
   primaryButton: {
+    ...theme.depth.action,
     minHeight: 56,
     backgroundColor: theme.color.brand,
-    borderRadius: 14,
+    borderRadius: theme.radius.card,
     paddingVertical: 16,
     alignItems: "center",
   },
@@ -305,7 +315,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.color.background,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
 });

@@ -1,3 +1,12 @@
+## Medical neumorphism — 2026-10-19
+
+- `feat/medical-neumorphism`: [хамрах хүрээ/дэлгэцийн бүртгэл](neumorphism.md). Одоогийн `feat/nurse-app` сууриас зөвхөн хэрэглэгчийн App visual layer. Энэ checkout-ийн 4 таб, auth/order/payment/API урсгал хэвээр; өмнөх тусдаа Blob Tab Bar branch-ийг merge хийгээгүй.
+- Нэг #ECF0F3 canvas, брэндийн #11589F CTA, Noto Sans/Montserrat, centralized spacing/radius/depth; shared Card/Button/Input/Screen/StateView болон NeuSurface/NeuIconButton. Native Fabric boxShadow; unsupported OS дээр border/fill нь төлөвийг ялгана. Splash logo/timing asset хадгалсан.
+- Typecheck PASS; cache-free lint PASS; 219/219 regression PASS; iOS/Android Hermes + web static/SSR export PASS. Dependencies/lockfile болон backend өөрчлөгдөөгүй.
+- Chrome synthetic session/mock HTTP: onboarding, phone, login, register, home, orders, profile, records, booking, patient editor, payment empty, emergency, notifications болон 320px patient editor — 14 зураг, runtime errors 0, horizontal overflow 0. Input focus border #11589F баталгаажсан. Web onboarding SSR width=0 асуудлыг бодит layout width-ээр зассан.
+- Review: [onboarding](screenshots/neumorphism/neu-onboarding.png), [нүүр](screenshots/neumorphism/neu-home.png), [OTP](screenshots/neumorphism/neu-phone.png), [өвчтөн](screenshots/neumorphism/neu-patient.png), [жижиг дэлгэц](screenshots/neumorphism/neu-small.png), [профайл](screenshots/neumorphism/neu-profile.png).
+- Native төхөөрөмж/VoiceOver/TalkBack/200% fontScale/keyboard болон бодит QPay, камераар acceptance хийгдээгүй. Зурагт байхгүй үйлдэл, ETA, үнэ, эмнэлзүйн өгөгдөл зохиогоогүй. Commit/push/merge энэ ажлаар хийгээгүй.
+
 ## Монгол жишээ хүний мэдээлэл
 
 - Mobile-ийн хуучин `child@demo.com` demo өвчтөнүүдийн нэр, хаяг, холбоо барих утсыг Монгол жишээгээр харуулна. Бодит аккаунтад энэ хөрвүүлэлт үйлчлэхгүй.
