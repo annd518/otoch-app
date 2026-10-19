@@ -1,3 +1,9 @@
+## Main integration review
+
+- Main `ab70535` дээр UI-ийн `7a35ffa`, `f030964`, `be69d3d`, `16f2c78` commit-уудыг cherry-pick хийсэн. `feat/nurse-app` суурийн зургаан commit-ийг UI merge-д оруулаагүй.
+- Нэгтгэх App tree нь `16f2c78`-ийн App tree-тэй diff-гүй. Тусдаа worktree дээр typecheck, cache-free lint, 222/222 regression дахин PASS. Dependency lockfile өөрчлөгдөөгүй; local node_modules-ийг шалгалтад symlink хийсэн.
+- PR-ийн өөрчлөлт зөвхөн App болон UI review docs/screenshots; server/nurse-app/wclient өөрчлөлт байхгүй. Native/device acceptance-ийн өмнөх хязгаар хэвээр.
+
 ## Бүх хэрэглэгчийн дэлгэц — premium pass
 
 - [Хамрах хүрээ, дэлгэц бүрийн бүртгэл](all-screens-premium.md). Onboarding/Home benchmark; discovery-д илүү depth, forms/clinical/payment-д тайван hierarchy. Нэмэлт dependency, backend/nurse-app/wclient өөрчлөлт байхгүй.
