@@ -61,7 +61,7 @@ export function BookingCalendar({
     minHeight: 48,
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    borderRadius: 12,
+    borderRadius: 22,
   };
   return (
     <>
@@ -197,7 +197,7 @@ export function BookingCalendar({
               flexGrow: 0,
               maxHeight: "85%",
               backgroundColor: theme.color.background,
-              borderRadius: 16,
+              borderRadius: 24,
             }}
             contentContainerStyle={{ padding: 20, gap: 16 }}
           >
@@ -283,38 +283,38 @@ export function BookingCalendar({
                     // the whole hour is before the earliest allowed start
                     const tooEarly = !!earliest && `${h}:59` < earliest;
                     return (
-                    <Pressable
-                      key={h}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${h} цаг`}
-                      accessibilityState={{
-                        selected: hour === h,
-                        disabled: tooEarly,
-                      }}
-                      disabled={tooEarly}
-                      onPress={() => {
-                        setHour(h);
-                        if (
-                          earliest &&
-                          `${h}:${minute.padStart(2, "0")}` < earliest
-                        )
-                          setMinute(earliest.slice(3, 5));
-                      }}
-                      style={[
-                        cell,
-                        {
-                          borderWidth: 1,
-                          borderColor: theme.color.border,
-                          backgroundColor:
-                            hour === h
-                              ? theme.color.info
-                              : theme.color.background,
-                          opacity: tooEarly ? 0.35 : 1,
-                        },
-                      ]}
-                    >
-                      <Copy>{h}</Copy>
-                    </Pressable>
+                      <Pressable
+                        key={h}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${h} цаг`}
+                        accessibilityState={{
+                          selected: hour === h,
+                          disabled: tooEarly,
+                        }}
+                        disabled={tooEarly}
+                        onPress={() => {
+                          setHour(h);
+                          if (
+                            earliest &&
+                            `${h}:${minute.padStart(2, "0")}` < earliest
+                          )
+                            setMinute(earliest.slice(3, 5));
+                        }}
+                        style={[
+                          cell,
+                          {
+                            borderWidth: 1,
+                            borderColor: theme.color.border,
+                            backgroundColor:
+                              hour === h
+                                ? theme.color.info
+                                : theme.color.background,
+                            opacity: tooEarly ? 0.35 : 1,
+                          },
+                        ]}
+                      >
+                        <Copy>{h}</Copy>
+                      </Pressable>
                     );
                   })}
                 </View>

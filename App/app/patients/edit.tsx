@@ -1,7 +1,15 @@
+import { UserRound } from "lucide-react-native";
+import {
+  FeatureSummary,
+  Banner,
+  Button,
+  Chip,
+  Input,
+  Screen,
+} from "@/components/ui";
 import React, { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
-import { Banner, Button, Chip, Input, Screen } from "@/components/ui";
 import { useSingleFlight } from "@/components/useSingleFlight";
 export default function PatientForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -64,6 +72,11 @@ export default function PatientForm() {
   });
   return (
     <Screen title={id ? "Үйлчлүүлэгчийн мэдээлэл" : "Үйлчлүүлэгч нэмэх"}>
+      <FeatureSummary
+        icon={UserRound}
+        title="Үйлчлүүлэгчийн бүртгэл"
+        description="Үйлчилгээ авах хүний мэдээллийг үнэн зөв бөглөнө үү."
+      />
       {!!error && <Banner error>{error}</Banner>}
       <Input label="Нэр" value={name} onChangeText={setName} />
       <Input

@@ -1,3 +1,4 @@
+import { Phone } from "lucide-react-native";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { theme } from "@/design/theme";
 import React, { useEffect, useState } from "react";
@@ -74,6 +75,19 @@ export default function EmergencyScreen() {
           flexGrow: 1,
         }}
       >
+        <View
+          style={{
+            width: 88,
+            height: 88,
+            borderRadius: 44,
+            backgroundColor: theme.color.errorBg,
+            alignItems: "center",
+            justifyContent: "center",
+            ...theme.depth.soft,
+          }}
+        >
+          <Phone size={38} color={theme.color.error} />
+        </View>
         <Ionicons name="medkit" size={64} color={theme.color.error} />
         <Text style={styles.title}>
           Яаралтай тусламж шаардлагатай байж болзошгүй
@@ -134,7 +148,7 @@ export default function EmergencyScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: theme.color.subtle },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 28,
@@ -162,6 +176,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   callButton: {
+    ...theme.depth.action,
     minHeight: 56,
     flexDirection: "row",
     alignItems: "center",

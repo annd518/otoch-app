@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react-native";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { theme } from "@/design/theme";
 import React, { useState } from "react";
@@ -65,6 +66,24 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 26,
+                backgroundColor: theme.color.surface,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+                ...theme.depth.raised,
+              }}
+            >
+              <ShieldCheck
+                size={34}
+                color={theme.color.brand}
+                strokeWidth={1.6}
+              />
+            </View>
             <Text style={styles.title}>Тавтай морил</Text>
             <Text style={styles.subtitle}>
               OTOCH-д үргэлжлүүлэхийн тулд нэвтэрнэ үү
@@ -158,7 +177,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
   },
   container: {
     flex: 1,
@@ -199,10 +218,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
+    ...theme.depth.inset,
     backgroundColor: theme.color.subtle,
     borderWidth: 1,
     borderColor: theme.color.info,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     padding: 16,
     fontFamily: "NotoSans_400Regular",
     fontSize: 18,
@@ -222,7 +242,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     backgroundColor: theme.color.brand,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     alignItems: "center",
     shadowColor: theme.color.brand,
     shadowOffset: { width: 0, height: 4 },
@@ -275,7 +295,7 @@ const styles = StyleSheet.create({
   },
   notice: {
     backgroundColor: theme.color.info,
-    borderRadius: 12,
+    borderRadius: theme.radius.card,
     padding: 14,
     marginBottom: 20,
   },

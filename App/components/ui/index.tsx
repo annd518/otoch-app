@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from "react";
+import React, { useSyncExternalStore, useState } from "react";
 import { connectivity } from "@/services/connectivity";
 import { apiService } from "@/services/api";
 import {
@@ -18,8 +18,27 @@ import {
 import { AppText as Text } from "@/components/AppText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Inbox,
+  ArrowRight,
+  Check,
+  CircleAlert,
+} from "lucide-react-native";
+import { NeuIconButton } from "./NeuIconButton";
+import { NeuSurface } from "./NeuSurface";
+import { LinearGradient } from "expo-linear-gradient";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { theme as t } from "@/design/theme";
+
+export { NeuSurface, NeuIconButton };
+export {
+  careIcon,
+  SectionHeading,
+  FeatureSummary,
+  StatusPill,
+  EventTimeline,
+} from "./Presentation";
 
 export function Copy({
   variant = "body",
@@ -40,6 +59,7 @@ export function Button({
   busy,
   secondary = false,
   network = false,
+  variant,
 }: {
   title: string;
   onPress: () => void;
@@ -47,13 +67,17 @@ export function Button({
   busy?: boolean;
   secondary?: boolean;
   network?: boolean;
+  variant?: "primary" | "secondary" | "ghost" | "danger";
 }) {
   const offline = useSyncExternalStore(
     connectivity.subscribe,
     connectivity.get,
     () => false,
   );
-  const unavailable = disabled || (network && offline);
+  const unavailable = disabled || busy || (network && offline);
+  const kind = variant ?? (secondary ? "secondary" : "primary");
+  const light = kind === "secondary" || kind === "ghost";
+  const gradient = !unavailable && kind === "primary";
   return (
     <Pressable
       accessibilityRole="button"
@@ -63,40 +87,78 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        unavailable || kind === "ghost"
+          ? t.depth.flat
+          : light
+            ? t.depth.soft
+            : t.depth.action,
+        pressed && { ...t.depth.flat, transform: [{ scale: 0.98 }] },
         {
           backgroundColor: unavailable
             ? t.color.muted
-            : secondary
-              ? t.color.info
-              : pressed
-                ? t.color.pressed
-                : t.color.brand,
+            : light
+              ? kind === "ghost"
+                ? "transparent"
+                : pressed
+                  ? t.color.inset
+                  : t.color.surface
+              : kind === "danger"
+                ? t.color.error
+                : pressed
+                  ? t.color.pressed
+                  : t.color.brand,
         },
       ]}
     >
-      {busy ? (
-        <ActivityIndicator color={t.color.background} />
-      ) : (
-        <Copy
-          variant="label"
-          style={{
-            fontSize: 18,
-            color: unavailable
-              ? t.color.disabled
-              : secondary
-                ? t.color.brand
-                : t.color.background,
-            textAlign: "center",
-          }}
-        >
-          {title}
-        </Copy>
+      {({ pressed }) => (
+        <>
+          {gradient && (
+            <LinearGradient
+              pointerEvents="none"
+              colors={pressed ? [v.deep, v.deep] : [v.blue, v.deep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
+            />
+          )}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+            }}
+          >
+            {busy ? (
+              <ActivityIndicator
+                color={light || unavailable ? t.color.brand : t.color.onBrand}
+              />
+            ) : (
+              <Copy
+                variant="label"
+                style={{
+                  fontSize: 16,
+                  flexShrink: 1,
+                  color: unavailable
+                    ? t.color.disabled
+                    : light
+                      ? t.color.brand
+                      : t.color.background,
+                  textAlign: "center",
+                }}
+              >
+                {title}
+              </Copy>
+            )}
+            {gradient && !busy && <ArrowRight size={20} color={v.white} />}
+          </View>
+        </>
       )}
     </Pressable>
   );
 }
 export function Card({ style, ...props }: ViewProps) {
-  return <View {...props} style={[styles.card, style]} />;
+  return <NeuSurface {...props} style={[styles.card, style]} />;
 }
 export function Banner({
   children,
@@ -133,14 +195,37 @@ export function Input({
   error,
   ...props
 }: TextInputProps & { label: string; error?: string }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 8 }}>
-      <Copy variant="label">{label}</Copy>
+      <Copy variant="label" style={{ fontSize: 15 }}>
+        {label}
+      </Copy>
       <TextInput
         {...props}
         accessibilityLabel={label}
         placeholderTextColor={t.color.secondary}
-        style={[styles.input, props.style]}
+        onFocus={(event) => {
+          setFocused(true);
+          props.onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setFocused(false);
+          props.onBlur?.(event);
+        }}
+        style={[
+          styles.input,
+          t.depth.inset,
+          {
+            borderColor: error
+              ? t.color.error
+              : focused
+                ? t.color.brand
+                : t.color.border,
+            borderWidth: error || focused ? 2 : 1,
+          },
+          props.style,
+        ]}
       />
       {!!error && <Banner error>{error}</Banner>}
     </View>
@@ -165,28 +250,62 @@ export function Chip({
       style={[
         styles.chip,
         selected && {
+          ...t.depth.inset,
           backgroundColor: t.color.info,
           borderColor: t.color.brand,
         },
         style,
       ]}
     >
-      <Copy variant="label">{label}</Copy>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        {selected && <Check color={v.deep} size={18} />}
+        <Copy variant="label" style={{ flex: 1, fontSize: 15 }}>
+          {label}
+        </Copy>
+      </View>
     </Pressable>
   );
 }
 export function Stepper({ step }: { step: number }) {
+  const labels = [
+    "Хаяг, цаг",
+    "Үйлчлүүлэгч",
+    "Заалт, асуулга",
+    "Баталгаажуулах",
+  ];
   return (
-    <View accessibilityLabel={`Захиалгын ${step} / 4 алхам`} style={{ gap: 8 }}>
-      <Copy variant="label">Алхам {step} / 4</Copy>
-      <View style={{ flexDirection: "row", gap: 8 }}>
+    <View
+      accessibilityLabel={`Захиалгын ${step} / 4 алхам`}
+      style={{
+        gap: 12,
+        padding: 16,
+        borderRadius: 22,
+        backgroundColor: v.glow,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <Copy variant="label" style={{ color: v.deep, fontSize: 14 }}>
+          Алхам {step} / 4
+        </Copy>
+        <Copy variant="caption" style={{ flexShrink: 1, color: v.navy }}>
+          {labels[step - 1]}
+        </Copy>
+      </View>
+      <View style={{ flexDirection: "row", gap: 6 }}>
         {[1, 2, 3, 4].map((i) => (
           <View
             key={i}
             style={{
               flex: 1,
-              height: 4,
-              backgroundColor: i <= step ? t.color.brand : t.color.border,
+              height: 5,
+              borderRadius: 3,
+              backgroundColor: i <= step ? v.blue : v.dot,
             }}
           />
         ))}
@@ -209,6 +328,25 @@ export function StateView({
 }) {
   return (
     <Card>
+      {!loading && (
+        <View
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 20,
+            backgroundColor: v.surface,
+            alignItems: "center",
+            justifyContent: "center",
+            ...t.depth.inset,
+          }}
+        >
+          {action ? (
+            <CircleAlert size={28} color={v.deep} />
+          ) : (
+            <Inbox size={28} color={v.deep} />
+          )}
+        </View>
+      )}
       <Copy variant="heading">{title}</Copy>
       {loading ? (
         <View accessibilityLabel="Агуулга ачаалж байна" style={{ gap: 12 }}>
@@ -278,11 +416,12 @@ export function Screen({
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 20 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           {back && (
-            <Pressable
+            <NeuIconButton
+              label="Буцах"
               onPress={() =>
                 router.canGoBack() ? router.back() : router.replace("/")
               }
@@ -296,7 +435,7 @@ export function Screen({
               }}
             >
               <ArrowLeft color={t.color.brand} size={24} />
-            </Pressable>
+            </NeuIconButton>
           )}
           {logo ? (
             <View
@@ -311,7 +450,7 @@ export function Screen({
                 style={{
                   width: WORDMARK_WIDTH,
                   height: WORDMARK_HEIGHT,
-                  tintColor: t.color.navy,
+                  tintColor: v.deep,
                 }}
               />
             </View>
@@ -319,7 +458,7 @@ export function Screen({
             <Copy
               variant="title"
               accessibilityRole="header"
-              style={{ flex: 1 }}
+              style={{ flex: 1, fontSize: 25, lineHeight: 33 }}
             >
               {title}
             </Copy>
@@ -339,20 +478,20 @@ export function Screen({
 }
 const styles = StyleSheet.create({
   button: {
-    minHeight: 56,
-    borderRadius: 12,
+    minHeight: 60,
+    borderRadius: 24,
     paddingHorizontal: 20,
     paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
   },
   card: {
-    backgroundColor: t.color.background,
+    backgroundColor: t.color.surface,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: t.radius.card,
     borderWidth: 1,
-    borderColor: t.color.border,
-    gap: 12,
+    borderColor: v.ice,
+    gap: 14,
   },
   banner: { padding: 16, borderRadius: 12 },
   input: {
@@ -362,7 +501,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: t.color.border,
-    backgroundColor: t.color.background,
+    backgroundColor: t.color.surface,
     color: t.color.text,
   },
   chip: {

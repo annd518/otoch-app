@@ -13,35 +13,27 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import {
-  CircleCheck,
-  ClipboardList,
-  Clock,
-  HeartPulse,
-  House,
-  Phone,
-  ShieldCheck,
-} from "lucide-react-native";
+import { ArrowRight, Phone } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { OnboardingHero } from "@/components/OnboardingHero";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { AppText as Text } from "@/components/AppText";
 import { theme } from "@/design/theme";
 import {
-  EMERGENCY_NOTICE,
-  ONBOARDING_GOLD,
   ONBOARDING_SLIDES,
   pageAt,
   type OnboardingSlide,
 } from "@/design/onboarding";
 import { storage } from "@/utils/storage";
 
-// Continues the splash: same gradient and the white ОТОЧ wordmark, then three
-// swipeable slides with a large icon each.
-const GRADIENT = require("../assets/splash/splash-bg.png");
+// Keeps the approved splash assets, then transitions into three calm,
+// softly raised onboarding slides using the shared medical palette.
 const WORDMARK = require("../assets/brand/otoch-wordmark.png");
-const ICONS = { home: House, shield: ShieldCheck, clipboard: ClipboardList };
-const BADGES = { heart: HeartPulse, check: CircleCheck, clock: Clock };
 
 export default function Onboarding() {
   const { width } = useWindowDimensions();
+  const [layoutWidth, setLayoutWidth] = useState(0);
+  const pageWidth = layoutWidth || width || 390;
   const scroller = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -65,24 +57,32 @@ export default function Onboarding() {
   const start = () => router.push("/auth/phone");
   const goTo = (next: number) => {
     setPage(next);
-    scroller.current?.scrollTo({ x: next * width, animated: !reduceMotion });
+    scroller.current?.scrollTo({
+      x: next * pageWidth,
+      animated: !reduceMotion,
+    });
   };
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) =>
-    setPage(pageAt(e.nativeEvent.contentOffset.x, width, last + 1));
+    setPage(pageAt(e.nativeEvent.contentOffset.x, pageWidth, last + 1));
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-      <Image
-        source={GRADIENT}
-        resizeMode="stretch"
-        style={StyleSheet.absoluteFill}
-        accessibilityIgnoresInvertColors
-      />
+    <View
+      style={styles.root}
+      onLayout={(event) => setLayoutWidth(event.nativeEvent.layout.width)}
+    >
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <View style={styles.top}>
-          <View accessible accessibilityRole="header" accessibilityLabel="OTOCH">
-            <Image source={WORDMARK} resizeMode="contain" style={styles.wordmark} />
+          <View
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="OTOCH"
+          >
+            <Image
+              source={WORDMARK}
+              resizeMode="contain"
+              style={styles.wordmark}
+            />
           </View>
           <Pressable
             onPress={start}
@@ -104,7 +104,12 @@ export default function Onboarding() {
           style={styles.pager}
         >
           {ONBOARDING_SLIDES.map((slide, i) => (
-            <Slide key={slide.title} slide={slide} width={width} index={i} />
+            <Slide
+              key={slide.title}
+              slide={slide}
+              width={pageWidth}
+              index={i}
+            />
           ))}
         </ScrollView>
 
@@ -117,24 +122,45 @@ export default function Onboarding() {
                 accessibilityRole="button"
                 accessibilityLabel={`Хуудас ${i + 1} / ${last + 1}`}
                 accessibilityState={{ selected: i === page }}
-                hitSlop={12}
+                style={{
+                  minWidth: 44,
+                  minHeight: 44,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 <View style={[styles.dot, i === page && styles.dotActive]} />
               </Pressable>
             ))}
           </View>
           <View style={styles.notice}>
-            <Phone color={ONBOARDING_GOLD} size={22} />
-            <Text style={styles.noticeText}>{EMERGENCY_NOTICE}</Text>
+            <View style={styles.phoneBadge}>
+              <Phone color={v.yellow} size={26} strokeWidth={2} />
+            </View>
+            <View style={styles.noticeDivider} />
+            <Text style={styles.noticeText}>
+              Яаралтай тусламж шаардлагатай үед{" "}
+              <Text style={styles.emergencyNumber}>103</Text> руу залгана уу.
+            </Text>
           </View>
           <Pressable
             onPress={() => (page < last ? goTo(page + 1) : start())}
             accessibilityRole="button"
             style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
           >
-            <Text style={styles.primaryText}>
-              {page < last ? "Үргэлжлүүлэх" : "Эхлэх"}
-            </Text>
+            {({ pressed }) => (
+              <LinearGradient
+                colors={pressed ? [v.deep, v.deep] : [v.blue, v.deep]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryFill}
+              >
+                <Text style={styles.primaryText}>
+                  {page < last ? "Үргэлжлүүлэх" : "Эхлэх"}
+                </Text>
+                <ArrowRight size={24} color={v.white} />
+              </LinearGradient>
+            )}
           </Pressable>
         </View>
       </SafeAreaView>
@@ -151,105 +177,70 @@ function Slide({
   width: number;
   index: number;
 }) {
-  const Icon = ICONS[slide.icon];
-  const Badge = BADGES[slide.badge];
+  const { height } = useWindowDimensions();
+  const compact = height > 0 && height < 740;
   return (
     // vertical scroll keeps large system font sizes readable on small phones
     <ScrollView
       style={{ width }}
-      contentContainerStyle={styles.slide}
+      contentContainerStyle={[styles.slide, compact && { paddingVertical: 8 }]}
       showsVerticalScrollIndicator={false}
     >
       <View
         accessible
         accessibilityLabel={`${index + 1}. ${slide.title}. ${slide.text}`}
-        style={styles.slideInner}
+        style={[styles.slideInner, compact && { gap: 12 }]}
       >
-        <View style={styles.halo}>
-          <View style={styles.circle}>
-            <Icon color={theme.color.background} size={84} strokeWidth={1.6} />
-          </View>
-          <View style={styles.badge}>
-            <Badge color={theme.color.navy} size={30} strokeWidth={2.2} />
-          </View>
-        </View>
-        <Text style={styles.title}>{slide.title}</Text>
+        <OnboardingHero slide={slide} compact={compact} />
+        <Text
+          style={[styles.title, compact && { fontSize: 26, lineHeight: 32 }]}
+        >
+          {slide.title}
+        </Text>
         <Text style={styles.text}>{slide.text}</Text>
       </View>
     </ScrollView>
   );
 }
 
-const WHITE_SOFT = "rgba(255,255,255,0.86)";
+const WHITE_SOFT = v.muted;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.color.navy },
+  root: { flex: 1, backgroundColor: theme.color.surface },
   safe: { flex: 1 },
   top: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingTop: 12,
   },
   // 654x183 @3x
-  wordmark: { width: 115, height: 32, tintColor: theme.color.background },
+  wordmark: { width: 136, height: 38, tintColor: v.deep },
   skip: { minHeight: 48, minWidth: 48, justifyContent: "center" },
-  skipText: { color: WHITE_SOFT, fontSize: 18 },
+  skipText: { color: v.navy, fontSize: 15, fontFamily: "NotoSans_600SemiBold" },
   pager: { flex: 1 },
   slide: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  slideInner: { alignItems: "center", gap: 20 },
-  halo: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  circle: {
-    width: 164,
-    height: 164,
-    borderRadius: 82,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badge: {
-    position: "absolute",
-    right: 26,
-    bottom: 26,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: ONBOARDING_GOLD,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 4,
-    borderColor: "#123F72",
-  },
+  slideInner: { alignItems: "center", gap: 18 },
   title: {
-    color: theme.color.background,
+    color: v.navy,
     fontFamily: "Montserrat_700Bold",
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 37,
     textAlign: "center",
   },
   text: {
     color: WHITE_SOFT,
-    fontSize: 19,
-    lineHeight: 29,
+    fontSize: 16,
+    lineHeight: 26,
     textAlign: "center",
   },
-  bottom: { paddingHorizontal: 20, paddingBottom: 12, gap: 16 },
+  bottom: { paddingHorizontal: 24, paddingBottom: 16, gap: 18 },
   dots: {
     flexDirection: "row",
     justifyContent: "center",
@@ -260,30 +251,60 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: v.dot,
   },
-  dotActive: { width: 28, backgroundColor: ONBOARDING_GOLD },
+  dotActive: { width: 28, backgroundColor: v.yellow },
   notice: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 14,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    boxShadow: v.cardShadow,
+    borderWidth: 1,
+    borderColor: v.ice,
   },
-  noticeText: { flex: 1, color: theme.color.background, fontSize: 16, lineHeight: 23 },
-  primary: {
-    minHeight: 56,
-    borderRadius: 14,
-    paddingVertical: 16,
+  noticeText: {
+    flex: 1,
+    color: theme.color.text,
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  phoneBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: v.badgeBg,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.color.background,
   },
-  pressed: { opacity: 0.85 },
+  noticeDivider: { width: 1, alignSelf: "stretch", backgroundColor: v.dot },
+  emergencyNumber: { color: v.deep, fontFamily: "NotoSans_600SemiBold" },
+  primary: {
+    minHeight: 62,
+    borderRadius: 24,
+    backgroundColor: v.deep,
+    boxShadow: v.buttonShadow,
+    borderWidth: 1,
+    borderColor: v.blue,
+  },
+  primaryFill: {
+    minHeight: 62,
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 18,
+  },
+  pressed: { transform: [{ scale: 0.98 }], ...theme.depth.flat },
   primaryText: {
-    color: theme.color.navy,
+    color: v.white,
     fontFamily: "Montserrat_700Bold",
     fontSize: 18,
+    flexShrink: 1,
+    textAlign: "center",
   },
 });
