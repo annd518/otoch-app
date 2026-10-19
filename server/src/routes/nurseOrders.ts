@@ -17,7 +17,7 @@ type Tx = Prisma.TransactionClient;
 type LockedOrder = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
 
 export const nurseOrders = Router();
-/** Signed-in, existing, not deleted NURSE (checked against the database on every request). */
+/** Signed-in NURSE, role and account state read from the database on every request. */
 export const requireNurse = async (
   req: NurseRequest,
   _res: unknown,
@@ -27,7 +27,14 @@ export const requireNurse = async (
     where: { id: req.user!.userId },
     select: { role: true, deletedAt: true },
   });
-  if (!user || user.deletedAt || user.role !== "NURSE")
+  // Same answer as requireRole: a deactivated or removed account ends the app session (401).
+  if (!user || user.deletedAt)
+    throw new ApiError(
+      401,
+      "ACCOUNT_DISABLED",
+      "Бүртгэл идэвхгүй байна. Админд хандана уу",
+    );
+  if (user.role !== "NURSE")
     throw new ApiError(403, "FORBIDDEN", "Сувилагчийн эрх шаардлагатай");
   next();
 };

@@ -180,3 +180,14 @@ it("counts today's and unassigned orders, real vs mock money and payments to rec
   assert.doesNotMatch(JSON.stringify(after), /99112233|@/);
   assert.ok(adminId);
 });
+
+it("visits on the way or with an incident still count as today's work; refused ones do not", async () => {
+  const before = (await summary(admin)).json.data;
+  for (const status of ["EN_ROUTE", "INCIDENT", "REFUSED"] as const)
+    await prisma.order.create({
+      data: { childId, parentId, catalogVersion: "TEST", status, redFlagStatus: "CLEAR", scheduledFor: new Date() },
+    });
+  const after = (await summary(admin)).json.data;
+  assert.equal(after.orders.today - before.orders.today, 2);
+  assert.equal(after.orders.byStatus.REFUSED - (before.orders.byStatus.REFUSED ?? 0), 1);
+});

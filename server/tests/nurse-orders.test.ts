@@ -104,6 +104,26 @@ const checkedIn = async (withMedication = false) => {
 };
 
 describe("access", () => {
+  it("a deactivated nurse's token answers 401 ACCOUNT_DISABLED on the nurse routes (the app signs out), a wrong role stays 403", async () => {
+    const gone = await createUser("NURSE");
+    const token = await loginAs(srv.baseUrl, gone.email);
+    const o = await assigned();
+    assert.equal((await call("GET", o.id, "", token)).status, 404, "still active: not hers");
+    await prisma.user.update({ where: { id: gone.id }, data: { deletedAt: new Date() } });
+    for (const path of [
+      url(o.id),
+      "/api/nurse/offers",
+      "/api/nurse/me",
+    ]) {
+      const r = await api(srv.baseUrl, "GET", path, { token });
+      assert.equal(r.status, 401, path);
+      assert.equal(errorCode(r), "ACCOUNT_DISABLED", path);
+    }
+    // The shared staff router keeps its documented 403 (admin web depends on it).
+    assert.equal((await api(srv.baseUrl, "GET", "/api/staff/orders", { token })).status, 403);
+    assert.equal((await call("GET", o.id, "", child)).status, 403);
+  });
+
   it("only NURSE role; only the assigned nurse", async () => {
     const o = await assigned();
     assert.equal((await call("GET", o.id, "", child)).status, 403);

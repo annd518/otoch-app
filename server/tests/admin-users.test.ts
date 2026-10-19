@@ -188,3 +188,15 @@ it("admin sets a new password for a staff member", async () => {
     400,
   );
 });
+
+it("a nurse on her way (EN_ROUTE) cannot be deactivated either", async () => {
+  const nurse = await createUser("NURSE", "users-enroute");
+  const order = await prisma.order.create({
+    data: { childId, parentId, catalogVersion: "TEST", status: "EN_ROUTE", redFlagStatus: "CLEAR", assignedNurseId: nurse.id },
+  });
+  const busy = await patch(nurse.id, { active: false });
+  assert.equal(busy.status, 409);
+  assert.equal(busy.json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
+  await prisma.order.update({ where: { id: order.id }, data: { status: "REFUSED" } });
+  assert.equal((await patch(nurse.id, { active: false })).status, 200);
+});

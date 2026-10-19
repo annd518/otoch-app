@@ -42,7 +42,16 @@ export function ulaanbaatarMonthStart(now: Date): Date {
 }
 
 const RECONCILIATION = ["NEEDS_RECONCILIATION", "PAID_AFTER_EXPIRY"];
-const ACTIVE = ["PAID", "ASSIGNED", "IN_PROGRESS"] as const;
+// A visit the company is still responsible for. INCIDENT stays here until an admin resolves it.
+const ACTIVE = [
+  "PAID",
+  "ASSIGNED",
+  "EN_ROUTE",
+  "IN_PROGRESS",
+  "INCIDENT",
+] as const;
+// Visits a nurse is committed to (cannot be deactivated or counted free).
+const NURSE_BUSY = ["ASSIGNED", "EN_ROUTE", "IN_PROGRESS"] as const;
 
 adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
   const now = new Date();
@@ -283,7 +292,7 @@ adminRoutes.get("/users", async (req: StaffRequest, res) => {
         by: ["assignedNurseId"],
         where: {
           assignedNurseId: { in: nurseIds },
-          status: { in: ["ASSIGNED", "IN_PROGRESS"] },
+          status: { in: [...NURSE_BUSY] },
         },
         _count: { _all: true },
       })
@@ -407,7 +416,7 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       const visits = await tx.order.count({
         where: {
           assignedNurseId: id,
-          status: { in: ["ASSIGNED", "IN_PROGRESS"] },
+          status: { in: [...NURSE_BUSY] },
         },
       });
       if (visits > 0)
