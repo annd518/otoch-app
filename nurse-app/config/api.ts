@@ -8,7 +8,16 @@ export const API_PATHS = {
   staffOrders: {
     list: '/api/staff/orders',
     byId: (id: string) => `/api/staff/orders/${encodeURIComponent(id)}`,
-    action: (id: string, action: 'eta' | 'start' | 'complete') =>
-      `/api/staff/orders/${encodeURIComponent(id)}/${action}`,
+    eta: (id: string) => `/api/staff/orders/${encodeURIComponent(id)}/eta`,
+  },
+  // Visit flow for the assigned nurse (server/src/routes/nurseOrders.ts,
+  // docs/nurse-app-api-proposal.md).
+  nurseOrders: {
+    byId: (id: string) => `/api/nurse/orders/${encodeURIComponent(id)}`,
+    action: (id: string, action: 'en-route' | 'checkin' | 'finish' | 'reject' | 'incident') =>
+      `/api/nurse/orders/${encodeURIComponent(id)}/${action}`,
+    record: (id: string) => `/api/nurse/orders/${encodeURIComponent(id)}/record`,
+    attachment: (id: string, attachmentId: string) =>
+      `/api/nurse/orders/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}/content`,
   },
 } as const

@@ -1,14 +1,19 @@
-import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useState } from 'react'
 import { Alert, Linking, Platform, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
-import { AppText } from '../../components/AppText'
-import { Button } from '../../components/Button'
-import { ErrorState, OfflineBanner, Skeleton } from '../../components/ScreenState'
-import { StatusBadge } from '../../components/StatusBadge'
-import { theme } from '../../design/theme'
-import { useOrder } from '../../hooks/useOrder'
+import { AppText } from '../../../components/AppText'
+import { Button } from '../../../components/Button'
+import { ErrorBox } from '../../../components/ErrorBox'
+import { ReferralImages } from '../../../components/ReferralImages'
+import { ErrorState, OfflineBanner, Skeleton } from '../../../components/ScreenState'
+import { StatusBadge } from '../../../components/StatusBadge'
+import { theme } from '../../../design/theme'
+import { useOrder } from '../../../hooks/useOrder'
+import { http } from '../../../services/http'
+import { enRoute } from '../../../services/nurseVisit'
+import { postEta } from '../../../services/staffOrders'
 import {
   availableActions,
   ETA_CHOICES_MIN,
@@ -16,7 +21,8 @@ import {
   formatSchedule,
   formatUbDateTime,
   serviceSummary,
-} from '../../utils/orderView'
+} from '../../../utils/orderView'
+import { telUrl } from '../../../utils/visitRecord'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -52,7 +58,8 @@ function openMap(lat: number | null, lng: number | null, text: string) {
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { order, state, error, busy, load, act } = useOrder(id)
+  const router = useRouter()
+  const { order, state, error, busy, load, run } = useOrder(id)
   const [actionError, setActionError] = useState<string | null>(null)
 
   useFocusEffect(
@@ -61,15 +68,14 @@ export default function OrderDetailScreen() {
     }, [load]),
   )
 
-  async function run(action: 'eta' | 'start' | 'complete', extra: { eta?: string | null } = {}) {
+  async function go(call: Parameters<typeof run>[0], options?: Parameters<typeof run>[1]) {
     setActionError(null)
-    const outcome = await act(action, extra)
+    const outcome = await run(call, options)
     if (!outcome.ok) setActionError(outcome.message)
   }
 
-  function confirm(title: string, message: string, onYes: () => void) {
-    Alert.alert(title, message, [{ text: 'Болих', style: 'cancel' }, { text: 'Тийм', onPress: onYes }])
-  }
+  const open = (sub: 'checkin' | 'record' | 'reject' | 'incident') =>
+    router.push({ pathname: `/orders/[id]/${sub}`, params: { id } })
 
   const actions = order ? availableActions(order.status) : null
 
@@ -110,6 +116,13 @@ export default function OrderDetailScreen() {
                 {order.familyPresent ? 'Гэр бүлийн гишүүн байх болно' : 'Гэр бүлийн гишүүн байхгүй'}
                 {order.postoperative ? ' · Мэс заслын дараах' : ''}
               </AppText>
+              {order.patientContact ? (
+                <Button
+                  label={`Залгах · ${order.patientContact}`}
+                  variant="secondary"
+                  onPress={() => void Linking.openURL(telUrl(order.patientContact!))}
+                />
+              ) : null}
             </Section>
 
             {order.address ? (
@@ -141,10 +154,8 @@ export default function OrderDetailScreen() {
                 </AppText>
               )}
               {order.referralText ? <AppText variant="caption">Заалт: {order.referralText}</AppText> : null}
-              {order.attachmentCount > 0 ? (
-                <AppText variant="caption" color={theme.color.secondary}>
-                  Заалтын зураг: {order.attachmentCount} (зургийг харах боломж серверт хараахан нэмэгдээгүй)
-                </AppText>
+              {actions && (actions.record || actions.checkin) && order.attachments.length > 0 ? (
+                <ReferralImages orderId={order.id} attachments={order.attachments} />
               ) : null}
               <AppText variant="caption" color={theme.color.secondary}>
                 Эмийг үйлчлүүлэгч бэлдсэн. Нэр, тун, арга, хадгалах хугацааг газар дээр нь шалгана.
@@ -166,41 +177,38 @@ export default function OrderDetailScreen() {
                       label={`${minutes} мин`}
                       variant="secondary"
                       disabled={busy}
-                      onPress={() => void run('eta', { eta: etaFromNow(minutes, Date.now()) })}
+                      onPress={() =>
+                        void go((o) => postEta(http, o.id, o.version, etaFromNow(minutes, Date.now())), { reload: true })
+                      }
                     />
                   ))}
                   {order.eta ? (
-                    <Button label="ETA арилгах" variant="secondary" disabled={busy} onPress={() => void run('eta', { eta: null })} />
+                    <Button
+                      label="ETA арилгах"
+                      variant="secondary"
+                      disabled={busy}
+                      onPress={() => void go((o) => postEta(http, o.id, o.version, null), { reload: true })}
+                    />
                   ) : null}
                 </View>
               </Section>
             ) : null}
 
-            {actionError ? (
-              <View
-                accessibilityRole="alert"
-                style={{ backgroundColor: theme.color.errorBg, borderRadius: theme.radius.small, padding: theme.space[3] }}
-              >
-                <AppText variant="caption" color={theme.color.error}>
-                  {actionError}
-                </AppText>
-              </View>
-            ) : null}
+            {actionError ? <ErrorBox message={actionError} /> : null}
 
-            {actions?.start ? (
+            {actions?.enRoute ? (
               <Button
-                label="Эргэлт эхлүүлэх"
+                label="Замдаа гарлаа"
                 loading={busy}
-                onPress={() => confirm('Эргэлт эхлүүлэх үү?', 'Үйлчлүүлэгчтэй уулзсан, эм заалтыг шалгасан бол эхлүүлнэ.', () => void run('start'))}
+                onPress={() => void go((o) => enRoute(http, o.id, o.version))}
               />
             ) : null}
-            {actions?.complete ? (
-              <Button
-                label="Эргэлт дуусгах"
-                loading={busy}
-                onPress={() => confirm('Эргэлт дуусгах уу?', 'Дуусгасны дараа буцаах боломжгүй.', () => void run('complete'))}
-              />
+            {actions?.checkin ? (
+              <Button label="Ирлээ · эргэлт эхлүүлэх" variant={actions.enRoute ? 'secondary' : 'primary'} onPress={() => open('checkin')} />
             ) : null}
+            {actions?.record ? <Button label="Тэмдэглэл бөглөх, дуусгах" onPress={() => open('record')} /> : null}
+            {actions?.reject ? <Button label="Татгалзах" variant="secondary" onPress={() => open('reject')} /> : null}
+            {actions?.incident ? <Button label="Осол бүртгэх" variant="secondary" onPress={() => open('incident')} /> : null}
           </>
         ) : null}
       </ScrollView>

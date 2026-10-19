@@ -6,7 +6,7 @@ import {
   fetchStaffOrders,
   parseStaffOrder,
   parseStaffOrderPage,
-  postStaffOrderAction,
+  postEta,
 } from '../services/staffOrders'
 import { resolveApiConfig } from '../utils/apiConfig'
 import {
@@ -44,7 +44,8 @@ test('parses a staff order with medication and attachments', () => {
   assert.ok(o)
   assert.equal(o.patientName, 'Д.Цэцэг')
   assert.equal(o.medication?.name, 'Цефтриаксон')
-  assert.equal(o.attachmentCount, 1)
+  assert.equal(o.attachments.length, 1)
+  assert.equal(o.patientContact, null)
   assert.equal(o.address?.text, 'Орчлон, 43-54')
   assert.equal(o.familyPresent, true)
 })
@@ -60,7 +61,7 @@ test('an order without a booking form still parses', () => {
   assert.ok(o)
   assert.equal(o.medication, null)
   assert.equal(o.address, null)
-  assert.equal(o.attachmentCount, 0)
+  assert.equal(o.attachments.length, 0)
 })
 
 test('page parser fails the whole page when one order is malformed', () => {
@@ -95,10 +96,17 @@ test('sorting: in progress, upcoming by time, history newest first', () => {
 })
 
 test('available actions follow the server guards', () => {
-  assert.deepEqual(availableActions('ASSIGNED'), { setEta: true, start: true, complete: false })
-  assert.deepEqual(availableActions('IN_PROGRESS'), { setEta: true, start: false, complete: true })
-  assert.deepEqual(availableActions('COMPLETED'), { setEta: false, start: false, complete: false })
-  assert.deepEqual(availableActions('PAID'), { setEta: false, start: false, complete: false })
+  const none = { setEta: false, enRoute: false, checkin: false, record: false, reject: false, incident: false }
+  assert.deepEqual(availableActions('ASSIGNED'), {
+    ...none, setEta: true, enRoute: true, checkin: true, reject: true, incident: true,
+  })
+  assert.deepEqual(availableActions('EN_ROUTE'), { ...none, setEta: true, checkin: true, reject: true, incident: true })
+  assert.deepEqual(availableActions('IN_PROGRESS'), { ...none, record: true, reject: true, incident: true })
+  for (const done of ['COMPLETED', 'REFUSED', 'INCIDENT', 'PAID']) assert.deepEqual(availableActions(done), none)
+})
+
+test('contact is parsed when the server sends it', () => {
+  assert.equal(parseStaffOrder({ ...base, patientContact: '99112233' })?.patientContact, '99112233')
 })
 
 test('eta is minutes from now in the future', () => {
@@ -107,7 +115,7 @@ test('eta is minutes from now in the future', () => {
 
 const config = resolveApiConfig({ isDev: true, platform: 'ios', explicitUrl: 'http://api.test' })
 
-test('actions send the order version; 409 surfaces its code', async () => {
+test('eta sends the order version; 409 surfaces its code', async () => {
   const seen: { url: string; body?: string }[] = []
   const fetch: FetchLike = async (url, init) => {
     seen.push({ url, body: init.body })
@@ -117,9 +125,9 @@ test('actions send the order version; 409 surfaces its code', async () => {
     }
   }
   const client = createHttpClient({ config, fetch, getToken: async () => null })
-  const res = await postStaffOrderAction(client, 'o 1', 'start', 3)
-  assert.equal(seen[0].url, 'http://api.test/api/staff/orders/o%201/start')
-  assert.deepEqual(JSON.parse(seen[0].body!), { version: 3 })
+  const res = await postEta(client, 'o 1', 3, '2026-10-05T00:15:00.000Z')
+  assert.equal(seen[0].url, 'http://api.test/api/staff/orders/o%201/eta')
+  assert.deepEqual(JSON.parse(seen[0].body!), { version: 3, eta: '2026-10-05T00:15:00.000Z' })
   assert.equal(res.ok, false)
   if (!res.ok) assert.equal(res.code, 'VERSION_CONFLICT')
 })

@@ -28,6 +28,12 @@
         }
       ],
       "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Үйлчлүүлэгчийн хаяг дээр ирснээ баталгаажуулахад (check-in) таны байршил шаардлагатай."
+        }
+      ],
       "expo-secure-store"
     ],
     "experiments": {

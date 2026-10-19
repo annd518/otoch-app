@@ -4,8 +4,11 @@ import type { StaffOrder } from '../services/staffOrders'
 const STATUS_LABELS: Record<string, string> = {
   PAID: 'Төлөгдсөн',
   ASSIGNED: 'Томилогдсон',
+  EN_ROUTE: 'Замдаа',
   IN_PROGRESS: 'Явагдаж байна',
   COMPLETED: 'Дууссан',
+  REFUSED: 'Татгалзсан',
+  INCIDENT: 'Осол бүртгэсэн',
   CANCELLED: 'Цуцлагдсан',
   EXPIRED: 'Хугацаа дууссан',
 }
@@ -14,11 +17,12 @@ export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status
 }
 
-export type StatusTone = 'info' | 'warning' | 'success' | 'neutral'
+export type StatusTone = 'info' | 'warning' | 'success' | 'danger' | 'neutral'
 
 export function statusTone(status: string): StatusTone {
-  if (status === 'ASSIGNED') return 'info'
+  if (status === 'ASSIGNED' || status === 'EN_ROUTE') return 'info'
   if (status === 'IN_PROGRESS') return 'warning'
+  if (status === 'REFUSED' || status === 'INCIDENT') return 'danger'
   if (status === 'COMPLETED') return 'success'
   return 'neutral'
 }
@@ -46,7 +50,7 @@ export function serviceSummary(order: Pick<StaffOrder, 'items'>): string {
   return order.items.map((i) => (i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name)).join(', ')
 }
 
-const GROUP: Record<string, number> = { IN_PROGRESS: 0, ASSIGNED: 1, PAID: 1 }
+const GROUP: Record<string, number> = { IN_PROGRESS: 0, EN_ROUTE: 0, ASSIGNED: 1, PAID: 1 }
 
 // Active work first (in progress, then upcoming by time), history last (newest first).
 export function sortForNurse(orders: readonly StaffOrder[]): StaffOrder[] {
@@ -61,17 +65,23 @@ export function sortForNurse(orders: readonly StaffOrder[]): StaffOrder[] {
 
 export interface AvailableActions {
   setEta: boolean
-  start: boolean
-  complete: boolean
+  enRoute: boolean
+  checkin: boolean
+  record: boolean
+  reject: boolean
+  incident: boolean
 }
 
-// Mirrors the server guard in staffOrders.ts (eta: ASSIGNED|IN_PROGRESS,
-// start: ASSIGNED, complete: IN_PROGRESS). The server stays the authority.
+// Mirrors the server guards in nurseOrders.ts / staffOrders.ts; the server stays the authority.
 export function availableActions(status: string): AvailableActions {
+  const open = status === 'ASSIGNED' || status === 'EN_ROUTE' || status === 'IN_PROGRESS'
   return {
-    setEta: status === 'ASSIGNED' || status === 'IN_PROGRESS',
-    start: status === 'ASSIGNED',
-    complete: status === 'IN_PROGRESS',
+    setEta: status === 'ASSIGNED' || status === 'EN_ROUTE',
+    enRoute: status === 'ASSIGNED',
+    checkin: status === 'ASSIGNED' || status === 'EN_ROUTE',
+    record: status === 'IN_PROGRESS',
+    reject: open,
+    incident: open,
   }
 }
 

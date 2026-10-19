@@ -8,6 +8,7 @@ const TONES: Record<StatusTone, { bg: string; fg: string }> = {
   info: { bg: theme.color.info, fg: theme.color.brand },
   warning: { bg: theme.color.warningBg, fg: theme.color.warning },
   success: { bg: theme.color.successBg, fg: theme.color.success },
+  danger: { bg: theme.color.errorBg, fg: theme.color.error },
   neutral: { bg: theme.color.muted, fg: theme.color.secondary },
 }
 

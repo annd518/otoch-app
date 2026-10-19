@@ -30,7 +30,11 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={user !== null}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="orders/[id]" />
+        <Stack.Screen name="orders/[id]/index" />
+        <Stack.Screen name="orders/[id]/checkin" />
+        <Stack.Screen name="orders/[id]/record" />
+        <Stack.Screen name="orders/[id]/reject" />
+        <Stack.Screen name="orders/[id]/incident" />
       </Stack.Protected>
       <Stack.Protected guard={user === null}>
         <Stack.Screen name="login" />

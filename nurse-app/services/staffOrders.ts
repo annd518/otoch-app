@@ -34,7 +34,9 @@ export interface StaffOrder {
   familyPresent: boolean
   postoperative: boolean
   referralText: string | null
-  attachmentCount: number
+  attachments: { id: string; mimeType: string }[]
+  // Phone for the call button; the server sends it only while the visit is open.
+  patientContact: string | null
   timeline: { id: string; status: string; at: string }[]
   isMock: boolean
 }
@@ -54,6 +56,17 @@ function parseMedication(value: unknown): StaffOrderMedication | null {
   const { name, dose, route, expiresAt, doseNumber } = value
   if (!text(name) || !text(dose) || !text(route) || !text(expiresAt)) return null
   return { name, dose, route, expiresAt, doseNumber: optNumber(doseNumber) }
+}
+
+function parseAttachments(value: unknown): StaffOrder['attachments'] {
+  if (!Array.isArray(value)) return []
+  const out: StaffOrder['attachments'] = []
+  for (const raw of value) {
+    if (isRecord(raw) && text(raw.id)) {
+      out.push({ id: raw.id, mimeType: typeof raw.mimeType === 'string' ? raw.mimeType : 'image/jpeg' })
+    }
+  }
+  return out
 }
 
 export function parseStaffOrder(value: unknown): StaffOrder | null {
@@ -106,7 +119,8 @@ export function parseStaffOrder(value: unknown): StaffOrder | null {
     familyPresent: form?.familyPresent === true,
     postoperative: form?.postoperative === true,
     referralText: form ? optText(form.referralText) : null,
-    attachmentCount: Array.isArray(value.attachments) ? value.attachments.length : 0,
+    attachments: parseAttachments(value.attachments),
+    patientContact: optText(value.patientContact),
     timeline,
     isMock: value.isMock === true,
   }
@@ -132,25 +146,24 @@ export function fetchStaffOrders(client: HttpClient, cursor?: string): Promise<A
   return client.request({ method: 'GET', path: `${API_PATHS.staffOrders.list}${query}`, parse: parseStaffOrderPage })
 }
 
-export function fetchStaffOrder(client: HttpClient, id: string): Promise<ApiResult<StaffOrder>> {
-  return client.request({ method: 'GET', path: API_PATHS.staffOrders.byId(id), parse: parseStaffOrderEnvelope })
+// Detail through the nurse router: also carries patientContact.
+export function fetchNurseOrder(client: HttpClient, id: string): Promise<ApiResult<StaffOrder>> {
+  return client.request({ method: 'GET', path: API_PATHS.nurseOrders.byId(id), parse: parseStaffOrderEnvelope })
 }
 
-export type StaffOrderAction = 'eta' | 'start' | 'complete'
-
 // `version` is the optimistic lock: the server answers 409 VERSION_CONFLICT
-// when the order changed since the nurse loaded it.
-export function postStaffOrderAction(
+// when the order changed since the nurse loaded it. The ETA response has no
+// patient fields, so callers reload the order afterwards.
+export function postEta(
   client: HttpClient,
   id: string,
-  action: StaffOrderAction,
   version: number,
-  extra: { eta?: string | null } = {},
+  eta: string | null,
 ): Promise<ApiResult<StaffOrder>> {
   return client.request({
     method: 'POST',
-    path: API_PATHS.staffOrders.action(id, action),
-    body: { version, ...extra },
+    path: API_PATHS.staffOrders.eta(id),
+    body: { version, eta },
     parse: parseStaffOrderEnvelope,
   })
 }
