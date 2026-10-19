@@ -161,7 +161,11 @@ function RecordForm(props: {
           <AppText variant="heading" color={theme.color.navy}>
             {props.summary}
           </AppText>
-          <AppText variant="caption" color={record.saveState === 'error' ? theme.color.error : theme.color.secondary}>
+          <AppText
+            variant="caption"
+            accessibilityLiveRegion="polite"
+            color={record.saveState === 'error' ? theme.color.error : theme.color.secondary}
+          >
             {SAVE_LABEL[record.saveState]}
             {record.saveError ? ` · ${record.saveError}` : ''}
           </AppText>
@@ -225,7 +229,7 @@ function RecordForm(props: {
                 key={c.key}
                 style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
               >
-                <AppText>{c.label}</AppText>
+                <AppText style={{ flex: 1 }}>{c.label}</AppText>
                 <Switch
                   accessibilityLabel={c.label}
                   value={record.checks[c.key]}

@@ -71,7 +71,9 @@ export function SignaturePad({ ref, onInkChange, onDrawing }: Props) {
 
   return (
     <View
+      accessible
       accessibilityLabel="Гарын үсгийн талбар"
+      accessibilityHint="Үйлчлүүлэгч хуруугаараа энд гарын үсэг зурна"
       style={{
         height: HEIGHT,
         borderWidth: 1,

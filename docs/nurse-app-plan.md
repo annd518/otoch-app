@@ -61,6 +61,7 @@
 | 0 · Суурь | ✅ Дууссан (2026-10-19) | typecheck, lint, 9 unit тест, Android JS bundle export |
 | 1 · Одоогийн API-ийн мөчлөг | ✅ Дууссан (2026-10-19) | 20 unit тест, typecheck, lint, bundle export. **Локал серверийн эсрэг интеграци 13/13** (доор) |
 | 2 · L1 дутуу хэсэг | ✅ Дууссан (2026-10-19): B1–B6, B10, OTP + refresh. Бодит төхөөрөмж дээр шалгаагүй | Backend: 23 шинэ тест (nurse-orders 17 + nurse-otp 6) ([server/tests/nurse-orders.test.ts](../server/tests/nurse-orders.test.ts)). App: 36 unit тест, typecheck, lint, bundle export. **Локал серверийн эсрэг интеграци 22/22** (доор) |
+| 3 · Release бэлтгэл | 🟡 Кодоор бэлэн (2026-10-19), [nurse-app-release.md](nurse-app-release.md). Бодит төхөөрөмж, build, store нь эзэмшигчийн эрх, ID хүлээгдэж байна | `expo-doctor` 21/21, placeholder-тай `expo prebuild`, a11y засвар, `nurse:provision` + 3 тест |
 
 **Интеграцийн шалгалт (нэг удаагийн, commit хийгээгүй).** `git archive`-ээр серверийг түр хавтсанд гаргаж, түр PostgreSQL + seed + бодит API асаан, nurse-app-ын `loginFlow`, `fetchStaffOrders`, `postStaffOrderAction` кодыг тулгасан. Шалгасан зүйл: CHILD нэвтрэлт татгалзагдаж session хадгалагдахгүй; NURSE зөвхөн өөрийн захиалгыг харна, бусдынх 404; ETA (өнгөрсөн нь татгалзагдана); хуучин `version` → `VERSION_CONFLICT`; `ASSIGNED → IN_PROGRESS → COMPLETED`; эхлүүлэхээс өмнө дуусгах → `INVALID_STATUS`; бусдын захиалгыг эхлүүлэх боломжгүй.
 
