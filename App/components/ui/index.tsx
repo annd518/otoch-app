@@ -1,9 +1,11 @@
-import React, { useSyncExternalStore, useState } from "react";
+import React, { useSyncExternalStore, useState, useContext } from "react";
 import { connectivity } from "@/services/connectivity";
 import { apiService } from "@/services/api";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,7 +18,11 @@ import {
   type ViewProps,
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { BottomTabBarHeightContext } from "expo-router/js-tabs";
 import { router } from "expo-router";
 import {
   ArrowLeft,
@@ -155,6 +161,34 @@ export function Button({
         </>
       )}
     </Pressable>
+  );
+}
+export function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View
+      style={{
+        gap: 16,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: t.color.border,
+      }}
+    >
+      <View style={{ gap: 6 }}>
+        <Copy variant="heading" accessibilityRole="header">
+          {title}
+        </Copy>
+        {description && <Copy variant="caption">{description}</Copy>}
+      </View>
+      {children}
+    </View>
   );
 }
 export function Card({ style, ...props }: ViewProps) {
@@ -401,78 +435,122 @@ export function Screen({
   title,
   back = true,
   logo = false,
+  footer,
+  sticky,
   children,
 }: {
   title: string;
   back?: boolean;
   // show the ОТОЧ wordmark instead of the title text (still read out as `title`)
   logo?: boolean;
+  footer?: React.ReactNode;
+  sticky?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = useContext(BottomTabBarHeightContext);
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: t.color.subtle }}
       edges={["top", "left", "right"]}
     >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {back && (
-            <NeuIconButton
-              label="Буцах"
-              onPress={() =>
-                router.canGoBack() ? router.back() : router.replace("/")
-              }
-              accessibilityRole="button"
-              accessibilityLabel="Буцах"
+        <ScrollView
+          stickyHeaderIndices={sticky ? [1] : undefined}
+          style={footer ? { flex: 1 } : undefined}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{
+            padding: 20,
+            paddingBottom: footer ? 20 : 40,
+            gap: 20,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {back && (
+              <NeuIconButton
+                label="Буцах"
+                onPress={() =>
+                  router.canGoBack() ? router.back() : router.replace("/")
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Буцах"
+                style={{
+                  minWidth: 48,
+                  minHeight: 48,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <ArrowLeft color={t.color.brand} size={24} />
+              </NeuIconButton>
+            )}
+            {logo ? (
+              <View
+                style={{ flex: 1 }}
+                accessible
+                accessibilityRole="header"
+                accessibilityLabel={title}
+              >
+                <Image
+                  source={WORDMARK}
+                  resizeMode="contain"
+                  style={{
+                    width: WORDMARK_WIDTH,
+                    height: WORDMARK_HEIGHT,
+                    tintColor: v.deep,
+                  }}
+                />
+              </View>
+            ) : (
+              <Copy
+                variant="title"
+                accessibilityRole="header"
+                style={{ flex: 1, fontSize: 25, lineHeight: 33 }}
+              >
+                {title}
+              </Copy>
+            )}
+          </View>
+          {sticky && (
+            <View
               style={{
-                minWidth: 48,
-                minHeight: 48,
-                alignItems: "center",
-                justifyContent: "center",
+                backgroundColor: t.color.subtle,
+                paddingVertical: 10,
+                zIndex: 1,
               }}
             >
-              <ArrowLeft color={t.color.brand} size={24} />
-            </NeuIconButton>
-          )}
-          {logo ? (
-            <View
-              style={{ flex: 1 }}
-              accessible
-              accessibilityRole="header"
-              accessibilityLabel={title}
-            >
-              <Image
-                source={WORDMARK}
-                resizeMode="contain"
-                style={{
-                  width: WORDMARK_WIDTH,
-                  height: WORDMARK_HEIGHT,
-                  tintColor: v.deep,
-                }}
-              />
+              {sticky}
             </View>
-          ) : (
-            <Copy
-              variant="title"
-              accessibilityRole="header"
-              style={{ flex: 1, fontSize: 25, lineHeight: 33 }}
-            >
-              {title}
-            </Copy>
           )}
-        </View>
-        {process.env.EXPO_PUBLIC_APP_ENV === "staging-test" && (
-          <Banner>
-            Туршилтын орчин · бодит төлбөр биш. Зөвхөн зохиомол мэдээлэл
-            ашиглана.
-          </Banner>
+          {process.env.EXPO_PUBLIC_APP_ENV === "staging-test" && (
+            <Banner>
+              Туршилтын орчин · бодит төлбөр биш. Зөвхөн зохиомол мэдээлэл
+              ашиглана.
+            </Banner>
+          )}
+          <OfflineBanner />
+          {children}
+        </ScrollView>
+        {footer && (
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingTop: 12,
+              paddingBottom:
+                12 + (tabBarHeight === undefined ? insets.bottom : 0),
+              gap: 8,
+              backgroundColor: t.color.surface,
+              borderTopWidth: 1,
+              borderTopColor: t.color.border,
+            }}
+          >
+            {footer}
+          </View>
         )}
-        <OfflineBanner />
-        {children}
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

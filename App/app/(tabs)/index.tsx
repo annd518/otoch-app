@@ -19,6 +19,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { storage } from "@/utils/storage";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
 import { groups, orderStatus } from "@/design/catalog";
@@ -32,14 +33,21 @@ export default function Home() {
   const { dispatch } = useBookingDraft();
   const { width: measuredWidth, fontScale } = useWindowDimensions();
   const width = measuredWidth || 390;
-  const columns = width >= 720 && fontScale < 1.3 ? 2 : 1;
+  const columns = width >= 380 && fontScale < 1.3 ? 2 : 1;
   const stacked = fontScale >= 1.8;
   const icons = [Syringe, Bandage, HeartPulse, HandHeart];
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
+  const [userName, setUserName] = useState("");
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      void storage
+        .getUser()
+        .then((user) => {
+          if (active) setUserName(user?.name ?? "");
+        })
+        .catch(() => {});
       void apiService.listOrders().then((result) => {
         if (!active) return;
         if (result.ok) {
@@ -59,7 +67,37 @@ export default function Home() {
       ),
   );
   return (
-    <Screen title="OTOCH" back={false} logo>
+    <Screen
+      title="OTOCH"
+      back={false}
+      logo
+      footer={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Сувилагч дуудах"
+          onPress={() => {
+            dispatch({ type: "reset" });
+            router.push("/booking/catalog");
+          }}
+          style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+        >
+          {({ pressed }) => (
+            <LinearGradient
+              colors={pressed ? [v.deep, v.deep] : [v.blue, v.deep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.ctaFill}
+            >
+              <Copy style={styles.ctaText}>Сувилагч дуудах</Copy>
+              <ArrowRight color={v.white} size={22} />
+            </LinearGradient>
+          )}
+        </Pressable>
+      }
+    >
+      <Copy style={styles.greeting}>
+        {userName ? `Сайн байна уу, ${userName}` : "Тавтай морил"}
+      </Copy>
       <View style={styles.hero}>
         <LinearGradient
           colors={[v.ice, v.surface, v.glow]}
@@ -85,31 +123,32 @@ export default function Home() {
               </View>
             )}
           </View>
-          <Copy style={styles.heroDescription}>
-            Өөрт тохирох үйлчилгээг сонгож, хаяг болон цагаа захиалаарай.
-          </Copy>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Сувилагч дуудах"
-            onPress={() => {
-              dispatch({ type: "reset" });
-              router.push("/booking/catalog");
-            }}
-            style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-          >
-            {({ pressed }) => (
-              <LinearGradient
-                colors={pressed ? [v.deep, v.deep] : [v.blue, v.deep]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.ctaFill}
-              >
-                <Copy style={styles.ctaText}>Сувилагч дуудах</Copy>
-                <ArrowRight color={v.white} size={22} />
-              </LinearGradient>
-            )}
-          </Pressable>
         </LinearGradient>
+      </View>
+
+      <View style={styles.urgentStrip}>
+        <View style={styles.phoneBadge}>
+          <Phone color={v.deep} size={20} />
+        </View>
+        <View style={styles.flex}>
+          <Copy style={styles.urgentTitle}>Яаралтай тусламж бол 103</Copy>
+          <Copy style={styles.urgentText}>
+            OTOCH нь яаралтай тусламжийн үйлчилгээ биш.
+          </Copy>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="103 руу залгах"
+          onPress={() => {
+            void Linking.openURL("tel:103");
+          }}
+          style={({ pressed }) => [
+            styles.urgentCall,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Copy style={styles.urgentCallText}>103</Copy>
+        </Pressable>
       </View>
 
       {error ? (
@@ -176,11 +215,19 @@ export default function Home() {
               }
               style={({ pressed }) => [
                 styles.serviceCard,
-                { width: columns === 2 ? "48%" : "100%" },
+                {
+                  width: columns === 2 ? "48%" : "100%",
+                  minHeight: columns === 2 ? 174 : 100,
+                },
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.serviceRow, stacked && styles.stacked]}>
+              <View
+                style={[
+                  styles.serviceRow,
+                  (stacked || columns === 2) && styles.stacked,
+                ]}
+              >
                 <View style={styles.iconBadge}>
                   <Icon size={25} strokeWidth={1.7} color={v.deep} />
                 </View>
@@ -188,47 +235,55 @@ export default function Home() {
                   <Copy style={styles.categoryTitle}>{group.title}</Copy>
                   <Copy style={styles.description}>{group.description}</Copy>
                 </View>
-                {!stacked && <ChevronRight color={v.blue} size={20} />}
+                {!stacked && (
+                  <View style={columns === 2 ? styles.bentoArrow : undefined}>
+                    <ChevronRight color={v.blue} size={20} />
+                  </View>
+                )}
               </View>
             </Pressable>
           );
         })}
-      </View>
-
-      <View style={styles.emergency}>
-        <View style={styles.emergencyTop}>
-          <View style={styles.phoneBadge}>
-            <Phone color={v.deep} size={22} />
-          </View>
-          <View style={styles.flex}>
-            <Copy style={styles.emergencyTitle}>
-              Яаралтай тусламж хэрэгтэй юу?
-            </Copy>
-            <Copy style={styles.description}>
-              OTOCH нь яаралтай тусламжийн үйлчилгээ биш.
-            </Copy>
-          </View>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="103 руу залгах"
-          onPress={() => {
-            void Linking.openURL("tel:103");
-          }}
-          style={({ pressed }) => [
-            styles.emergencyAction,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Copy style={styles.emergencyActionText}>103 руу залгах</Copy>
-          <ArrowRight color={v.deep} size={18} />
-        </Pressable>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  greeting: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: theme.color.secondary,
+    marginTop: -8,
+  },
+  urgentStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 4,
+  },
+  urgentTitle: {
+    fontFamily: "NotoSans_600SemiBold",
+    fontSize: 13,
+    lineHeight: 21,
+    color: v.navy,
+  },
+  urgentText: { fontSize: 12, lineHeight: 19, color: theme.color.secondary },
+  urgentCall: {
+    minWidth: 48,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: v.badgeBg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  urgentCallText: {
+    fontFamily: "NotoSans_600SemiBold",
+    fontSize: 17,
+    lineHeight: 24,
+    color: v.deep,
+  },
+  bentoArrow: { position: "absolute", right: 0, top: 12 },
   hero: { borderRadius: 28, boxShadow: v.cardShadow },
   heroFill: {
     borderRadius: 28,
@@ -248,19 +303,18 @@ const styles = StyleSheet.create({
   },
   headline: {
     fontFamily: "Montserrat_700Bold",
-    fontSize: 25,
-    lineHeight: 33,
+    fontSize: 23,
+    lineHeight: 31,
     color: v.navy,
   },
-  heroDescription: { fontSize: 15, lineHeight: 24, color: v.muted },
-  heroArt: { width: 104, height: 112 },
+  heroArt: { width: 88, height: 96 },
   heroArtInner: {
     position: "absolute",
     width: 272,
     height: 256,
     left: -84,
     top: -72,
-    transform: [{ scale: 0.44 }],
+    transform: [{ scale: 0.38 }],
   },
   cta: { borderRadius: 24, backgroundColor: v.deep, boxShadow: v.buttonShadow },
   ctaFill: {
@@ -361,43 +415,12 @@ const styles = StyleSheet.create({
     ...theme.depth.inset,
   },
   pressed: { backgroundColor: theme.color.inset, ...theme.depth.inset },
-  emergency: {
-    padding: 18,
-    borderRadius: 24,
-    backgroundColor: v.surface,
-    borderWidth: 1,
-    borderColor: v.ice,
-    gap: 14,
-  },
-  emergencyTop: { flexDirection: "row", gap: 12, alignItems: "center" },
   phoneBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: v.badgeBg,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emergencyTitle: {
-    fontFamily: "NotoSans_600SemiBold",
-    fontSize: 15,
-    lineHeight: 23,
-    color: v.navy,
-  },
-  emergencyAction: {
-    minHeight: 48,
-    borderTopWidth: 1,
-    borderTopColor: v.dot,
-    paddingTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  emergencyActionText: {
-    fontFamily: "NotoSans_600SemiBold",
-    fontSize: 16,
-    lineHeight: 24,
-    color: v.deep,
   },
 });

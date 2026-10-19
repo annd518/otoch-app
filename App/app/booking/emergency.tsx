@@ -88,7 +88,6 @@ export default function EmergencyScreen() {
         >
           <Phone size={38} color={theme.color.error} />
         </View>
-        <Ionicons name="medkit" size={64} color={theme.color.error} />
         <Text style={styles.title}>
           Яаралтай тусламж шаардлагатай байж болзошгүй
         </Text>
@@ -125,7 +124,11 @@ export default function EmergencyScreen() {
             ) : null}
           </View>
         ) : null}
-
+      </ScrollView>
+      <View
+        style={{ padding: 20, gap: 12, backgroundColor: theme.color.surface }}
+      >
+        {" "}
         <TouchableOpacity
           style={styles.callButton}
           onPress={() => void call()}
@@ -136,11 +139,10 @@ export default function EmergencyScreen() {
             {EMERGENCY_PHONE} руу залгах
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.homeButton} onPress={goHome}>
           <Text style={styles.homeButtonText}>Нүүр хуудас руу буцах</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

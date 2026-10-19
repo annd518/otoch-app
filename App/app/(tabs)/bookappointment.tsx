@@ -249,8 +249,55 @@ export default function Booking() {
   };
   const expiryError = expiryProblem(expiryText, scheduledAt, new Date());
   return (
-    <Screen title="Сувилагч дуудах">
-      <Stepper step={step} />
+    <Screen
+      title="Сувилагч дуудах"
+      sticky={<Stepper step={step} />}
+      footer={
+        <>
+          {step === 1 && (
+            <Button
+              title="Үргэлжлүүлэх"
+              disabled={stepOneMissing.length > 0}
+              onPress={() => setStep(2)}
+            />
+          )}
+          {step === 2 && (
+            <Button
+              title="Үргэлжлүүлэх"
+              disabled={
+                !patient?.birthYear ||
+                !form.consent.service ||
+                !form.consent.sensitiveData ||
+                (presenceRequired && !form.familyPresent) ||
+                (familyRequired && form.consent.signer !== "REPRESENTATIVE")
+              }
+              onPress={() => {
+                if (!details.bookingForm) setForm({});
+                setStep(3);
+              }}
+            />
+          )}
+          {step === 3 && (
+            <Button
+              network
+              title="Заалт, асуулгыг бөглөх"
+              busy={save.running}
+              disabled={medMissing.length > 0 || uploading}
+              onPress={() => {
+                void save.run();
+              }}
+            />
+          )}
+          {step > 1 && (
+            <Button
+              secondary
+              title="Өмнөх алхам"
+              onPress={() => setStep((s) => s - 1)}
+            />
+          )}
+        </>
+      }
+    >
       <SectionHeading
         icon={step === 1 ? MapPin : step === 2 ? UserRound : ClipboardCheck}
         title={service.name}
@@ -371,11 +418,7 @@ export default function Booking() {
               message="Сонгосон өдөр серверт сул цаг бүртгэгдээгүй байна. Цаг сонгож болно; захиалга баталгаажуулахад багтаамжийг сервер дахин шалгана."
             />
           )}
-          <Button
-            title="Үргэлжлүүлэх"
-            disabled={stepOneMissing.length > 0}
-            onPress={() => setStep(2)}
-          />
+
           {stepOneMissing.length > 0 && (
             <Copy variant="caption">{`Дутуу: ${stepOneMissing.join(", ")}`}</Copy>
           )}
@@ -460,20 +503,6 @@ export default function Booking() {
             label="Насанд хүрсэн гэр бүлийн гишүүн байлцана"
             selected={form.familyPresent}
             onPress={() => setForm({ familyPresent: !form.familyPresent })}
-          />
-          <Button
-            title="Үргэлжлүүлэх"
-            disabled={
-              !patient?.birthYear ||
-              !form.consent.service ||
-              !form.consent.sensitiveData ||
-              (presenceRequired && !form.familyPresent) ||
-              (familyRequired && form.consent.signer !== "REPRESENTATIVE")
-            }
-            onPress={() => {
-              if (!details.bookingForm) setForm({});
-              setStep(3);
-            }}
           />
         </>
       )}
@@ -600,26 +629,11 @@ export default function Booking() {
               )}
             </>
           )}
-          <Button
-            network
-            title="Заалт, асуулгыг бөглөх"
-            busy={save.running}
-            disabled={medMissing.length > 0 || uploading}
-            onPress={() => {
-              void save.run();
-            }}
-          />
+
           {medMissing.length > 0 && (
             <Copy variant="caption">{`Дутуу: ${medMissing.join(", ")}`}</Copy>
           )}
         </>
-      )}
-      {step > 1 && (
-        <Button
-          secondary
-          title="Өмнөх алхам"
-          onPress={() => setStep((s) => s - 1)}
-        />
       )}
     </Screen>
   );

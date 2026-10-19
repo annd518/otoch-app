@@ -1,8 +1,30 @@
+## Customer layout main integration
+
+- Main `7ac2cc8` дээр зөвхөн customer UI layout commit-ийг cherry-pick хийсэн. Docs-ийн хоёр талын шалгалтын тэмдэглэлийг хадгалж нэгтгэсэн. Server/nurse-app/wclient болон dependency lockfile өөрчлөлт байхгүй.
+- Нэгтгэх App tree нь эх UI commit `7a19ad9`-тэй ижил; typecheck, cache-free lint болон 222/222 regression-ийг шинэ main суурь дээр дахин шалгасан. Native/device acceptance-ийн хязгаар хэвээр.
+
+## Customer layout system — бүх хэрэглэгчийн дэлгэц, 2026-10-19
+
+- Хэрэглэгч Home-only хүрээг бүх дэлгэц рүү өргөжүүлсэн. [Дэлгэц бүрийн өөрчлөлт ба хязгаар](layout-system-review.md), [зурагтай gallery](screenshots/layout-system/index.html).
+- Home bento/hero; каталог, захиалгын supported filter sticky; бодит дөрвөн алхмын progress; одоогийн үндсэн товчнууд доод хэсэгт; form/profile бүлэглэл; task дэлгэцүүдийн calmer hierarchy. Дөрвөн бодит tab, API/model/backend/nurse-app хэвээр.
+- Typecheck, cache-free lint, **222/222** regression, iOS/Android/web export PASS. TypeScript AST audit: Home-оос бусад өөрчилсөн **18 дэлгэцийн** non-render logic, өмнөх callbacks, disabled/busy нөхцөлүүд өөрчлөгдөөгүй. Export нь native build биш.
+- Chrome synthetic HTTP/session: booking 1–3 → 6 negative → review/quote; mock pending/paid, profile/records/tracking/auth; 320px small screens; positive → emergency terminal; category filter; fixed booking CTA PASS. Runtime error 0, capture бүрт horizontal overflow 0. Browser large-text stress native 200% fontScale-ийн баталгаа биш.
+- Native keyboard/safe area/VoiceOver/TalkBack/200% fontScale, HEIC/camera/permission/deeplink acceptance хүлээгдэнэ. Бодит DB, төлбөр, 103 дуудлага хийгээгүй. Commit/push/merge хийгээгүй.
+
+## Home layout pass — Hero Dashboard / Bento
+
+- [Layout review](home-layout-review.md). Зөвхөн Home layout + Screen-ийн opt-in footer slot. Бусад дэлгэцийн default layout, API, model, authentication/booking/payment/navigation logic хэвээр.
+- Greeting нь stored user-ээс; prominent care hero; CTA нь доод fixed хэсэгт; urgent 103 тайлбар hero-ийн дараа; existing current order; 4 group responsive bento. Unsupported nurse selection/chat/filter/carousel өгөгдөл зохиогоогүй.
+- Typecheck/cache-free lint, 222/222 regression, iOS/Android/web export PASS. Chrome mock HTTP/session: 320/390/768px horizontal overflow 0, runtime errors 0; fixed CTA position after scroll, care/category/order navigation, error state PASS. 103 handler source unchanged, бодит дуудлага хийгээгүй.
+- [390px](screenshots/home-layout/home-layout-390.png), [bento/scroll](screenshots/home-layout/home-layout-services.png), [320px](screenshots/home-layout/home-layout-320.png), [active](screenshots/home-layout/home-layout-active.png).
+- Даалгаврын заавраар Home-ийн дараа зогссон. Native/device/200% font acceptance, visual approval хүлээгдэнэ. Commit/push хийгээгүй.
+
 ## Main integration review
 
 - Main `ab70535` дээр UI-ийн `7a35ffa`, `f030964`, `be69d3d`, `16f2c78` commit-уудыг cherry-pick хийсэн. `feat/nurse-app` суурийн зургаан commit-ийг UI merge-д оруулаагүй.
 - Нэгтгэх App tree нь `16f2c78`-ийн App tree-тэй diff-гүй. Тусдаа worktree дээр typecheck, cache-free lint, 222/222 regression дахин PASS. Dependency lockfile өөрчлөгдөөгүй; local node_modules-ийг шалгалтад symlink хийсэн.
 - PR-ийн өөрчлөлт зөвхөн App болон UI review docs/screenshots; server/nurse-app/wclient өөрчлөлт байхгүй. Native/device acceptance-ийн өмнөх хязгаар хэвээр.
+
 
 ## Бүх хэрэглэгчийн дэлгэц — premium pass
 

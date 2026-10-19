@@ -173,19 +173,6 @@ export default function RegisterScreen() {
               />
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.primaryButton,
-                loading && styles.primaryButtonDisabled,
-              ]}
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              <Text style={styles.primaryButtonText}>
-                {loading ? "Бүртгэл үүсгэж байна..." : "Бүртгэл үүсгэх"}
-              </Text>
-            </TouchableOpacity>
-
             <View style={styles.termsSection}>
               <Text style={styles.termsText}>
                 Бүртгүүлснээр та манай{" "}
@@ -211,6 +198,21 @@ export default function RegisterScreen() {
             </View>
           </View>
         </ScrollView>
+        <View style={{ padding: 20, backgroundColor: theme.color.surface }}>
+          {" "}
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              loading && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Бүртгэл үүсгэж байна..." : "Бүртгэл үүсгэх"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

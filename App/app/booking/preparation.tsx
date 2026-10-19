@@ -34,7 +34,28 @@ export default function Preparation() {
   const service = catalog?.services.find((s) => s.code === code);
   const preparation = service?.preparation ?? [];
   return (
-    <Screen title="Үйлчилгээний бэлтгэл">
+    <Screen
+      title="Үйлчилгээний бэлтгэл"
+      footer={
+        service ? (
+          <Button
+            title="Захиалгаа эхлүүлэх"
+            disabled={preparation.some((item) => !checked.includes(item))}
+            onPress={() => {
+              if (state.server && state.server.status !== "DRAFT")
+                dispatch({ type: "reset" });
+              dispatch({
+                type: "selectService",
+                service,
+                catalogVersion: catalog?.catalogVersion ?? null,
+                source: apiService.sourceOf("catalog"),
+              });
+              router.push("/(tabs)/bookappointment");
+            }}
+          />
+        ) : undefined
+      }
+    >
       {!!error && <Banner error>{error}</Banner>}
       {!service ? (
         <StateView title="Бэлтгэл ачаалж байна" loading={!error} />
@@ -81,21 +102,6 @@ export default function Preparation() {
               Бэлтгэлийн агуулга батлагдаагүй, туршилтын хувилбар.
             </Banner>
           )}
-          <Button
-            title="Захиалгаа эхлүүлэх"
-            disabled={preparation.some((item) => !checked.includes(item))}
-            onPress={() => {
-              if (state.server && state.server.status !== "DRAFT")
-                dispatch({ type: "reset" });
-              dispatch({
-                type: "selectService",
-                service,
-                catalogVersion: catalog?.catalogVersion ?? null,
-                source: apiService.sourceOf("catalog"),
-              });
-              router.push("/(tabs)/bookappointment");
-            }}
-          />
         </>
       )}
     </Screen>
