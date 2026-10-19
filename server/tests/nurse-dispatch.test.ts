@@ -86,7 +86,8 @@ async function nurse(opts: NurseOpts = {}) {
       licenseNo: "L-1",
     },
   });
-  return { id: u.id, token: await loginAs(srv.baseUrl, u.email), email: u.email };
+  // A deactivated account cannot sign in (loginController refuses deletedAt).
+  return { id: u.id, token: opts.deleted ? "" : await loginAs(srv.baseUrl, u.email), email: u.email };
 }
 
 async function paid(over: Record<string, unknown> = {}, service = "S02") {

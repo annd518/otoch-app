@@ -1,3 +1,44 @@
+## Main integration review
+
+- Main `ab70535` дээр UI-ийн `7a35ffa`, `f030964`, `be69d3d`, `16f2c78` commit-уудыг cherry-pick хийсэн. `feat/nurse-app` суурийн зургаан commit-ийг UI merge-д оруулаагүй.
+- Нэгтгэх App tree нь `16f2c78`-ийн App tree-тэй diff-гүй. Тусдаа worktree дээр typecheck, cache-free lint, 222/222 regression дахин PASS. Dependency lockfile өөрчлөгдөөгүй; local node_modules-ийг шалгалтад symlink хийсэн.
+- PR-ийн өөрчлөлт зөвхөн App болон UI review docs/screenshots; server/nurse-app/wclient өөрчлөлт байхгүй. Native/device acceptance-ийн өмнөх хязгаар хэвээр.
+
+## Бүх хэрэглэгчийн дэлгэц — premium pass
+
+- [Хамрах хүрээ, дэлгэц бүрийн бүртгэл](all-screens-premium.md). Onboarding/Home benchmark; discovery-д илүү depth, forms/clinical/payment-д тайван hierarchy. Нэмэлт dependency, backend/nurse-app/wclient өөрчлөлт байхгүй.
+- Typecheck/cache-free lint PASS; **222/222** unit/regression PASS (3 шинэ UTC+8 display-date тест орсон). iOS/Android Hermes + web static/SSR export PASS. Native/signed build биш.
+- Chrome synthetic session + mock HTTP: 28 screenshot; onboarding, Home, каталог/бүлэг, үйлчилгээ/бэлтгэл, phone/OTP/email/register, initial profile, booking 1–3 → 6 negative red flag → review/quote, mock pending/paid, emergency, orders/tracking/records/profile/patient, notifications, small/error. Runtime errors **0**, шалгасан viewport бүрт horizontal overflow **0**. Энэ нь бодит backend/SMS/QPay/bucket integration биш.
+- Static catalog query гарчгийн hydration mismatch-ийг query title hydration-ийн дараа үзүүлэхээр зассан. Серверийн каталог шүүх болон navigation өөрчлөгдөөгүй. Date labels UTC+8/24h; API payload огноо өөрчлөгдөөгүй.
+- [Бүх зурагтай gallery](screenshots/all-premium/index.html), [каталог](screenshots/all-premium/catalog.png), [алхам 2](screenshots/all-premium/booking-2.png), [асуулга](screenshots/all-premium/red-flags.png), [review](screenshots/all-premium/review.png), [төлбөр](screenshots/all-premium/payment.png), [tracking](screenshots/all-premium/tracking.png), [профайл](screenshots/all-premium/profile.png).
+- Зургууд нь viewport/scroll байрлалын review. Context-гүй referral route зураг нь guard/empty төлөв. Upload permission/HEIC, camera, native keyboard/safe area/VoiceOver/TalkBack/200% fontScale, хуучин Android shadow fallback төхөөрөмж дээр хүлээгдэнэ. Бодит/локал DB-д хүрээгүй.
+- UI хэрэгжүүлэлт локал; visual review хүлээн авсан гэсэн үг биш. Commit/push/merge/deploy хийгээгүй.
+
+## Home only — onboarding benchmark, 2026-10-19
+
+- Зөвхөн `App/app/(tabs)/index.tsx` өөрчлөгдсөн. Onboarding-ийн existing palette/hero/vector, 24–28 radius, headline hierarchy, gradient CTA/depth хэлийг Home-д хэрэглэсэн. Нэг гол raised care card; үйлчилгээний depth бага, хоосон status flat; 103 хэсэг neutral жижиг yellow accent-тай. Бусад дэлгэц, shared theme, tabs/navigation, API/services өөрчлөгдөөгүй.
+- Одоогийн draft reset → catalog, category group param, active order detail, tel:103 handlers хадгалагдсан. Үнэ/ETA/хэрэглэгчийн нэр/захиалга зохиогоогүй.
+- Typecheck, cache-free lint PASS; 219/219 regression PASS; iOS/Android/web export PASS. Chrome mock HTTP/session: 320/390/768px horizontal overflow 0, runtime errors 0; CTA/category/active-order navigation болон error state PASS.
+- Review: [Home 390](screenshots/home-benchmark/home-benchmark-390.png), [320](screenshots/home-benchmark/home-benchmark-320.png), [768](screenshots/home-benchmark/home-benchmark-768.png), [идэвхтэй захиалга](screenshots/home-benchmark/home-benchmark-active.png), [алдаа](screenshots/home-benchmark/home-benchmark-error.png).
+- Native/device/200% font acceptance хийгдээгүй. Home-ийг харуулж review хүлээнэ; бусад дэлгэц дээр үргэлжлүүлээгүй. Commit/push хийгээгүй.
+
+## Premium onboarding refinement — 2026-10-19
+
+- Хэрэглэгчийн шинэ лавлах зураг/даалгавраар зөвхөн onboarding visual execution-ийг шинэчилсэн. Header → hero → headline/body → pager → 103 card → CTA бүтэц болон гурван slide/skip/auth navigation хэвээр.
+- `OnboardingHero.tsx`: 232px хоёр талын shadow бүхий disc, recessed circle, gradient SVG house/roof/door, overlapping yellow medical badge, abstract glow circles. Shield/clipboard slide өөрийн icon-оо хадгална. 740px-ээс намхан дэлгэцэд compact hero; дунд хэсэг scroll боломжтой.
+- `onboardingVisual.ts`: scoped palette/depth token; бусад дэлгэцийн theme өөрчлөгдөөгүй. Neutral raised emergency card, yellow phone badge, bold blue 103. Blue/deep gradient CTA, 24px radius, pressed scale/shadow, arrow. Pager touch target 44px, headline 30/37 (compact 26/32), body 16/26.
+- Typecheck/cache-free lint PASS; 219/219 regression PASS; web + iOS/Android bundle export PASS. Шинэ dependency нэмээгүй. Chrome screenshot 320/390/768px, pageerror 0, horizontal overflow 0; pager болон Continue→Start→`/auth/phone` destination шалгасан.
+- [390px](screenshots/premium-onboarding/onboarding-390.png), [320px](screenshots/premium-onboarding/onboarding-320.png), [768px](screenshots/premium-onboarding/onboarding-768.png), [slide 2](screenshots/premium-onboarding/slide-2.png). Native төхөөрөмж, native shadow/200% text acceptance хүлээгдэнэ. Commit/push хийгээгүй.
+
+## Medical neumorphism — 2026-10-19
+
+- `feat/medical-neumorphism`: [хамрах хүрээ/дэлгэцийн бүртгэл](neumorphism.md). Одоогийн `feat/nurse-app` сууриас зөвхөн хэрэглэгчийн App visual layer. Энэ checkout-ийн 4 таб, auth/order/payment/API урсгал хэвээр; өмнөх тусдаа Blob Tab Bar branch-ийг merge хийгээгүй.
+- Нэг #ECF0F3 canvas, брэндийн #11589F CTA, Noto Sans/Montserrat, centralized spacing/radius/depth; shared Card/Button/Input/Screen/StateView болон NeuSurface/NeuIconButton. Native Fabric boxShadow; unsupported OS дээр border/fill нь төлөвийг ялгана. Splash logo/timing asset хадгалсан.
+- Typecheck PASS; cache-free lint PASS; 219/219 regression PASS; iOS/Android Hermes + web static/SSR export PASS. Dependencies/lockfile болон backend өөрчлөгдөөгүй.
+- Chrome synthetic session/mock HTTP: onboarding, phone, login, register, home, orders, profile, records, booking, patient editor, payment empty, emergency, notifications болон 320px patient editor — 14 зураг, runtime errors 0, horizontal overflow 0. Input focus border #11589F баталгаажсан. Web onboarding SSR width=0 асуудлыг бодит layout width-ээр зассан.
+- Review: [onboarding](screenshots/neumorphism/neu-onboarding.png), [нүүр](screenshots/neumorphism/neu-home.png), [OTP](screenshots/neumorphism/neu-phone.png), [өвчтөн](screenshots/neumorphism/neu-patient.png), [жижиг дэлгэц](screenshots/neumorphism/neu-small.png), [профайл](screenshots/neumorphism/neu-profile.png).
+- Native төхөөрөмж/VoiceOver/TalkBack/200% fontScale/keyboard болон бодит QPay, камераар acceptance хийгдээгүй. Зурагт байхгүй үйлдэл, ETA, үнэ, эмнэлзүйн өгөгдөл зохиогоогүй. Commit/push/merge энэ ажлаар хийгээгүй.
+
 ## Монгол жишээ хүний мэдээлэл
 
 - Mobile-ийн хуучин `child@demo.com` demo өвчтөнүүдийн нэр, хаяг, холбоо барих утсыг Монгол жишээгээр харуулна. Бодит аккаунтад энэ хөрвүүлэлт үйлчлэхгүй.

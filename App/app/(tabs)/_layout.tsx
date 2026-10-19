@@ -35,9 +35,13 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.color.brand,
+        tabBarItemStyle: { paddingTop: 6 },
         tabBarInactiveTintColor: theme.color.secondary,
         tabBarStyle: {
           height: Math.max(72, 32 + 36 * fontScale) + insets.bottom,
+          backgroundColor: theme.color.surface,
+          borderTopColor: theme.color.border,
+          ...theme.depth.soft,
         },
         tabBarLabelPosition: "below-icon",
         tabBarLabel: ({ color, children }) => (
@@ -62,28 +66,92 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Нүүр",
-          tabBarIcon: ({ color }) => <House size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 5,
+                borderRadius: 18,
+                backgroundColor: focused ? theme.color.info : "transparent",
+                ...(focused ? theme.depth.inset : theme.depth.flat),
+              }}
+            >
+              <House
+                size={23}
+                strokeWidth={focused ? 2.3 : 1.7}
+                color={color}
+              />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="orders"
         options={{
           title: "Захиалга",
-          tabBarIcon: ({ color }) => <CalendarDays size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 5,
+                borderRadius: 18,
+                backgroundColor: focused ? theme.color.info : "transparent",
+                ...(focused ? theme.depth.inset : theme.depth.flat),
+              }}
+            >
+              <CalendarDays
+                size={23}
+                strokeWidth={focused ? 2.3 : 1.7}
+                color={color}
+              />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="records"
         options={{
           title: "Тэмдэглэл",
-          tabBarIcon: ({ color }) => <FileText size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 5,
+                borderRadius: 18,
+                backgroundColor: focused ? theme.color.info : "transparent",
+                ...(focused ? theme.depth.inset : theme.depth.flat),
+              }}
+            >
+              <FileText
+                size={23}
+                strokeWidth={focused ? 2.3 : 1.7}
+                color={color}
+              />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: "Нүүр хуудас",
-          tabBarIcon: ({ color }) => <UserRound size={24} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 5,
+                borderRadius: 18,
+                backgroundColor: focused ? theme.color.info : "transparent",
+                ...(focused ? theme.depth.inset : theme.depth.flat),
+              }}
+            >
+              <UserRound
+                size={23}
+                strokeWidth={focused ? 2.3 : 1.7}
+                color={color}
+              />
+            </View>
+          ),
         }}
       />
       <Tabs.Screen name="bookappointment" options={{ href: null }} />

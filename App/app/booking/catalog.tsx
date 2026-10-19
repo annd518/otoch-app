@@ -1,15 +1,44 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
+import { HeartPulse, Clock } from "lucide-react-native";
+import {
+  SectionHeading,
+  FeatureSummary,
+  careIcon,
+  Banner,
+  Button,
+  Card,
+  Copy,
+  Screen,
+  StateView,
+} from "@/components/ui";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
 import type { Catalog } from "@/services/apiTypes";
 import { groups } from "@/design/catalog";
 import { formatMnt } from "@/utils/money";
-import { Banner, Button, Card, Copy, Screen, StateView } from "@/components/ui";
+const subscribeHydration = () => () => {};
+
 export default function CatalogScreen() {
   const { group } = useLocalSearchParams<{ group?: string }>();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  // Static export has no query string; keep the first hydration title identical.
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
+  const screenTitle = hydrated
+    ? (groups.find((g) => g.code === group)?.title ?? "Үйлчилгээ")
+    : "Үйлчилгээ";
   const load = useCallback(async () => {
     setLoading(true);
     const result = await apiService.getCatalog();
@@ -42,7 +71,12 @@ export default function CatalogScreen() {
         (!group || (s.group ?? s.category) === group),
     ) ?? [];
   return (
-    <Screen title={groups.find((g) => g.code === group)?.title ?? "Үйлчилгээ"}>
+    <Screen title={screenTitle}>
+      <FeatureSummary
+        icon={HeartPulse}
+        title="Танд тохирох тусламж"
+        description="Үйлчилгээний бэлтгэл, нөхцөл болон үнийг шалгаад сонгоорой."
+      />
       {loading ? (
         <StateView title="Үйлчилгээ ачаалж байна" loading />
       ) : error ? (
@@ -72,10 +106,21 @@ export default function CatalogScreen() {
             ))}
           {services.map((s) => (
             <Card key={s.id}>
-              <Copy variant="heading">{s.name}</Copy>
-              <Copy>
-                {s.durationMin} минут · {formatMnt(s.priceMnt)}
-              </Copy>
+              <SectionHeading
+                icon={careIcon(s.group ?? s.category)}
+                title={s.name}
+              />
+              <View style={{ gap: 8 }}>
+                <Copy variant="title" style={{ color: v.deep, fontSize: 24 }}>
+                  {formatMnt(s.priceMnt)}
+                </Copy>
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+                >
+                  <Clock size={16} color={v.muted} />
+                  <Copy variant="caption">{s.durationMin} минут</Copy>
+                </View>
+              </View>
               <Button
                 title="Дэлгэрэнгүй"
                 onPress={() =>

@@ -1,3 +1,6 @@
+import { ShieldCheck } from "lucide-react-native";
+import { FeatureSummary } from "@/components/ui";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { theme } from "@/design/theme";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -209,6 +212,7 @@ export default function PaymentScreen() {
       ? phase.invoice
       : null;
   const isMock = source === "mock" || invoice?.isMock === true;
+  const amountMnt = invoice?.amountMnt ?? quote?.totalMnt;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -232,6 +236,24 @@ export default function PaymentScreen() {
         </View>
       </View>
       <ScrollView contentContainerStyle={styles.container}>
+        <FeatureSummary
+          icon={ShieldCheck}
+          title="Аюулгүй төлбөр"
+          description="Төлөвийг сервер баталгаажуулсны дараа төлөгдсөн гэж харуулна."
+        />
+        {amountMnt !== undefined && (
+          <View style={styles.amountPanel}>
+            <Text style={styles.amountCaption}>
+              {phase.kind === "paid" ? "Төлөгдсөн дүн" : "Нийт төлөх дүн"}
+            </Text>
+            <Text style={styles.amountValue}>{formatMnt(amountMnt)}</Text>
+            <Text style={styles.amountCaption}>
+              {phase.kind === "paid"
+                ? "Сервер төлөлтийг баталгаажуулсан"
+                : "Төлөвийг серверээс шалгана"}
+            </Text>
+          </View>
+        )}
         {isMock && (
           <View style={styles.mockBanner}>
             <Text style={styles.mockBannerText}>
@@ -414,31 +436,64 @@ export default function PaymentScreen() {
 }
 
 const styles = StyleSheet.create({
+  amountPanel: {
+    padding: 24,
+    borderRadius: 28,
+    backgroundColor: v.surface,
+    borderWidth: 1,
+    borderColor: v.ice,
+    alignItems: "center",
+    gap: 8,
+    ...theme.depth.soft,
+  },
+  amountCaption: {
+    fontFamily: "NotoSans_400Regular",
+    fontSize: 14,
+    lineHeight: 23,
+    color: theme.color.secondary,
+    textAlign: "center",
+  },
+  amountValue: {
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 32,
+    lineHeight: 42,
+    color: v.deep,
+  },
   safeArea: { flex: 1, backgroundColor: theme.color.subtle },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.color.info,
   },
-  backButton: { minHeight: 56, padding: 8, marginRight: 4 },
+  backButton: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    ...theme.depth.soft,
+  },
   headerText: { flex: 1 },
   headerTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 22,
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 24,
     fontWeight: "800",
     color: theme.color.text,
   },
   headerSubtitle: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     marginTop: 2,
   },
-  container: { padding: 16, gap: 14, alignItems: "stretch" },
+  container: { padding: 20, gap: 14, alignItems: "stretch" },
   mockBanner: {
     backgroundColor: theme.color.subtle,
     borderRadius: 12,
@@ -447,19 +502,19 @@ const styles = StyleSheet.create({
   mockBannerText: {
     color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
   },
   centered: { alignItems: "center", gap: 12, paddingVertical: 24 },
   muted: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     textAlign: "center",
   },
   error: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.error,
     textAlign: "center",
   },
@@ -470,15 +525,16 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.background,
   },
   bankButton: {
+    ...theme.depth.soft,
     backgroundColor: theme.color.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
     padding: 14,
   },
   bankText: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.text,
     fontWeight: "600",
     textAlign: "center",
@@ -492,7 +548,7 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     minHeight: 56,
-    borderRadius: 14,
+    borderRadius: theme.radius.card,
     paddingVertical: 14,
     paddingHorizontal: 20,
     alignItems: "center",
@@ -502,7 +558,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: theme.color.brand,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
 });

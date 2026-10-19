@@ -101,7 +101,8 @@ export const loginController = async (req: Request, res: Response) => {
 
     // Same response for unknown email and wrong password (no account enumeration)
     const passwordOk = await bcrypt.compare(password, user?.password ?? DUMMY_HASH)
-    if (!user || !passwordOk) throw INVALID_CREDENTIALS
+    // A deactivated account answers like a wrong password (no enumeration)
+    if (!user || !passwordOk || user.deletedAt) throw INVALID_CREDENTIALS
 
     const token = issueToken(user)
     setAuthCookie(res, token)

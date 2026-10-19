@@ -140,7 +140,10 @@ export default function Profile() {
                 width: 112,
                 height: 112,
                 borderRadius: 56,
-                backgroundColor: theme.color.info,
+                backgroundColor: theme.color.surface,
+                ...theme.depth.raised,
+                borderWidth: 2,
+                borderColor: theme.color.background,
                 justifyContent: "center",
                 alignItems: "center",
               }}
@@ -227,17 +230,20 @@ export default function Profile() {
       />
       <Button
         secondary
+        variant="ghost"
         title="Үйлчилгээний нөхцөл"
         onPress={() => open(process.env.EXPO_PUBLIC_TERMS_URL)}
       />
       <Button
         secondary
+        variant="ghost"
         title="Нууцлалын бодлого"
         onPress={() => open(process.env.EXPO_PUBLIC_PRIVACY_URL)}
       />
       <SupportContactActions />
       <Button
         secondary
+        variant="danger"
         title="Данс устгах хүсэлт"
         onPress={() =>
           Alert.alert(

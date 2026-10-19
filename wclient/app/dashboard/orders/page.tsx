@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api/client";
 import { getSessionUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/session-core";
+import { ORDER_STATUS_LABELS } from "@/lib/orderLabels";
 type Order = {
   id: string;
   version: number;
@@ -17,17 +18,7 @@ type Order = {
   attachments?: { id: string }[];
   timeline: { id: string; status: string; at: string }[];
 };
-const labels: Record<string, string> = {
-  DRAFT: "Ноорог",
-  PAID: "Төлбөр төлөгдсөн",
-  ASSIGNED: "Сувилагч томилогдсон",
-  IN_PROGRESS: "Үйлчилгээ эхэлсэн",
-  COMPLETED: "Дууссан",
-  BLOCKED_RED_FLAG: "Аюулын шинжээр зогссон",
-  AWAITING_PAYMENT: "Төлбөр хүлээж байна",
-  CANCELLED: "Цуцлагдсан",
-  EXPIRED: "Хугацаа дууссан",
-};
+const labels = ORDER_STATUS_LABELS;
 const date = (v: string | null) =>
   v
     ? new Date(v).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" })
@@ -88,6 +79,15 @@ export default function StaffOrders() {
       setError("Дэлгэрэнгүй ачаалж чадсангүй");
     }
   };
+  // /dashboard/orders?order=<id> (links from the admin dashboard) opens it
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("order");
+    if (!id) return;
+    void api
+      .get("/staff/orders/" + encodeURIComponent(id))
+      .then((r) => setSelected(r.data.data.order))
+      .catch(() => setError("Дэлгэрэнгүй ачаалж чадсангүй"));
+  }, []);
   const act = async (action: string, fields: Record<string, unknown> = {}) => {
     if (!selected || inFlight.current) return;
     inFlight.current = true;

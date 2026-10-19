@@ -1,3 +1,16 @@
+import { MapPin, UserRound, ClipboardCheck } from "lucide-react-native";
+import {
+  SectionHeading,
+  Banner,
+  Button,
+  Card,
+  Chip,
+  Copy,
+  Input,
+  Screen,
+  Stepper,
+  StateView,
+} from "@/components/ui";
 import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { router, Redirect, useFocusEffect } from "expo-router";
@@ -26,17 +39,6 @@ import {
   medicationMissing,
 } from "@/utils/medicationStep";
 import { ReferralUploader } from "@/components/ReferralUploader";
-import {
-  Banner,
-  Button,
-  Card,
-  Chip,
-  Copy,
-  Input,
-  Screen,
-  Stepper,
-  StateView,
-} from "@/components/ui";
 const initialForm = (acceptedAt: string): BookingForm => ({
   consent: {
     service: false,
@@ -137,44 +139,44 @@ export default function Booking() {
     orderId: string;
     requiresReferral: boolean;
   } | null> => {
-      setError("");
-      const errors = validateDetails(state, new Date());
-      if (Object.keys(errors).length) {
-        setError(Object.values(errors).join("\n"));
-        return null;
-      }
-      const plan = planDraftSave(state, createIdempotencyKey);
-      if (plan.kind === "invalid") {
-        setError("Мэдээллээ бүрэн бөглөнө үү");
-        return null;
-      }
-      if (plan.kind === "none")
-        return state.server
-          ? { orderId: state.server.orderId, requiresReferral: false }
-          : null;
-      if (plan.kind === "create")
-        dispatch({
-          type: "createStarted",
-          key: plan.key,
-          fingerprint: plan.fingerprint,
-        });
-      const r =
-        plan.kind === "create"
-          ? await apiService.createDraftOrder(plan.input, plan.key)
-          : await apiService.updateDraftOrder(plan.orderId, plan.patch);
-      if (!r.ok) {
-        if (r.code === "RED_FLAG_BLOCKED") {
-          dispatch({ type: "redFlagBlocked", advice: null });
-          router.replace("/booking/emergency");
-        } else setError(r.message);
-        return null;
-      }
+    setError("");
+    const errors = validateDetails(state, new Date());
+    if (Object.keys(errors).length) {
+      setError(Object.values(errors).join("\n"));
+      return null;
+    }
+    const plan = planDraftSave(state, createIdempotencyKey);
+    if (plan.kind === "invalid") {
+      setError("Мэдээллээ бүрэн бөглөнө үү");
+      return null;
+    }
+    if (plan.kind === "none")
+      return state.server
+        ? { orderId: state.server.orderId, requiresReferral: false }
+        : null;
+    if (plan.kind === "create")
       dispatch({
-        type: "draftSaved",
-        order: r.data,
-        source: apiService.sourceOf("orders"),
+        type: "createStarted",
+        key: plan.key,
+        fingerprint: plan.fingerprint,
       });
-      return { orderId: r.data.id, requiresReferral: r.data.requiresReferral };
+    const r =
+      plan.kind === "create"
+        ? await apiService.createDraftOrder(plan.input, plan.key)
+        : await apiService.updateDraftOrder(plan.orderId, plan.patch);
+    if (!r.ok) {
+      if (r.code === "RED_FLAG_BLOCKED") {
+        dispatch({ type: "redFlagBlocked", advice: null });
+        router.replace("/booking/emergency");
+      } else setError(r.message);
+      return null;
+    }
+    dispatch({
+      type: "draftSaved",
+      order: r.data,
+      source: apiService.sourceOf("orders"),
+    });
+    return { orderId: r.data.id, requiresReferral: r.data.requiresReferral };
   }, [state, dispatch]);
   const save = useSingleFlight(
     useCallback(async () => {
@@ -249,7 +251,17 @@ export default function Booking() {
   return (
     <Screen title="Сувилагч дуудах">
       <Stepper step={step} />
-      <Copy variant="heading">{service.name}</Copy>
+      <SectionHeading
+        icon={step === 1 ? MapPin : step === 2 ? UserRound : ClipboardCheck}
+        title={service.name}
+        subtitle={
+          step === 1
+            ? "Хаана, хэзээ үйлчилгээ авах вэ?"
+            : step === 2
+              ? "Үйлчилгээ авах хүн, зөвшөөрөл"
+              : "Заалт, эмийн мэдээлэл, аюулын шинжийн шалгалт"
+        }
+      />
       {!!error && <Banner error>{error}</Banner>}
       {step === 1 && (
         <>
@@ -483,9 +495,7 @@ export default function Booking() {
           )}
           {medicationFieldsVisible && (
             <>
-              <Copy variant="label">
-                Эмийн мэдээллийг хэрхэн оруулах вэ?
-              </Copy>
+              <Copy variant="label">Эмийн мэдээллийг хэрхэн оруулах вэ?</Copy>
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <Chip
                   label="Зураг оруулах"
@@ -530,7 +540,9 @@ export default function Booking() {
                     })}
                     onChangeText={(value) => {
                       if (key !== "expiresAt") {
-                        setForm({ medication: { ...medication, [key]: value } });
+                        setForm({
+                          medication: { ...medication, [key]: value },
+                        });
                         return;
                       }
                       // digits only, dashes added; "" until the date is complete

@@ -1,13 +1,9 @@
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { Stepper } from "@/components/ui";
 import { theme } from "@/design/theme";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Icon as Ionicons } from "@/components/ui/Icon";
@@ -320,21 +316,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.color.info,
   },
-  backButton: { minHeight: 56, padding: 8, marginRight: 4 },
+  backButton: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    ...theme.depth.soft,
+  },
   headerText: { flex: 1 },
   headerTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 22,
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 24,
     fontWeight: "800",
     color: theme.color.text,
   },
   headerSubtitle: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     marginTop: 2,
   },
@@ -347,17 +353,17 @@ const styles = StyleSheet.create({
   },
   mutedText: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
     textAlign: "center",
   },
   errorText: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.error,
     textAlign: "center",
   },
-  list: { padding: 16, gap: 12 },
+  list: { padding: 20, gap: 12 },
   fixtureBanner: {
     backgroundColor: theme.color.subtle,
     borderRadius: 12,
@@ -366,28 +372,29 @@ const styles = StyleSheet.create({
   fixtureBannerText: {
     color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
-    lineHeight: 28,
+    lineHeight: 25,
   },
   intro: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.secondary,
-    lineHeight: 28,
+    lineHeight: 25,
   },
   questionCard: {
-    backgroundColor: theme.color.background,
-    borderRadius: 14,
+    ...theme.depth.soft,
+    backgroundColor: theme.color.surface,
+    borderRadius: theme.radius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
   },
   questionText: {
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     color: theme.color.text,
-    lineHeight: 28,
+    lineHeight: 25,
     fontWeight: "600",
   },
   answerRow: { flexDirection: "row", gap: 10, marginTop: 12 },
@@ -396,7 +403,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
     alignItems: "center",
     backgroundColor: theme.color.background,
   },
@@ -404,13 +411,13 @@ const styles = StyleSheet.create({
   answerYesText: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   answerNoText: {
     color: theme.color.secondary,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   answerNoSelected: {
@@ -420,7 +427,7 @@ const styles = StyleSheet.create({
   answerNoSelectedText: {
     color: theme.color.background,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   footer: {
@@ -433,13 +440,14 @@ const styles = StyleSheet.create({
   submitError: {
     color: theme.color.error,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     textAlign: "center",
   },
   primaryButton: {
-    minHeight: 56,
+    ...theme.depth.action,
+    minHeight: 60,
     backgroundColor: theme.color.brand,
-    borderRadius: 14,
+    borderRadius: theme.radius.card,
     paddingVertical: 16,
     alignItems: "center",
   },
@@ -447,7 +455,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.color.background,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   secondaryButton: {
@@ -461,7 +469,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: theme.color.brand,
     fontFamily: "NotoSans_400Regular",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
 });
