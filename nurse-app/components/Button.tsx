@@ -1,18 +1,30 @@
-import { ActivityIndicator, Pressable, type PressableProps } from 'react-native'
-
-import { theme } from '../design/theme'
-import { AppText } from './AppText'
-
-interface Props extends Omit<PressableProps, 'children'> {
-  label: string
-  loading?: boolean
-  variant?: 'primary' | 'secondary'
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+  type PressableProps,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ArrowRight } from "lucide-react-native";
+import { theme } from "../design/theme";
+import { onboardingVisual as v } from "../design/onboardingVisual";
+import { AppText } from "./AppText";
+interface Props extends Omit<PressableProps, "children"> {
+  label: string;
+  loading?: boolean;
+  variant?: "primary" | "secondary";
 }
-
-// Minimum 48 px touch target, grows with text (spec p.88).
-export function Button({ label, loading = false, variant = 'primary', disabled, style, ...rest }: Props) {
-  const inactive = disabled || loading
-  const primary = variant === 'primary'
+export function Button({
+  label,
+  loading = false,
+  variant = "primary",
+  disabled,
+  style,
+  ...rest
+}: Props) {
+  const inactive = disabled || loading,
+    primary = variant === "primary";
   return (
     <Pressable
       {...rest}
@@ -21,35 +33,75 @@ export function Button({ label, loading = false, variant = 'primary', disabled, 
       disabled={inactive}
       style={(state) => [
         {
-          minHeight: 48,
-          paddingHorizontal: theme.space[3],
-          paddingVertical: theme.space[2],
-          borderRadius: theme.radius.small,
-          alignItems: 'center',
-          justifyContent: 'center',
+          minHeight: 60,
+          paddingHorizontal: 20,
+          paddingVertical: 16,
+          borderRadius: 24,
+          alignItems: "center",
+          justifyContent: "center",
           borderWidth: primary ? 0 : 1,
           borderColor: theme.color.border,
-          backgroundColor: inactive
-            ? theme.color.muted
+          backgroundColor: inactive ? theme.color.muted : theme.color.surface,
+          ...(inactive
+            ? theme.depth.flat
             : primary
-              ? state.pressed
-                ? theme.color.pressed
-                : theme.color.brand
-              : theme.color.background,
+              ? theme.depth.action
+              : theme.depth.soft),
+          ...(state.pressed
+            ? { ...theme.depth.inset, transform: [{ scale: 0.98 }] }
+            : {}),
         },
-        typeof style === 'function' ? style(state) : style,
+        typeof style === "function" ? style(state) : style,
       ]}
     >
-      {loading ? (
-        <ActivityIndicator color={primary ? '#FFFFFF' : theme.color.brand} />
-      ) : (
-        <AppText
-          variant="label"
-          color={inactive ? theme.color.disabled : primary ? '#FFFFFF' : theme.color.brand}
-        >
-          {label}
-        </AppText>
+      {({ pressed }) => (
+        <>
+          {primary && !inactive && (
+            <LinearGradient
+              pointerEvents="none"
+              colors={pressed ? [v.deep, v.deep] : [v.blue, v.deep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
+            />
+          )}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator
+                color={
+                  inactive
+                    ? theme.color.brand
+                    : primary
+                      ? v.white
+                      : theme.color.brand
+                }
+              />
+            ) : (
+              <>
+                <AppText
+                  variant="label"
+                  color={
+                    inactive ? theme.color.disabled : primary ? v.white : v.deep
+                  }
+                  style={{ textAlign: "center", flexShrink: 1 }}
+                >
+                  {label}
+                </AppText>
+                {primary && !inactive && (
+                  <ArrowRight size={20} color={v.white} />
+                )}
+              </>
+            )}
+          </View>
+        </>
       )}
     </Pressable>
-  )
+  );
 }
