@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ОТОЧ Сувилагч",
-    "slug": "nurse-app",
+    "name": "Otoch-nurse-app",
+    "slug": "otoch-nurse-app",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nurse-app",
+    "scheme": "otoch-nurse-app",
     "userInterfaceStyle": "light",
     "android": {
       "adaptiveIcon": {
@@ -30,7 +30,21 @@
           "backgroundColor": "#0F4075",
           "image": "./assets/splash/splash-mark@3x.png",
           "imageWidth": 128,
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#0F4075",
+            "image": "./assets/splash/splash-mark@3x.png"
+          },
+          "ios": {
+            "backgroundColor": "#0F4075",
+            "image": "./assets/splash/splash-logo@3x.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "dark": {
+              "backgroundColor": "#0F4075",
+              "image": "./assets/splash/splash-logo@3x.png"
+            }
+          }
         }
       ],
       "expo-font",

@@ -18,15 +18,16 @@
 | Сувилагчийн данс бүртгэх | `npm run nurse:provision -- +976XXXXXXXX "Нэр"` (idempotent, role өөрчлөхгүй, устгагдсан дансыг сэргээхгүй; 3 тест) |
 | Хүртээмж (кодоор) | Бүх товч ≥ 48 px (`minHeight`), фонт хязгаарлаагүй (`allowFontScaling` унтраагүй), тогтмол өндөртэй текст контейнер байхгүй, 200% фонтод мөр эвдэрч болох газрыг (`Switch` мөр, checkbox мөр, карт) `flex`-ээр засав, `accessibilityRole/Label` товч, checkbox, radio, alert дээр; autosave төлөв `accessibilityLiveRegion` |
 
+**Нэр, icon, splash (2026-10-19).** Апп-ын нэр `Otoch-nurse-app` (Android `app_name`, iOS `CFBundleDisplayName` prebuild-ээр шалгасан). Icon (iOS, Android adaptive, monochrome, favicon) болон splash-ийн зургууд үйлчлүүлэгчийн `App/`-ийнхтэй байтаар ижил (`cmp`). Native splash-ийн тохиргоо, `SplashOverlay` анимаци, `splashLayout` + түүний тестийг (17) `App/`-аас хуулсан тул ижил харагдана. Хуулбар нь `App/`-тай синк байх шаардлагагүй: дизайн солигдвол хоёр газар засна.
+
 ## 2. Эзэмшигчээс хүлээгдэж буй (би зохиохгүй)
 
 | # | Юу | Яагаад |
 |---|---|---|
-| 1 | Апп-ын нэр, **bundle ID / package name** (`app.json` `ios.bundleIdentifier`, `android.package`) | Store-д нэг удаа бүртгэгдвэл солигдохгүй. `scheme`, `slug` одоо түр (`nurse-app`) |
+| 1 | Апп-ын нэр, **bundle ID / package name** (`app.json` `ios.bundleIdentifier`, `android.package`) | Store-д нэг удаа бүртгэгдвэл солигдохгүй. нэр `Otoch-nurse-app` (эзэмшигч баталсан 2026-10-19), `slug`/`scheme` = `otoch-nurse-app` |
 | 2 | Apple Developer, Google Play Developer данс (байгууллагаар бол D-U-N-S) | Эхлээд эхэлнэ ([l1-1-release-6-10.md](release/l1-1-release-6-10.md) §1) |
 | 3 | Expo/EAS project (`projectId`) | Cloud build, TestFlight, Play internal |
 | 4 | Staging API-ийн HTTPS хаяг (`EXPO_PUBLIC_API_URL`) | Release build http:// эсвэл тохируулаагүй API-д ажиллахгүй (зориуд, `utils/apiConfig.ts`) |
-| 5 | Сувилагчийн icon, splash, нэр | Одоо `App/`-ийн түр зураг (`assets/images`). Урлагийн ажил |
 | 6 | Нууцлалын бодлогод сувилагчийн мэдээллийг нэмэх (§5) | Эрх зүйч баталгаажуулна |
 
 ## 3. Тест дугаар (store review, staging tester)

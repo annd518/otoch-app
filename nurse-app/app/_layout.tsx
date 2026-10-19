@@ -4,11 +4,13 @@ import { useFonts } from 'expo-font'
 import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect } from 'react'
+import { View } from 'react-native'
+import { useCallback, useState } from 'react'
 
+import { SplashOverlay } from '../components/SplashOverlay'
 import { SessionProvider, useSession } from '../context/SessionContext'
 
-void SplashScreen.preventAutoHideAsync()
+SplashScreen.preventAutoHideAsync().catch(() => {})
 
 function RootNavigator() {
   const { user } = useSession()
@@ -18,28 +20,32 @@ function RootNavigator() {
     NotoSans_400Regular,
     NotoSans_600SemiBold,
   })
+  const [splashDone, setSplashDone] = useState(false)
+  const onSplashDone = useCallback(() => setSplashDone(true), [])
   const ready = user !== undefined && (fontsLoaded || !!fontError)
 
-  useEffect(() => {
-    if (ready) void SplashScreen.hideAsync()
-  }, [ready])
-
+  // The native splash stays up until the session and fonts are ready; SplashOverlay
+  // then draws the same frame, hides the native splash and animates into the app
+  // (same artwork and animation as the family app).
   if (!ready) return null
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={user !== null}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="orders/[id]/index" />
-        <Stack.Screen name="orders/[id]/checkin" />
-        <Stack.Screen name="orders/[id]/record" />
-        <Stack.Screen name="orders/[id]/reject" />
-        <Stack.Screen name="orders/[id]/incident" />
-      </Stack.Protected>
-      <Stack.Protected guard={user === null}>
-        <Stack.Screen name="login" />
-      </Stack.Protected>
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Protected guard={user !== null}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="orders/[id]/index" />
+          <Stack.Screen name="orders/[id]/checkin" />
+          <Stack.Screen name="orders/[id]/record" />
+          <Stack.Screen name="orders/[id]/reject" />
+          <Stack.Screen name="orders/[id]/incident" />
+        </Stack.Protected>
+        <Stack.Protected guard={user === null}>
+          <Stack.Screen name="login" />
+        </Stack.Protected>
+      </Stack>
+      {!splashDone && <SplashOverlay onDone={onSplashDone} />}
+    </View>
   )
 }
 
