@@ -75,16 +75,16 @@ export function sessionFromAuthData(data: unknown): Session | null {
   return { token: data.token, user };
 }
 
-/** Where each role lands after login. CHILD keeps the existing overview page. */
+/**
+ * The web is the admin panel: only the super-admin (ADMIN) uses it. Nurses
+ * work in the OTOCH Nurse app, customers in the OTOCH app.
+ */
+export const canUseWeb = (role: UserRole): boolean => role === 'ADMIN';
+
+export const WEB_ROLE_REFUSED =
+  'Энэ вэб зөвхөн супер админд зориулагдсан. Сувилагч OTOCH Nurse апп, үйлчлүүлэгч OTOCH апп ашиглана.';
+
+/** Where a web user lands after login. */
 export function homePathForRole(role: UserRole): string {
-  switch (role) {
-    case 'ADMIN':
-      return '/dashboard/admin';
-    case 'NURSE':
-      return '/dashboard/nurse';
-    case 'MEDICAL_ADMIN':
-      return '/dashboard/medical-admin';
-    default:
-      return '/dashboard';
-  }
+  return canUseWeb(role) ? '/dashboard/admin' : '/auth/login';
 }

@@ -59,13 +59,12 @@ export default function StaffOrders() {
   useEffect(() => {
     const u = getSessionUser();
     setUser(u);
-    if (u && ["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(u.role)) {
+    if (u && u.role === "ADMIN") {
       void load();
-      if (u.role !== "NURSE")
-        void api
-          .get("/staff/orders/nurses")
-          .then((r) => setNurses(r.data.data.nurses))
-          .catch(() => setError("Сувилагчдыг ачаалж чадсангүй"));
+      void api
+        .get("/staff/orders/nurses")
+        .then((r) => setNurses(r.data.data.nurses))
+        .catch(() => setError("Сувилагчдыг ачаалж чадсангүй"));
     } else setLoading(false);
   }, [load]);
   const open = async (id: string) => {
@@ -116,7 +115,7 @@ export default function StaffOrders() {
   };
   if (
     !loading &&
-    (!user || !["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(user.role))
+    (!user || user.role !== "ADMIN")
   )
     return <p className="p-6">Ажилтны эрх шаардлагатай.</p>;
   return (

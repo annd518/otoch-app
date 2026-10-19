@@ -22,7 +22,7 @@ const router = Router()
  *       200:
  *         description: List of visits waiting for medical approval
  */
-router.get('/visits/review', authenticateToken, requireRole(['MEDICAL_ADMIN', 'ADMIN']), listVisitsWaitingApproval)
+router.get('/visits/review', authenticateToken, requireRole(['ADMIN']), listVisitsWaitingApproval)
 
 /**
  * @swagger
@@ -42,7 +42,7 @@ router.get('/visits/review', authenticateToken, requireRole(['MEDICAL_ADMIN', 'A
  *       200:
  *         description: Visit details for review
  */
-router.get('/visits/:id/review', authenticateToken, requireRole(['MEDICAL_ADMIN', 'ADMIN']), getVisitForReview)
+router.get('/visits/:id/review', authenticateToken, requireRole(['ADMIN']), getVisitForReview)
 
 /**
  * @swagger
@@ -70,7 +70,7 @@ router.get('/visits/:id/review', authenticateToken, requireRole(['MEDICAL_ADMIN'
  *       200:
  *         description: Visit approved successfully
  */
-router.post('/visits/:id/approve', authenticateToken, requireRole(['MEDICAL_ADMIN', 'ADMIN']), approveVisit)
+router.post('/visits/:id/approve', authenticateToken, requireRole(['ADMIN']), approveVisit)
 
 /**
  * @swagger
@@ -101,6 +101,6 @@ router.post('/visits/:id/approve', authenticateToken, requireRole(['MEDICAL_ADMI
  *       200:
  *         description: Visit rejected and sent for revision
  */
-router.post('/visits/:id/reject', authenticateToken, requireRole(['MEDICAL_ADMIN', 'ADMIN']), rejectVisit)
+router.post('/visits/:id/reject', authenticateToken, requireRole(['ADMIN']), rejectVisit)
 
 export default router

@@ -18,11 +18,12 @@ before(async () => {
 after(async () => { await srv.close(); await prisma.$disconnect() })
 
 describe('web client auth compatibility', () => {
+    // The web is the super-admin panel: other roles are refused at login
     const expectedHome = {
         ADMIN: '/dashboard/admin',
-        NURSE: '/dashboard/nurse',
-        MEDICAL_ADMIN: '/dashboard/medical-admin',
-        CHILD: '/dashboard',
+        NURSE: '/auth/login',
+        MEDICAL_ADMIN: '/auth/login',
+        CHILD: '/auth/login',
     } as const
 
     for (const role of ['ADMIN', 'NURSE', 'MEDICAL_ADMIN', 'CHILD'] as const) {
@@ -37,6 +38,7 @@ describe('web client auth compatibility', () => {
             assert.equal('password' in session.user, false)
             assert.equal(core.isTokenExpired(session.token), false)
             assert.equal(core.homePathForRole(session.user.role), expectedHome[role])
+            assert.equal(core.canUseWeb(session.user.role), role === 'ADMIN')
         })
     }
 

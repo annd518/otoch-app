@@ -1,10 +1,6 @@
-import dynamic from 'next/dynamic';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { redirect } from "next/navigation";
 
-const NurseDashboard = dynamic(() => import('./components/NurseDashboard'), {
-  loading: () => <LoadingSpinner />
-});
-
+// Nurses work in the OTOCH Nurse app, not on the web (super-admin panel only).
 export default function NurseDashboardPage() {
-  return <NurseDashboard />;
+  redirect("/dashboard/admin");
 }
