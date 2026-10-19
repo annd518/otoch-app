@@ -81,7 +81,7 @@ describe('role checks and data exposure', () => {
 
     it('review reject response never includes the nurse password hash', async () => {
         const nurse = await createUser('NURSE')
-        const reviewer = await createUser('MEDICAL_ADMIN')
+        const reviewer = await createUser('ADMIN')
         const visit = await prisma.visit.create({
             data: { parentId: parentIdA, scheduledFor: new Date(), visitType: 'FULL', status: 'WAITING_APPROVAL', nurseId: nurse.id },
         })
@@ -93,7 +93,7 @@ describe('role checks and data exposure', () => {
     })
 
     it('rejecting a visit in the wrong status gives 409 INVALID_STATUS', async () => {
-        const reviewer = await createUser('MEDICAL_ADMIN')
+        const reviewer = await createUser('ADMIN')
         const visit = await prisma.visit.create({
             data: { parentId: parentIdA, scheduledFor: new Date(), visitType: 'FULL', status: 'PENDING' },
         })

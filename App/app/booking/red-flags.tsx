@@ -192,10 +192,11 @@ export default function RedFlagsScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Аюулын шинж тэмдэг</Text>
-          <Text style={styles.headerSubtitle}>
-            Алхам 2: асуулт бүрт хариулна уу
-          </Text>
+          <Text style={styles.headerSubtitle}>Асуулт бүрт хариулна уу</Text>
         </View>
+      </View>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <Stepper step={3} />
       </View>
 
       {load.status === "loading" && (
@@ -225,7 +226,6 @@ export default function RedFlagsScreen() {
       {load.status === "ready" && (
         <>
           <ScrollView contentContainerStyle={styles.list}>
-            <Stepper step={3} />
             {noQuestions ? (
               <Text style={styles.intro}>
                 Сервер энэ үйлчилгээнд аюулын шинжийн асуулга шаардаагүй байна.

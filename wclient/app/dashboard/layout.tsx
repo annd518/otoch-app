@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { clearSession, getSessionUser } from "@/lib/auth/session";
+import {
+  WEB_ROLE_REFUSED,
+  canUseWeb,
+  type SessionUser,
+} from "@/lib/auth/session-core";
 import { label } from "@/lib/labels";
 import toast from "react-hot-toast";
+
+const noSubscribe = () => () => {};
+// a string snapshot is stable between renders (getSessionUser builds a new object)
+const sessionSnapshot = () => JSON.stringify(getSessionUser());
 
 export default function DashboardLayout({
   children,
@@ -14,16 +23,18 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [userData, setUserData] = useState<{
-    name?: string;
-    email?: string;
-    role?: string;
-  } | null>(null);
+  // Validated user object saved at login (not a JWT decode); browser only
+  const raw = useSyncExternalStore(noSubscribe, sessionSnapshot, () => "null");
+  const userData = useMemo(() => JSON.parse(raw) as SessionUser | null, [raw]);
 
+  // A session from before the web became super-admin only (nurse, ...)
   useEffect(() => {
-    // Validated user object saved at login (not a JWT decode)
-    setUserData(getSessionUser());
-  }, []);
+    if (userData && !canUseWeb(userData.role)) {
+      clearSession();
+      toast.error(WEB_ROLE_REFUSED);
+      router.replace("/auth/login");
+    }
+  }, [userData, router]);
 
   const handleLogout = () => {
     clearSession();
@@ -60,55 +71,24 @@ export default function DashboardLayout({
 
             {/* Navigation */}
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-              {userData?.role &&
-                ["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(userData.role) && (
-                  <Link
-                    href="/dashboard/orders"
-                    className="block px-3 py-3 rounded-md text-base font-medium"
-                  >
-                    Үйлчилгээний захиалгууд
-                  </Link>
-                )}
-              <Link
-                href="/dashboard"
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === "/dashboard"
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                Тойм
-              </Link>
-              <Link
-                href="/dashboard/nurse"
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === "/dashboard/nurse"
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                Сувилагчийн самбар
-              </Link>
-              <Link
-                href="/dashboard/medical-admin"
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === "/dashboard/medical-admin"
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                Эмнэлгийн админ
-              </Link>
-              <Link
-                href="/dashboard/admin"
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
-                  pathname === "/dashboard/admin"
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-900 hover:bg-gray-50"
-                }`}
-              >
-                Админ
-              </Link>
+              {(
+                [
+                  ["/dashboard/admin", "Самбар"],
+                  ["/dashboard/orders", "Үйлчилгээний захиалгууд"],
+                ] as const
+              ).map(([href, title]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                    pathname === href
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  {title}
+                </Link>
+              ))}
             </nav>
 
             {/* Logout Button */}

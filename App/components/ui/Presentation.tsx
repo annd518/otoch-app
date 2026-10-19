@@ -55,14 +55,16 @@ export function FeatureSummary({
   description,
   icon,
   children,
+  compact = false,
 }: {
   title: string;
+  compact?: boolean;
   description?: string;
   icon: LucideIcon;
   children?: React.ReactNode;
 }) {
   return (
-    <View style={s.feature}>
+    <View style={compact ? { gap: 12, paddingVertical: 4 } : s.feature}>
       <SectionHeading title={title} subtitle={description} icon={icon} />
       {children}
     </View>

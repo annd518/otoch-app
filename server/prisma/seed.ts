@@ -12,11 +12,6 @@ export const DEMO_PASSWORD = "Demo123!";
 const demoUsers: { name: string; email: string; role: Role }[] = [
   { name: "Б. Тэмүүлэн", email: "child@demo.com", role: "CHILD" },
   { name: "Г. Номин", email: "nurse@demo.com", role: "NURSE" },
-  {
-    name: "Д. Энхцэцэг",
-    email: "medadmin@demo.com",
-    role: "MEDICAL_ADMIN",
-  },
   { name: "А. Бат-Эрдэнэ", email: "admin@demo.com", role: "ADMIN" },
 ];
 
@@ -94,7 +89,8 @@ async function main() {
 
   const child = users.CHILD;
   const nurse = users.NURSE;
-  const medAdmin = users.MEDICAL_ADMIN;
+  // legacy demo visits are approved by the super-admin (no medical admin role)
+  const medAdmin = users.ADMIN;
 
   // Only seed parents/visits once so user-created data isn't duplicated on re-runs
   const existingParents = await prisma.parent.count({

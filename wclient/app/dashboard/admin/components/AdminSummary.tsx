@@ -51,7 +51,6 @@ export type Summary = {
   users: {
     customers: number;
     nurses: number;
-    medicalAdmins: number;
     admins: number;
     deactivatedStaff: number;
     patients: number;
@@ -320,8 +319,7 @@ export function AdminSummary() {
                 ["Захиалагч", users.customers],
                 ["Өвчтөн", users.patients],
                 ["Сувилагч", users.nurses],
-                ["Эмнэлгийн админ", users.medicalAdmins],
-                ["Админ", users.admins],
+                ["Супер админ", users.admins],
                 ["Идэвхгүй ажилтан", users.deactivatedStaff],
               ] as const
             ).map(([k, v]) => (

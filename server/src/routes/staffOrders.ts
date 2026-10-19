@@ -17,7 +17,8 @@ staffOrders.use(async (req: StaffRequest, _res, next) => {
   if (
     !user ||
     user.deletedAt ||
-    !["ADMIN", "MEDICAL_ADMIN", "NURSE"].includes(user.role)
+    // NURSE: the OTOCH Nurse app (own orders only); ADMIN: the admin web
+    !["ADMIN", "NURSE"].includes(user.role)
   )
     throw new ApiError(403, "FORBIDDEN", "Staff эрх шаардлагатай");
   req.user!.role = user.role;
@@ -26,7 +27,7 @@ staffOrders.use(async (req: StaffRequest, _res, next) => {
 const scope = (req: StaffRequest) =>
   req.user!.role === "NURSE" ? { assignedNurseId: req.user!.userId } : {};
 const administrator = (req: StaffRequest) => {
-  if (!["ADMIN", "MEDICAL_ADMIN"].includes(req.user!.role))
+  if (req.user!.role !== "ADMIN")
     throw new ApiError(403, "FORBIDDEN", "Томилох эрх шаардлагатай");
 };
 const expected = z.object({ version: z.number().int().positive() }).strict();

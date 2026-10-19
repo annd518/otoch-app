@@ -1,10 +1,6 @@
-import dynamic from 'next/dynamic';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { redirect } from "next/navigation";
 
-const MedicalAdminDashboard = dynamic(() => import('./components/MedicalAdminDashboard'), {
-  loading: () => <LoadingSpinner />
-});
-
+// OTOCH v2.0 has no medical-admin role: the super-admin holds every right.
 export default function MedicalAdminDashboardPage() {
-  return <MedicalAdminDashboard />;
+  redirect("/dashboard/admin");
 }

@@ -62,3 +62,8 @@ SMS adapter нь `SMS_WEBHOOK_URL` HTTPS endpoint рүү `{to,message}` JSON, Be
 - Tracking-ийн nurse/ETA update, clinical note approval нь одоогийн staff ажиллагаа/өгөгдлөөс хамаарна. Шинэ nurse/admin UI хийгээгүй.
 
 Дараагийн хаах дараалал: клиник/үнэ/хууль/бүсийн баталгаажуулалт → staging/SMS/storage/QPay → native build ба төхөөрөмжийн acceptance → representative screenshot review → PR merge/deploy. Гадаад access-ийн саатлыг кодын тестээс тусад нь тайлагнана.
+
+
+## Customer layout system — 2026-10-19
+
+[Layout review and screen inventory](layout-system-review.md): Home bento/hero, supported sticky catalog/order filters, real four-step progress, pinned existing actions, grouped forms/profile and calmer task screens. Existing API, payload, validation, red flag and payment recovery logic preserved; four real tabs retained. Device acceptance remains separate.

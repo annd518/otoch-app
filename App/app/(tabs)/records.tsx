@@ -48,6 +48,7 @@ export default function Records() {
   return (
     <Screen title="Тэмдэглэл" back={false}>
       <FeatureSummary
+        compact
         icon={FileHeart}
         title="Таны үйлчилгээний тэмдэглэл"
         description="Серверт бүртгэгдсэн тэмдэглэл, боломжтой PDF тайланг эндээс нээнэ."

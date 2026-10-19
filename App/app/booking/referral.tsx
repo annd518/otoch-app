@@ -103,21 +103,22 @@ export default function ReferralScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Эмчийн заалт</Text>
-          <Text style={styles.headerSubtitle}>
-            Алхам 3: заалтын зураг эсвэл бичвэр
-          </Text>
+          <Text style={styles.headerSubtitle}>Заалтын зураг эсвэл бичвэр</Text>
         </View>
+      </View>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <Stepper step={3} />
       </View>
 
       <ScrollView
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
         <FeatureSummary
+          compact
           icon={FileImage}
           title="Эмчийн заалтын мэдээлэл"
           description="Сонгосон үйлчилгээний шаардлагад нийцүүлэн заалтаа оруулна уу."
         />
-        <Stepper step={3} />
         {!photoRequired && (
           <Text style={styles.rules}>
             Жорын зургийг оруулах эсвэл жорт бичигдсэнийг гараар бичих: аль нэг

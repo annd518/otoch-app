@@ -6,7 +6,7 @@
 
 ```
 D:\hulgai\Pariwar-Care-\dev.cmd          # API + админ вэб + Expo
-D:\hulgai\Pariwar-Care-\dev.cmd web      # API + админ вэб (http://localhost:3000)
+D:\hulgai\Pariwar-Care-\dev.cmd web      # API + админ панел (http://localhost:3000/dashboard/admin)
 D:\hulgai\Pariwar-Care-\dev.cmd app      # API + Expo
 D:\hulgai\Pariwar-Care-\dev.cmd api      # зөвхөн API (http://localhost:8000)
 ```

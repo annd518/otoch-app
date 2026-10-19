@@ -132,7 +132,7 @@ it("deactivating a nurse: refused while she has visits, then she can neither log
   const busy = await patch(nurse.id, { active: false });
   assert.equal(busy.status, 409);
   assert.equal(busy.json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
-  assert.equal((await patch(nurse.id, { role: "MEDICAL_ADMIN" })).json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
+  assert.equal((await patch(nurse.id, { role: "ADMIN" })).json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
 
   await prisma.order.update({ where: { id: order.id }, data: { status: "COMPLETED" } });
   const off = await patch(nurse.id, { active: false });
@@ -157,12 +157,33 @@ it("deactivating a nurse: refused while she has visits, then she can neither log
 it("a role change applies to an existing token at once", async () => {
   const nurse = await createUser("NURSE", "users-promote");
   const token = await loginAs(srv.baseUrl, nurse.email);
-  assert.equal((await api(srv.baseUrl, "GET", "/api/review/visits/review", { token })).status, 403);
-  const r = await patch(nurse.id, { role: "MEDICAL_ADMIN" });
+  assert.equal((await api(srv.baseUrl, "GET", "/api/admin/summary", { token })).status, 403);
+  const r = await patch(nurse.id, { role: "ADMIN" });
   assert.equal(r.status, 200);
-  assert.equal(r.json.data.user.role, "MEDICAL_ADMIN");
-  assert.equal((await api(srv.baseUrl, "GET", "/api/review/visits/review", { token })).status, 200);
+  assert.equal(r.json.data.user.role, "ADMIN");
+  assert.equal((await api(srv.baseUrl, "GET", "/api/admin/summary", { token })).status, 200);
   assert.equal((await api(srv.baseUrl, "GET", "/api/visits/nurse", { token })).status, 403);
+});
+
+it("super-admin only: MEDICAL_ADMIN cannot be given, a leftover one has no access and can be converted", async () => {
+  assert.equal(
+    (await createStaff({ name: "Эмнэлгийн", email: `m${Date.now()}@test.mn`, role: "MEDICAL_ADMIN", password: PASSWORD })).status,
+    400,
+  );
+  const legacy = await createUser("MEDICAL_ADMIN", "users-legacy");
+  const token = await loginAs(srv.baseUrl, legacy.email);
+  for (const path of ["/api/admin/summary", "/api/admin/users", "/api/staff/orders", "/api/review/visits/review"])
+    assert.equal((await api(srv.baseUrl, "GET", path, { token })).status, 403, path);
+  assert.equal((await patch(legacy.id, { role: "MEDICAL_ADMIN" })).status, 400);
+  // listed with staff so it can be dealt with
+  const staff = await list(`group=staff&q=${encodeURIComponent("users-legacy")}`);
+  assert.ok(staff.json.data.users.some((u: { id: string }) => u.id === legacy.id));
+  assert.equal((await patch(legacy.id, { active: false })).status, 200);
+  assert.equal((await patch(legacy.id, { active: true })).json.error.code, "CONFLICT");
+  const converted = await patch(legacy.id, { active: true, role: "NURSE" });
+  assert.equal(converted.status, 200, JSON.stringify(converted.json));
+  assert.equal(converted.json.data.user.role, "NURSE");
+  assert.equal(converted.json.data.user.active, true);
 });
 
 it("an admin cannot change their own account; bad requests are refused", async () => {

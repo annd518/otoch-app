@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { HeartPulse, Clock } from "lucide-react-native";
 import {
   SectionHeading,
@@ -7,6 +7,7 @@ import {
   Banner,
   Button,
   Card,
+  Chip,
   Copy,
   Screen,
   StateView,
@@ -71,8 +72,34 @@ export default function CatalogScreen() {
         (!group || (s.group ?? s.category) === group),
     ) ?? [];
   return (
-    <Screen title={screenTitle}>
+    <Screen
+      title={screenTitle}
+      sticky={
+        catalog ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8 }}
+          >
+            <Chip
+              label="Бүгд"
+              selected={!group}
+              onPress={() => router.setParams({ group: "" })}
+            />
+            {groups.map((g) => (
+              <Chip
+                key={g.code}
+                label={g.title}
+                selected={group === g.code}
+                onPress={() => router.setParams({ group: g.code })}
+              />
+            ))}
+          </ScrollView>
+        ) : undefined
+      }
+    >
       <FeatureSummary
+        compact
         icon={HeartPulse}
         title="Танд тохирох тусламж"
         description="Үйлчилгээний бэлтгэл, нөхцөл болон үнийг шалгаад сонгоорой."
@@ -95,15 +122,6 @@ export default function CatalogScreen() {
               Туршилтын каталог. Үнэ болон агуулга эцэслэн батлагдаагүй.
             </Banner>
           )}
-          {!group &&
-            groups.map((g) => (
-              <Button
-                key={g.code}
-                secondary
-                title={g.title}
-                onPress={() => router.setParams({ group: g.code })}
-              />
-            ))}
           {services.map((s) => (
             <Card key={s.id}>
               <SectionHeading

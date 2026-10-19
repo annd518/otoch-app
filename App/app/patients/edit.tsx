@@ -1,6 +1,7 @@
 import { UserRound } from "lucide-react-native";
 import {
   FeatureSummary,
+  FormSection,
   Banner,
   Button,
   Chip,
@@ -71,53 +72,67 @@ export default function PatientForm() {
     else setError(r.message);
   });
   return (
-    <Screen title={id ? "Үйлчлүүлэгчийн мэдээлэл" : "Үйлчлүүлэгч нэмэх"}>
+    <Screen
+      title={id ? "Үйлчлүүлэгчийн мэдээлэл" : "Үйлчлүүлэгч нэмэх"}
+      footer={
+        <Button
+          network
+          title="Хадгалах"
+          busy={save.running}
+          onPress={() => {
+            void save.run();
+          }}
+        />
+      }
+    >
       <FeatureSummary
+        compact
         icon={UserRound}
         title="Үйлчлүүлэгчийн бүртгэл"
         description="Үйлчилгээ авах хүний мэдээллийг үнэн зөв бөглөнө үү."
       />
       {!!error && <Banner error>{error}</Banner>}
-      <Input label="Нэр" value={name} onChangeText={setName} />
-      <Input
-        label="Төрсөн он"
-        value={birthYear}
-        onChangeText={setYear}
-        keyboardType="number-pad"
-        maxLength={4}
-      />
-      {[
-        ["Female", "Эмэгтэй"],
-        ["Male", "Эрэгтэй"],
-        ["Other", "Бусад"],
-      ].map(([value, label]) => (
-        <Chip
-          key={value}
-          label={label}
-          selected={gender === value}
-          onPress={() => setGender(value)}
+      <FormSection title="Үндсэн мэдээлэл">
+        <Input label="Нэр" value={name} onChangeText={setName} />
+        <Input
+          label="Төрсөн он"
+          value={birthYear}
+          onChangeText={setYear}
+          keyboardType="number-pad"
+          maxLength={4}
         />
-      ))}
-      <Input label="Хаяг" value={address} onChangeText={setAddress} />
-      <Input
-        label="Яаралтай холбоо барих утас"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
-      />
-      <Chip
-        label="Үйлчилгээ авахад төлөөлөл шаардлагатай"
-        selected={representative}
-        onPress={() => setRepresentative((v) => !v)}
-      />
-      <Button
-        network
-        title="Хадгалах"
-        busy={save.running}
-        onPress={() => {
-          void save.run();
-        }}
-      />
+        {[
+          ["Female", "Эмэгтэй"],
+          ["Male", "Эрэгтэй"],
+          ["Other", "Бусад"],
+        ].map(([value, label]) => (
+          <Chip
+            key={value}
+            label={label}
+            selected={gender === value}
+            onPress={() => setGender(value)}
+          />
+        ))}
+      </FormSection>
+      <FormSection
+        title="Хаяг, холбоо барих"
+        description="Үйлчилгээ авах хаяг болон яаралтай холбоо барих дугаар."
+      >
+        <Input label="Хаяг" value={address} onChangeText={setAddress} />
+        <Input
+          label="Яаралтай холбоо барих утас"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+      </FormSection>
+      <FormSection title="Төлөөлөл">
+        <Chip
+          label="Үйлчилгээ авахад төлөөлөл шаардлагатай"
+          selected={representative}
+          onPress={() => setRepresentative((v) => !v)}
+        />
+      </FormSection>
     </Screen>
   );
 }

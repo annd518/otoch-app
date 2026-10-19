@@ -11,7 +11,14 @@ import { useSingleFlight } from "@/components/useSingleFlight";
 import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import type { AppUser, Parent } from "@/services/apiTypes";
-import { Banner, Button, Card, Copy, Screen } from "@/components/ui";
+import {
+  Banner,
+  Button,
+  Card,
+  Copy,
+  Screen,
+  FormSection,
+} from "@/components/ui";
 export default function Profile() {
   const [user, setUser] = useState<AppUser | null>(null),
     [parents, setParents] = useState<Parent[]>([]),
@@ -194,95 +201,100 @@ export default function Profile() {
         )}
       </Card>
       {!!message && <Banner>{message}</Banner>}
-      <Copy variant="heading">Үйлчлүүлэгчид</Copy>
-      {parents.map((p) => (
-        <Card key={p.id}>
-          <Copy>
-            {user?.email === "child@demo.com"
-              ? ((
-                  {
-                    "Anita Sharma": "Д. Цэцэг",
-                    "Hari Sharma": "Б. Бат",
-                  } as Record<string, string>
-                )[p.name] ?? p.name)
-              : p.name}
-          </Copy>
-          <Button
-            secondary
-            title="Мэдээлэл засах"
-            onPress={() =>
-              router.push({
-                pathname: "/patients/edit",
-                params: { id: p.id },
-              })
-            }
-          />
-        </Card>
-      ))}
-      <Button
-        title="Үйлчлүүлэгч нэмэх"
-        onPress={() => router.push("/patients/edit")}
-      />
-      <Button
-        secondary
-        title="Миний захиалгууд"
-        onPress={() => router.push("/(tabs)/orders")}
-      />
-      <Button
-        secondary
-        variant="ghost"
-        title="Үйлчилгээний нөхцөл"
-        onPress={() => open(process.env.EXPO_PUBLIC_TERMS_URL)}
-      />
-      <Button
-        secondary
-        variant="ghost"
-        title="Нууцлалын бодлого"
-        onPress={() => open(process.env.EXPO_PUBLIC_PRIVACY_URL)}
-      />
-      <SupportContactActions />
-      <Button
-        secondary
-        variant="danger"
-        title="Данс устгах хүсэлт"
-        onPress={() =>
-          Alert.alert(
-            "Данс устгах хүсэлт",
-            "Хүсэлтийг бүртгэж, хадгалалтын шаардлагын дагуу шийдвэрлэнэ. Одоо шууд өгөгдөл устгахгүй.",
-            [
+      <FormSection title="Үйлчлүүлэгчид">
+        {parents.map((p) => (
+          <Card key={p.id}>
+            <Copy>
+              {user?.email === "child@demo.com"
+                ? ((
+                    {
+                      "Anita Sharma": "Д. Цэцэг",
+                      "Hari Sharma": "Б. Бат",
+                    } as Record<string, string>
+                  )[p.name] ?? p.name)
+                : p.name}
+            </Copy>
+            <Button
+              secondary
+              title="Мэдээлэл засах"
+              onPress={() =>
+                router.push({
+                  pathname: "/patients/edit",
+                  params: { id: p.id },
+                })
+              }
+            />
+          </Card>
+        ))}
+        <Button
+          title="Үйлчлүүлэгч нэмэх"
+          onPress={() => router.push("/patients/edit")}
+        />
+      </FormSection>
+      <FormSection title="Үйлчилгээ, тусламж">
+        <Button
+          secondary
+          title="Миний захиалгууд"
+          onPress={() => router.push("/(tabs)/orders")}
+        />
+        <Button
+          secondary
+          variant="ghost"
+          title="Үйлчилгээний нөхцөл"
+          onPress={() => open(process.env.EXPO_PUBLIC_TERMS_URL)}
+        />
+        <Button
+          secondary
+          variant="ghost"
+          title="Нууцлалын бодлого"
+          onPress={() => open(process.env.EXPO_PUBLIC_PRIVACY_URL)}
+        />
+        <SupportContactActions />
+      </FormSection>
+      <FormSection title="Дансны тохиргоо">
+        <Button
+          secondary
+          variant="danger"
+          title="Данс устгах хүсэлт"
+          onPress={() =>
+            Alert.alert(
+              "Данс устгах хүсэлт",
+              "Хүсэлтийг бүртгэж, хадгалалтын шаардлагын дагуу шийдвэрлэнэ. Одоо шууд өгөгдөл устгахгүй.",
+              [
+                { text: "Болих", style: "cancel" },
+                {
+                  text: "Хүсэлт илгээх",
+                  style: "destructive",
+                  onPress: () => {
+                    void apiService
+                      .deleteAccount()
+                      .then((r) =>
+                        setMessage(
+                          r.ok ? "Данс устгах хүсэлт бүртгэгдлээ." : r.message,
+                        ),
+                      );
+                  },
+                },
+              ],
+            )
+          }
+        />
+        <Button
+          secondary
+          title="Гарах"
+          onPress={() =>
+            Alert.alert("Гарах", "Системээс гарах уу?", [
               { text: "Болих", style: "cancel" },
               {
-                text: "Хүсэлт илгээх",
-                style: "destructive",
+                text: "Гарах",
                 onPress: () => {
-                  void apiService
-                    .deleteAccount()
-                    .then((r) =>
-                      setMessage(
-                        r.ok ? "Данс устгах хүсэлт бүртгэгдлээ." : r.message,
-                      ),
-                    );
+                  void logout();
                 },
               },
-            ],
-          )
-        }
-      />
-      <Button
-        secondary
-        title="Гарах"
-        onPress={() =>
-          Alert.alert("Гарах", "Системээс гарах уу?", [
-            { text: "Болих", style: "cancel" },
-            {
-              text: "Гарах",
-              onPress: () => {
-                void logout();
-              },
-            },
-          ])
-        }
-      />
+            ])
+          }
+        />
+      </FormSection>
     </Screen>
   );
 }

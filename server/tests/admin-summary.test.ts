@@ -61,10 +61,10 @@ it("Ulaanbaatar day and month start, also just before midnight", () => {
   );
 });
 
-it("only admins and medical admins can read it; the role comes from the database", async () => {
+it("only the super-admin can read it (no medical admin); the role comes from the database", async () => {
   assert.equal((await summary(child)).status, 403);
   assert.equal((await summary(nurse)).status, 403);
-  assert.equal((await summary(medical)).status, 200);
+  assert.equal((await summary(medical)).status, 403);
   assert.equal((await summary(admin)).status, 200);
   assert.equal(
     (await api(srv.baseUrl, "GET", "/api/admin/summary", {})).status,

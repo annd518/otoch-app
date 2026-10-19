@@ -9,7 +9,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authService } from '@/lib/services/auth';
-import { homePathForRole, sessionFromAuthData, type SessionUser } from '@/lib/auth/session-core';
+import {
+  WEB_ROLE_REFUSED,
+  canUseWeb,
+  homePathForRole,
+  sessionFromAuthData,
+  type SessionUser,
+} from '@/lib/auth/session-core';
 import { clearSession, getSessionUser, saveSession } from '@/lib/auth/session';
 
 export type User = SessionUser;
@@ -60,6 +66,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await authService.login({ email, password });
       const session = sessionFromAuthData(response.data);
       if (!response.success || !session) throw { message: CONTRACT_ERROR, status: 0 };
+      // Valid account, but not for the web (nurse / customer): keep no session
+      if (!canUseWeb(session.user.role)) throw { message: WEB_ROLE_REFUSED, status: 403 };
 
       saveSession(session);
       setUser(session.user);

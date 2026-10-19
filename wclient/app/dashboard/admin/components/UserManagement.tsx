@@ -1,6 +1,6 @@
 "use client";
 
-// Staff and customer accounts (ADMIN only): /api/admin/users, /api/admin/staff
+// Staff and customer accounts (super-admin): /api/admin/users, /api/admin/staff
 // (server/src/routes/admin.ts). The API enforces every rule; this page only
 // shows them.
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
@@ -8,7 +8,8 @@ import api from "@/lib/api/client";
 import { getSessionUser } from "@/lib/auth/session";
 
 type Role = "CHILD" | "NURSE" | "MEDICAL_ADMIN" | "ADMIN";
-type StaffRole = Exclude<Role, "CHILD">;
+// roles that can be given (MEDICAL_ADMIN is a leftover without rights)
+type StaffRole = "NURSE" | "ADMIN";
 type Group = "staff" | "customers" | "inactive";
 type Row = {
   id: string;
@@ -26,10 +27,10 @@ type Row = {
 const ROLE_LABELS: Record<Role, string> = {
   CHILD: "Захиалагч",
   NURSE: "Сувилагч",
-  MEDICAL_ADMIN: "Эмнэлгийн админ",
-  ADMIN: "Админ",
+  MEDICAL_ADMIN: "Эмнэлгийн админ (хуучин)",
+  ADMIN: "Супер админ",
 };
-const STAFF_ROLES: StaffRole[] = ["NURSE", "MEDICAL_ADMIN", "ADMIN"];
+const STAFF_ROLES: StaffRole[] = ["NURSE", "ADMIN"];
 const GROUPS: [Group, string][] = [
   ["staff", "Ажилтан"],
   ["customers", "Захиалагч"],
@@ -423,6 +424,11 @@ export function UserManagement() {
                         }
                         className="rounded-md border border-gray-300 px-2 py-1"
                       >
+                        {u.role === "MEDICAL_ADMIN" && (
+                          <option value="MEDICAL_ADMIN" disabled>
+                            {ROLE_LABELS.MEDICAL_ADMIN}
+                          </option>
+                        )}
                         {STAFF_ROLES.map((r) => (
                           <option key={r} value={r}>
                             {ROLE_LABELS[r]}
@@ -451,6 +457,7 @@ export function UserManagement() {
                   <td className="px-4 py-3">
                     {staff && !me ? (
                       <div className="flex flex-wrap gap-2">
+                        {(u.active || u.role !== "MEDICAL_ADMIN") && (
                         <button
                           disabled={busy}
                           onClick={() =>
@@ -470,7 +477,8 @@ export function UserManagement() {
                         >
                           {u.active ? "Идэвхгүй болгох" : "Идэвхжүүлэх"}
                         </button>
-                        {u.active && (
+                        )}
+                        {u.active && u.role !== "MEDICAL_ADMIN" && (
                           <button
                             disabled={busy}
                             onClick={() => void resetPassword(u)}

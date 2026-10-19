@@ -34,8 +34,8 @@ const LABELS: Record<string, string> = {
   // Roles
   CHILD: 'Хүүхэд',
   NURSE: 'Сувилагч',
-  MEDICAL_ADMIN: 'Эмнэлгийн админ',
-  ADMIN: 'Админ',
+  MEDICAL_ADMIN: 'Эмнэлгийн админ (хуучин)',
+  ADMIN: 'Супер админ',
   Patient: 'Өвчтөн',
   Nurse: 'Сувилагч',
   'Medical Admin': 'Эмнэлгийн админ',
