@@ -18,7 +18,8 @@
     "test": "node scripts/test-isolated.mjs",
     "db:migrate:deploy": "prisma migrate deploy",
     "content:import": "tsx scripts/import-content.ts",
-    "storage:cleanup": "tsx scripts/cleanup-storage.ts"
+    "storage:cleanup": "tsx scripts/cleanup-storage.ts",
+    "nurse:provision": "tsx scripts/provision-nurse.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

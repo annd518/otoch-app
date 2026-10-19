@@ -127,13 +127,27 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
             ? ["IN_PROGRESS"]
             : action === "start"
               ? ["ASSIGNED"]
-              : ["ASSIGNED", "IN_PROGRESS"];
+              : ["ASSIGNED", "EN_ROUTE", "IN_PROGRESS"];
       if (!allowed.includes(order.status) || order.redFlagStatus === "FLAGGED")
         throw new ApiError(
           409,
           "INVALID_STATUS",
           "Энэ төлөвт үйлдэл хийх боломжгүй",
         );
+      // A visit started through the nurse app has a record that must be signed
+      // (POST /api/nurse/orders/:id/finish) before the order can complete.
+      if (action === "complete") {
+        const record = await tx.visitRecord.findUnique({
+          where: { orderId: order.id },
+          select: { signedAt: true },
+        });
+        if (record && !record.signedAt)
+          throw new ApiError(
+            409,
+            "RECORD_REQUIRED",
+            "Эргэлтийн тэмдэглэлд гарын үсэг зурсны дараа дуусгана",
+          );
+      }
       if (
         action === "assign" &&
         !(await tx.user.findFirst({
@@ -165,6 +179,12 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
                 : {}),
         },
       });
+      // A hand assignment ends any dispatch offers still open for this order.
+      if (action === "assign")
+        await tx.orderOffer.updateMany({
+          where: { orderId: order.id, status: "PENDING" },
+          data: { status: "CANCELLED", respondedAt: new Date() },
+        });
       await tx.orderEvent.create({
         data: {
           orderId: order.id,
