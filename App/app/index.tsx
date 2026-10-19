@@ -28,7 +28,7 @@ export default function Onboarding() {
     },
   ];
   return (
-    <Screen title="OTOCH" back={false}>
+    <Screen title="OTOCH" back={false} logo>
       <Card>
         <Copy variant="heading">{slides[page].title}</Copy>
         <Copy>{slides[page].text}</Copy>
