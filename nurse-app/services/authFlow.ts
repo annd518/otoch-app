@@ -2,10 +2,12 @@
 // so the flow can be tested without React Native.
 import { API_PATHS } from '../config/api'
 import type { HttpClient } from './httpClient'
-import { parseLoginData, type AppUser } from './validators'
+import { parseLoginData, parseOtpSession, type AppUser } from './validators'
 
 export interface Session {
   token: string
+  // Only phone + OTP sign-in returns one (access token lives 15 minutes).
+  refreshToken?: string
   user: AppUser
 }
 
@@ -38,6 +40,26 @@ export async function loginFlow(
 
   await store.saveSession({ token: login.data.token, user: login.data.user })
   return { ok: true, user: login.data.user }
+}
+
+export async function otpLoginFlow(
+  client: HttpClient,
+  store: SessionStore,
+  phone: string,
+  challengeId: string,
+  code: string,
+): Promise<LoginOutcome> {
+  const verified = await client.request({
+    method: 'POST',
+    path: API_PATHS.auth.otpVerify,
+    body: { phone, challengeId, code, app: 'nurse' },
+    auth: 'none',
+    parse: parseOtpSession,
+  })
+  if (!verified.ok) return { ok: false, message: verified.message }
+  if (verified.data.user.role !== 'NURSE') return { ok: false, message: NOT_NURSE_MESSAGE }
+  await store.saveSession(verified.data)
+  return { ok: true, user: verified.data.user }
 }
 
 export async function logoutFlow(store: SessionStore): Promise<void> {

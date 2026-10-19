@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { http } from '../services/http'
-import { loginFlow, logoutFlow, type LoginOutcome } from '../services/authFlow'
+import { loginFlow, logoutFlow, otpLoginFlow, type LoginOutcome } from '../services/authFlow'
 import type { AppUser } from '../services/validators'
 import { sessionEvents } from '../utils/sessionEvents'
 import { storage } from '../utils/storage'
@@ -10,6 +10,7 @@ interface SessionValue {
   // undefined while the stored session is being read.
   user: AppUser | null | undefined
   signIn(email: string, password: string): Promise<LoginOutcome>
+  signInWithOtp(phone: string, challengeId: string, code: string): Promise<LoginOutcome>
   signOut(): Promise<void>
 }
 
@@ -41,12 +42,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return outcome
   }, [])
 
+  const signInWithOtp = useCallback(async (phone: string, challengeId: string, code: string) => {
+    const outcome = await otpLoginFlow(http, storage, phone, challengeId, code)
+    if (outcome.ok) setUser(outcome.user)
+    return outcome
+  }, [])
+
   const signOut = useCallback(async () => {
     await logoutFlow(storage)
     setUser(null)
   }, [])
 
-  const value = useMemo(() => ({ user, signIn, signOut }), [user, signIn, signOut])
+  const value = useMemo(() => ({ user, signIn, signInWithOtp, signOut }), [user, signIn, signInWithOtp, signOut])
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 }
 

@@ -3,6 +3,10 @@
 export const API_PATHS = {
   auth: {
     login: '/api/auth/login',
+    otpRequest: '/api/auth/otp/request',
+    otpVerify: '/api/auth/otp/verify',
+    refresh: '/api/auth/refresh',
+    logout: '/api/auth/logout',
   },
   // Orders assigned to the signed-in nurse (server/src/routes/staffOrders.ts).
   staffOrders: {

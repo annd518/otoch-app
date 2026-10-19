@@ -40,3 +40,16 @@ export function parseLoginData(data: unknown): LoginData | null {
   const user = parseUser(data.user)
   return user ? { token: data.token, user } : null
 }
+
+export interface OtpSession {
+  token: string
+  refreshToken: string
+  user: AppUser
+}
+
+// Shared by POST /api/auth/otp/verify and POST /api/auth/refresh.
+export function parseOtpSession(data: unknown): OtpSession | null {
+  if (!isRecord(data) || !nonEmptyString(data.token) || !nonEmptyString(data.refreshToken)) return null
+  const user = parseUser(data.user)
+  return user ? { token: data.token, refreshToken: data.refreshToken, user } : null
+}
