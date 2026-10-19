@@ -42,4 +42,5 @@ export const requireRole = (allowedRoles: Role[]) => {
 export const requireAdmin = requireRole(['ADMIN'])
 export const requireNurse = requireRole(['NURSE', 'ADMIN'])
 export const requireChild = requireRole(['CHILD', 'ADMIN'])
-export const requireMedicalAdmin = requireRole(['MEDICAL_ADMIN', 'ADMIN'])
+// MEDICAL_ADMIN has no rights any more (OTOCH v2.0: super-admin only)
+export const requireMedicalAdmin = requireRole(['ADMIN'])

@@ -9,7 +9,8 @@ interface StaffRequest extends Request {
   user?: { userId: string; role: string };
 }
 
-// Admin web dashboard (wclient /dashboard/admin). Read-only numbers.
+// Admin web (wclient /dashboard/admin). Super-admin (ADMIN) only: the spec
+// (OTOCH v2.0 p.109) gives every back-office right to the super-admin for now.
 export const adminRoutes = Router();
 adminRoutes.use(authenticateToken);
 // The role and the account state are read from the database, not from the
@@ -19,8 +20,8 @@ adminRoutes.use(async (req: StaffRequest, _res, next) => {
     where: { id: req.user!.userId },
     select: { role: true, deletedAt: true },
   });
-  if (!user || user.deletedAt || !["ADMIN", "MEDICAL_ADMIN"].includes(user.role))
-    throw new ApiError(403, "FORBIDDEN", "Админ эрх шаардлагатай");
+  if (!user || user.deletedAt || user.role !== "ADMIN")
+    throw new ApiError(403, "FORBIDDEN", "Супер админ эрх шаардлагатай");
   req.user!.role = user.role;
   next();
 });
@@ -177,7 +178,6 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
       users: {
         customers: role("CHILD"),
         nurses: role("NURSE"),
-        medicalAdmins: role("MEDICAL_ADMIN"),
         admins: role("ADMIN"),
         deactivatedStaff,
         patients,
@@ -216,13 +216,18 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Users and staff (ADMIN only). Customers (CHILD) are listed read-only: their
-// accounts are closed through the account deletion flow, not here.
+// Users and staff. Customers (CHILD) are listed read-only: their accounts are
+// closed through the account deletion flow, not here.
 
-const STAFF_ROLES = ["NURSE", "MEDICAL_ADMIN", "ADMIN"] as const;
+// Roles that can be given: a nurse (OTOCH Nurse app) or a super-admin.
+const STAFF_ROLES = ["NURSE", "ADMIN"] as const;
+// Listed as staff too, so leftover MEDICAL_ADMIN accounts (no rights any
+// more) can be changed or deactivated.
+const LISTED_STAFF = ["NURSE", "MEDICAL_ADMIN", "ADMIN"] as const;
+// kept for readability at each endpoint; the router guard already requires ADMIN
 const adminOnly = (req: StaffRequest) => {
   if (req.user!.role !== "ADMIN")
-    throw new ApiError(403, "FORBIDDEN", "Зөвхөн админ хэрэглэгч удирдана");
+    throw new ApiError(403, "FORBIDDEN", "Зөвхөн супер админ хэрэглэгч удирдана");
 };
 const passwordSchema = z
   .string()
@@ -257,7 +262,7 @@ adminRoutes.get("/users", async (req: StaffRequest, res) => {
   const rows = await prisma.user.findMany({
     where: {
       ...(group === "staff" && {
-        role: { in: [...STAFF_ROLES] },
+        role: { in: [...LISTED_STAFF] },
         deletedAt: null,
       }),
       ...(group === "customers" && { role: "CHILD" as const, deletedAt: null }),
@@ -382,6 +387,13 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       "Захиалагчийн бүртгэлийг энд өөрчлөхгүй",
     );
   const { role, active } = p.data;
+  // a leftover MEDICAL_ADMIN can be changed or deactivated, never reactivated as such
+  if (active === true && target.role === "MEDICAL_ADMIN" && role === undefined)
+    throw new ApiError(
+      409,
+      "CONFLICT",
+      "Эмнэлгийн админ эрх хэрэглэгдэхээ больсон. Сувилагч эсвэл супер админ эрх сонгоно уу",
+    );
   const losesAdmin =
     target.role === "ADMIN" &&
     target.deletedAt === null &&

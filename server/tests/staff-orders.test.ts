@@ -80,10 +80,25 @@ it("only staff can list orders and only administrators can assign nurses", async
     ).status,
     403,
   );
+  // OTOCH v2.0: no medical-admin role; a leftover MEDICAL_ADMIN has no access
   assert.equal(
     (
       await api(srv.baseUrl, "POST", `/api/staff/orders/${o.id}/assign`, {
         token: medical,
+        body: { version: 1, nurseId },
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await api(srv.baseUrl, "GET", "/api/staff/orders", { token: medical }))
+      .status,
+    403,
+  );
+  assert.equal(
+    (
+      await api(srv.baseUrl, "POST", `/api/staff/orders/${o.id}/assign`, {
+        token: admin,
         body: { version: 1, nurseId },
       })
     ).status,
