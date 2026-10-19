@@ -1,3 +1,12 @@
+## Blob Tab Bar — 2026-10-19
+
+- Branch: `feat/otoch-blob-tabs`, суурь main `06bf17a`.
+- [Foonto BlobTabBar](https://github.com/joeyjoy007/react-native-foonto/tree/main/src/components/BlobTabBar)-ийн source-copy хувилбарыг MIT лицензтэй нь `App/components/foonto/`-д оруулав. Upstream README: Expo 56 / RN 0.85 / Reanimated 4; манай Expo 57 / RN 0.86.3 / Reanimated 4.5.1. Компонентын ашигласан hooks/API typecheck болон web runtime-д нийцсэн. Package/lockfile/native dependency өөрчлөгдөөгүй.
+- Нүүр · Захиалга · Профайл; Тэмдэглэл route хэвээр, Профайл → Миний тэмдэглэлүүд. Auth болон tabPress/tabLongPress event хадгалсан. Safe-area padding, fontScale дагасан өндөр, Монгол фонт, brand/info/navy өнгө. Reanimated withTiming системийн reduce-motion default ашиглана.
+- Typecheck PASS; өөрчилсөн компонентууд болон ReferralUploader дээр cache-гүй ESLint PASS. `expo lint` хуучирсан import cache-аас document-picker алдаа өгсөн; npm ci-ийн дараах cache-гүй шалгалт түүнийг давсан. Regression 217/217; web static/SSR export PASS.
+- Chrome synthetic session + mock HTTP: гурван таб, Профайл → Тэмдэглэл → Нүүр PASS; 320/390/768px overflow 0, pageerror 0. [390px](screenshots/blob-tabs/otoch-blob-390.png), [320px](screenshots/blob-tabs/otoch-blob-320.png), [768px](screenshots/blob-tabs/otoch-blob-768.png).
+- Native iPhone/Android animation, keyboard/safe area болон native 200% font scaling acceptance хийгдээгүй. Browser screenshot нь native build-ийн нотолгоо биш. Backend болон төлбөрийн код өөрчлөгдөөгүй.
+
 ## Монгол жишээ хүний мэдээлэл
 
 - Mobile-ийн хуучин `child@demo.com` demo өвчтөнүүдийн нэр, хаяг, холбоо барих утсыг Монгол жишээгээр харуулна. Бодит аккаунтад энэ хөрвүүлэлт үйлчлэхгүй.

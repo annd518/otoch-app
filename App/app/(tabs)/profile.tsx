@@ -227,6 +227,11 @@ export default function Profile() {
       />
       <Button
         secondary
+        title="Миний тэмдэглэлүүд"
+        onPress={() => router.push("/(tabs)/records")}
+      />
+      <Button
+        secondary
         title="Үйлчилгээний нөхцөл"
         onPress={() => open(process.env.EXPO_PUBLIC_TERMS_URL)}
       />
