@@ -1,4 +1,5 @@
 import React, { useSyncExternalStore, useState, useContext } from "react";
+import { brandLabel, withBrand } from "../BrandText";
 import { connectivity } from "@/services/connectivity";
 import { apiService } from "@/services/api";
 import {
@@ -508,9 +509,10 @@ export function Screen({
               <Copy
                 variant="title"
                 accessibilityRole="header"
+                accessibilityLabel={brandLabel(title)}
                 style={{ flex: 1, fontSize: 25, lineHeight: 33 }}
               >
-                {title}
+                {withBrand(title, 25, t.color.text)}
               </Copy>
             )}
           </View>

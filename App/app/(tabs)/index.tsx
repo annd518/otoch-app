@@ -1,6 +1,7 @@
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import React, { useCallback, useState } from "react";
 import { theme } from "@/design/theme";
+import { brandLabel, withBrand } from "@/components/BrandText";
 import {
   Syringe,
   Bandage,
@@ -28,6 +29,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { OnboardingHero } from "@/components/OnboardingHero";
 import { ONBOARDING_SLIDES } from "@/design/onboarding";
 import { onboardingVisual as v } from "@/design/onboardingVisual";
+
+const NOT_EMERGENCY = "OTOCH нь яаралтай тусламжийн үйлчилгээ биш.";
 
 export default function Home() {
   const { dispatch } = useBookingDraft();
@@ -132,8 +135,11 @@ export default function Home() {
         </View>
         <View style={styles.flex}>
           <Copy style={styles.urgentTitle}>Яаралтай тусламж бол 103</Copy>
-          <Copy style={styles.urgentText}>
-            OTOCH нь яаралтай тусламжийн үйлчилгээ биш.
+          <Copy
+            style={styles.urgentText}
+            accessibilityLabel={brandLabel(NOT_EMERGENCY)}
+          >
+            {withBrand(NOT_EMERGENCY, 12, theme.color.secondary)}
           </Copy>
         </View>
         <Pressable

@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react-native";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
 import { theme } from "@/design/theme";
+import { brandLabel, withBrand } from "@/components/BrandText";
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -18,6 +19,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { apiService } from "@/services/api";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const SUBTITLE = "Эхлэхийн тулд OTOCH-д нэгдээрэй";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -105,7 +108,12 @@ export default function RegisterScreen() {
               />
             </View>
             <Text style={styles.title}>Бүртгэл үүсгэх</Text>
-            <Text style={styles.subtitle}>Эхлэхийн тулд OTOCH-д нэгдээрэй</Text>
+            <Text
+              style={styles.subtitle}
+              accessibilityLabel={brandLabel(SUBTITLE)}
+            >
+              {withBrand(SUBTITLE, 18, theme.color.secondary)}
+            </Text>
           </View>
 
           <View style={styles.form}>
