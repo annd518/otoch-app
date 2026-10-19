@@ -118,7 +118,7 @@ export default function OrderDetailScreen() {
               </AppText>
               {order.patientContact ? (
                 <Button
-                  label={`Залгах · ${order.patientContact}`}
+                  label={`Яаралтай холбоо руу залгах · ${order.patientContact}`}
                   variant="secondary"
                   onPress={() => void Linking.openURL(telUrl(order.patientContact!))}
                 />

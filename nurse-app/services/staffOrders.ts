@@ -35,7 +35,8 @@ export interface StaffOrder {
   postoperative: boolean
   referralText: string | null
   attachments: { id: string; mimeType: string }[]
-  // Phone for the call button; the server sends it only while the visit is open.
+  // The emergency contact on the patient record (the server has no patient phone field);
+  // sent only while the visit is open. Shown as "emergency contact", never as the patient's phone.
   patientContact: string | null
   timeline: { id: string; status: string; at: string }[]
   isMock: boolean

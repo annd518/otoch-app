@@ -16,7 +16,15 @@ let srv: TestServer,
   otherToken: string,
   parentId: string,
   userId: string;
-const startsAt = new Date(Date.now() + 4 * 3600000);
+// Tomorrow 10:00-11:00 Ulaanbaatar time. The slot rule needs start < end inside one day, so
+// "now + 4 h" failed whenever the suite ran between 19:00 and 20:00 UB (slot over midnight).
+const startsAt = (() => {
+  const ub = new Date(Date.now() + 8 * 3600000);
+  return new Date(
+    Date.UTC(ub.getUTCFullYear(), ub.getUTCMonth(), ub.getUTCDate() + 1, 10) -
+      8 * 3600000,
+  );
+})();
 const day = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Ulaanbaatar",
 }).format(startsAt);

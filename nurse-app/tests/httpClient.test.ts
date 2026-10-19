@@ -67,3 +67,26 @@ test('a 401 from the server ends the session', async () => {
   assert.equal(res.ok, false)
   assert.equal(ended, 1)
 })
+
+test('a deactivated account (401 ACCOUNT_DISABLED) ends the session and keeps the server message', async () => {
+  let ended = 0
+  const fetch: FetchLike = async () => ({
+    status: 401,
+    text: async () => JSON.stringify({ success: false, message: 'Бүртгэл идэвхгүй байна. Админд хандана уу', error: { code: 'ACCOUNT_DISABLED' } }),
+  })
+  const client = createHttpClient({
+    config,
+    fetch,
+    getToken: async () => jwt({ userId: 'u1', exp: 4_000_000_000 }),
+    onUnauthorized: () => {
+      ended++
+    },
+  })
+  const res = await client.request({ method: 'GET', path: '/api/nurse/offers', parse })
+  assert.equal(ended, 1)
+  assert.equal(res.ok, false)
+  if (!res.ok) {
+    assert.equal(res.code, 'ACCOUNT_DISABLED')
+    assert.match(res.message, /идэвхгүй/)
+  }
+})
