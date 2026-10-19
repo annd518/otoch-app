@@ -1,3 +1,11 @@
+## Premium onboarding refinement — 2026-10-19
+
+- Хэрэглэгчийн шинэ лавлах зураг/даалгавраар зөвхөн onboarding visual execution-ийг шинэчилсэн. Header → hero → headline/body → pager → 103 card → CTA бүтэц болон гурван slide/skip/auth navigation хэвээр.
+- `OnboardingHero.tsx`: 232px хоёр талын shadow бүхий disc, recessed circle, gradient SVG house/roof/door, overlapping yellow medical badge, abstract glow circles. Shield/clipboard slide өөрийн icon-оо хадгална. 740px-ээс намхан дэлгэцэд compact hero; дунд хэсэг scroll боломжтой.
+- `onboardingVisual.ts`: scoped palette/depth token; бусад дэлгэцийн theme өөрчлөгдөөгүй. Neutral raised emergency card, yellow phone badge, bold blue 103. Blue/deep gradient CTA, 24px radius, pressed scale/shadow, arrow. Pager touch target 44px, headline 30/37 (compact 26/32), body 16/26.
+- Typecheck/cache-free lint PASS; 219/219 regression PASS; web + iOS/Android bundle export PASS. Шинэ dependency нэмээгүй. Chrome screenshot 320/390/768px, pageerror 0, horizontal overflow 0; pager болон Continue→Start→`/auth/phone` destination шалгасан.
+- [390px](screenshots/premium-onboarding/onboarding-390.png), [320px](screenshots/premium-onboarding/onboarding-320.png), [768px](screenshots/premium-onboarding/onboarding-768.png), [slide 2](screenshots/premium-onboarding/slide-2.png). Native төхөөрөмж, native shadow/200% text acceptance хүлээгдэнэ. Commit/push хийгээгүй.
+
 ## Medical neumorphism — 2026-10-19
 
 - `feat/medical-neumorphism`: [хамрах хүрээ/дэлгэцийн бүртгэл](neumorphism.md). Одоогийн `feat/nurse-app` сууриас зөвхөн хэрэглэгчийн App visual layer. Энэ checkout-ийн 4 таб, auth/order/payment/API урсгал хэвээр; өмнөх тусдаа Blob Tab Bar branch-ийг merge хийгээгүй.
