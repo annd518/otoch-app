@@ -14,6 +14,13 @@ export const API_PATHS = {
     byId: (id: string) => `/api/staff/orders/${encodeURIComponent(id)}`,
     eta: (id: string) => `/api/staff/orders/${encodeURIComponent(id)}/eta`,
   },
+  // Dispatch: offers to accept or decline, and the nurse's own profile / online toggle.
+  nurse: {
+    offers: '/api/nurse/offers',
+    accept: (id: string) => `/api/nurse/offers/${encodeURIComponent(id)}/accept`,
+    decline: (id: string) => `/api/nurse/offers/${encodeURIComponent(id)}/decline`,
+    me: '/api/nurse/me',
+  },
   // Visit flow for the assigned nurse (server/src/routes/nurseOrders.ts,
   // docs/nurse-app-api-proposal.md).
   nurseOrders: {

@@ -39,6 +39,14 @@ export function formatUbDateTime(iso: string): string | null {
   return `${two(d.getUTCMonth() + 1)}.${two(d.getUTCDate())} ${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`
 }
 
+// "2028-05-31T15:59:59Z" -> "2028.05.31"
+export function formatUbDate(iso: string): string | null {
+  const ms = Date.parse(iso)
+  if (Number.isNaN(ms)) return null
+  const d = new Date(ms + UB_OFFSET_MS)
+  return `${d.getUTCFullYear()}.${two(d.getUTCMonth() + 1)}.${two(d.getUTCDate())}`
+}
+
 export function formatSchedule(order: Pick<StaffOrder, 'scheduledFor' | 'timeSlot'>): string {
   const when = order.scheduledFor ? formatUbDateTime(order.scheduledFor) : null
   if (when && order.timeSlot) return `${when} · ${order.timeSlot}`
