@@ -1,11 +1,21 @@
+import { dateTimeLabel } from "@/design/dateLabels";
+import { CalendarDays } from "lucide-react-native";
+import {
+  FeatureSummary,
+  StatusPill,
+  Button,
+  Card,
+  Chip,
+  Copy,
+  Screen,
+  StateView,
+} from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
-import { orderStatus } from "@/design/catalog";
-import { Button, Card, Chip, Copy, Screen, StateView } from "@/components/ui";
 export default function OrdersScreen() {
   const { dispatch } = useBookingDraft();
   const [orders, setOrders] = useState<Order[]>([]),
@@ -36,6 +46,11 @@ export default function OrdersScreen() {
   );
   return (
     <Screen title="Захиалга" back={false}>
+      <FeatureSummary
+        icon={CalendarDays}
+        title="Таны тусламжийн хуваарь"
+        description="Идэвхтэй болон өмнөх захиалгаа нэг дороос хянаарай."
+      />
       <Button
         title="Шинэ захиалга"
         onPress={() => {
@@ -43,7 +58,7 @@ export default function OrdersScreen() {
           router.push("/booking/catalog");
         }}
       />
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: 8, flexDirection: "row", flexWrap: "wrap" }}>
         {[
           ["active", "Идэвхтэй"],
           ["past", "Өмнөх"],
@@ -51,6 +66,7 @@ export default function OrdersScreen() {
         ].map(([key, label]) => (
           <Chip
             key={key}
+            style={key === "cancelled" ? { width: "100%" } : { flex: 1 }}
             label={label}
             selected={filter === key}
             onPress={() => setFilter(key)}
@@ -76,13 +92,9 @@ export default function OrdersScreen() {
       ) : (
         visible.map((o) => (
           <Card key={o.id}>
-            <Copy variant="heading">{orderStatus(o.status)}</Copy>
+            <StatusPill status={o.status} />
             <Copy>
-              {o.scheduledFor
-                ? new Date(o.scheduledFor).toLocaleString("mn-MN", {
-                    timeZone: "Asia/Ulaanbaatar",
-                  })
-                : "Цаг сонгоогүй"}
+              {o.scheduledFor ? dateTimeLabel(o.scheduledFor) : "Цаг сонгоогүй"}
             </Copy>
             <Button
               secondary

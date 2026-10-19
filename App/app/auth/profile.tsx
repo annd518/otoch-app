@@ -1,9 +1,10 @@
+import { UserRound } from "lucide-react-native";
+import { FeatureSummary, Banner, Button, Input, Screen } from "@/components/ui";
 import { useState } from "react";
 import { router } from "expo-router";
 import { apiService } from "@/services/api";
 import { storage } from "@/utils/storage";
 import { useSingleFlight } from "@/components/useSingleFlight";
-import { Banner, Button, Input, Screen } from "@/components/ui";
 export default function InitialProfile() {
   const [name, setName] = useState(""),
     [error, setError] = useState("");
@@ -23,6 +24,11 @@ export default function InitialProfile() {
   });
   return (
     <Screen title="Таны мэдээлэл" back={false}>
+      <FeatureSummary
+        icon={UserRound}
+        title="Танилцъя"
+        description="Үйлчилгээнд ашиглах нэрээ оруулна уу."
+      />
       {!!error && <Banner error>{error}</Banner>}
       <Input label="Нэр" value={name} onChangeText={setName} />
       <Button

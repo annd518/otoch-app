@@ -1,10 +1,21 @@
+import { dateTimeLabel, timeLabel } from "@/design/dateLabels";
+import { UserRound, Activity, CalendarDays } from "lucide-react-native";
+import {
+  SectionHeading,
+  StatusPill,
+  EventTimeline,
+  Banner,
+  Button,
+  Card,
+  Copy,
+  Screen,
+  StateView,
+} from "@/components/ui";
 import React, { useCallback, useState } from "react";
 import { AppState } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
-import { orderStatus } from "@/design/catalog";
-import { Banner, Button, Card, Copy, Screen, StateView } from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { ulaanbaatarDate } from "@/utils/datetime";
 export default function OrderDetail() {
@@ -139,12 +150,7 @@ export default function OrderDetail() {
         </Banner>
       )}
       {lastUpdatedAt && (
-        <Copy>
-          Сүүлд шинэчилсэн:{" "}
-          {lastUpdatedAt.toLocaleTimeString("mn-MN", {
-            timeZone: "Asia/Ulaanbaatar",
-          })}
-        </Copy>
+        <Copy>Сүүлд шинэчилсэн: {timeLabel(lastUpdatedAt)}</Copy>
       )}
       {!order ? (
         <StateView title="Захиалга ачаалж байна" loading={!error} />
@@ -154,35 +160,27 @@ export default function OrderDetail() {
             <Banner>Туршилтын захиалга · бодит төлбөр биш.</Banner>
           )}
           <Card>
-            <Copy variant="heading">{orderStatus(order.status)}</Copy>
+            <SectionHeading icon={CalendarDays} title="Үйлчилгээний төлөв" />
+            <StatusPill status={order.status} />
             <Copy>
               {order.scheduledFor
-                ? new Date(order.scheduledFor).toLocaleString("mn-MN", {
-                    timeZone: "Asia/Ulaanbaatar",
-                  })
+                ? dateTimeLabel(order.scheduledFor)
                 : "Цаг сонгоогүй"}
             </Copy>
           </Card>
           <Card>
-            <Copy variant="heading">Сувилагч</Copy>
+            <SectionHeading icon={UserRound} title="Таны сувилагч" />
             <Copy>{order.nurse?.name ?? "Томилогдоогүй"}</Copy>
             <Copy>
               {order.eta
-                ? `Ирэх хугацаа: ${new Date(order.eta).toLocaleTimeString("mn-MN", { timeZone: "Asia/Ulaanbaatar" })}`
+                ? `Ирэх хугацаа: ${timeLabel(order.eta)}`
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>
           <Card>
-            <Copy variant="heading">Захиалгын явц</Copy>
+            <SectionHeading icon={Activity} title="Захиалгын явц" />
             {order.timeline?.length ? (
-              order.timeline.map((e) => (
-                <Copy key={e.id}>
-                  {orderStatus(e.status)} ·{" "}
-                  {new Date(e.at).toLocaleString("mn-MN", {
-                    timeZone: "Asia/Ulaanbaatar",
-                  })}
-                </Copy>
-              ))
+              <EventTimeline events={order.timeline} />
             ) : (
               <Copy>Явцын мэдээлэл одоогоор алга.</Copy>
             )}

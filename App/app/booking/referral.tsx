@@ -1,5 +1,7 @@
+import { FileImage } from "lucide-react-native";
+import { FeatureSummary, Stepper } from "@/components/ui";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { TouchTarget as TouchableOpacity } from "@/components/ui/TouchTarget";
-import { Stepper } from "@/components/ui";
 import { theme } from "@/design/theme";
 import React, { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, TextInput, View } from "react-native";
@@ -110,6 +112,11 @@ export default function ReferralScreen() {
       <ScrollView
         contentContainerStyle={{ ...styles.container, paddingBottom: 40 }}
       >
+        <FeatureSummary
+          icon={FileImage}
+          title="Эмчийн заалтын мэдээлэл"
+          description="Сонгосон үйлчилгээний шаардлагад нийцүүлэн заалтаа оруулна уу."
+        />
         <Stepper step={3} />
         {!photoRequired && (
           <Text style={styles.rules}>
@@ -208,15 +215,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: theme.color.background,
+    backgroundColor: theme.color.surface,
     borderBottomWidth: 1,
     borderBottomColor: theme.color.info,
   },
-  backButton: { minHeight: 56, padding: 8, marginRight: 4 },
+  backButton: {
+    minHeight: 48,
+    minWidth: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: v.surface,
+    ...theme.depth.soft,
+  },
   headerText: { flex: 1 },
   headerTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 22,
+    fontFamily: "Montserrat_700Bold",
+    fontSize: 24,
     fontWeight: "800",
     color: theme.color.text,
   },
@@ -226,7 +243,7 @@ const styles = StyleSheet.create({
     color: theme.color.secondary,
     marginTop: 2,
   },
-  container: { padding: 16, gap: 12 },
+  container: { padding: 20, gap: 12 },
   rules: {
     fontFamily: "NotoSans_400Regular",
     fontSize: 16,
@@ -260,7 +277,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: theme.color.info,
+    borderColor: v.ice,
   },
   textInput: {
     ...theme.depth.inset,
@@ -305,7 +322,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     ...theme.depth.action,
-    minHeight: 56,
+    minHeight: 60,
     backgroundColor: theme.color.brand,
     borderRadius: theme.radius.card,
     paddingVertical: 16,

@@ -1,9 +1,17 @@
+import { ShieldCheck } from "lucide-react-native";
+import {
+  FeatureSummary,
+  Banner,
+  Button,
+  Copy,
+  Input,
+  Screen,
+} from "@/components/ui";
 import React, { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
 import { storage } from "@/utils/storage";
 import { useSingleFlight } from "@/components/useSingleFlight";
-import { Banner, Button, Copy, Input, Screen } from "@/components/ui";
 export default function PhoneAuth() {
   const { expired } = useLocalSearchParams<{ expired?: string }>();
   const [phone, setPhone] = useState(""),
@@ -51,6 +59,11 @@ export default function PhoneAuth() {
   });
   return (
     <Screen title="OTOCH-д нэвтрэх">
+      <FeatureSummary
+        icon={ShieldCheck}
+        title="Утсаа баталгаажуулах"
+        description="Таны мэдээлэлд зөвхөн та нэвтрэхэд нэг удаагийн код ашиглана."
+      />
       {expired === "1" && (
         <Banner>Нэвтрэх хугацаа дууссан байна. Дахин нэвтэрнэ үү.</Banner>
       )}

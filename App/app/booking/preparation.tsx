@@ -1,9 +1,6 @@
-import { useEffect, useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
-import type { Catalog } from "@/services/apiTypes";
-import { apiService } from "@/services/api";
-import { useBookingDraft } from "@/context/BookingDraftContext";
+import { ClipboardCheck, BriefcaseMedical } from "lucide-react-native";
 import {
+  SectionHeading,
   Banner,
   Button,
   Card,
@@ -12,6 +9,11 @@ import {
   Screen,
   StateView,
 } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import type { Catalog } from "@/services/apiTypes";
+import { apiService } from "@/services/api";
+import { useBookingDraft } from "@/context/BookingDraftContext";
 export default function Preparation() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const { dispatch, state } = useBookingDraft();
@@ -39,7 +41,11 @@ export default function Preparation() {
       ) : (
         <>
           <Card>
-            <Copy variant="heading">{service.name}</Copy>
+            <SectionHeading
+              icon={ClipboardCheck}
+              title={service.name}
+              subtitle="Үйлчилгээ эхлэхээс өмнөх бэлтгэл"
+            />
             <Copy>Та бэлдэнэ</Copy>
             {preparation.map((item) => (
               <Chip
@@ -61,7 +67,10 @@ export default function Preparation() {
           </Card>
           {!!service.nurseSupplies?.length && (
             <Card>
-              <Copy variant="heading">Сувилагч авчирна</Copy>
+              <SectionHeading
+                icon={BriefcaseMedical}
+                title="Сувилагч авчирна"
+              />
               {service.nurseSupplies.map((item) => (
                 <Copy key={item}>• {item}</Copy>
               ))}

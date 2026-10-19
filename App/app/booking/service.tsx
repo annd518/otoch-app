@@ -1,9 +1,21 @@
+import { ClipboardCheck } from "lucide-react-native";
+import {
+  FeatureSummary,
+  SectionHeading,
+  careIcon,
+  Banner,
+  Button,
+  Card,
+  Copy,
+  Screen,
+  StateView,
+} from "@/components/ui";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import React, { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
 import type { CatalogService } from "@/services/apiTypes";
 import { formatMnt } from "@/utils/money";
-import { Banner, Button, Card, Copy, Screen, StateView } from "@/components/ui";
 export default function ServiceScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
   const [service, setService] = useState<CatalogService | null>(null);
@@ -21,7 +33,7 @@ export default function ServiceScreen() {
     };
   }, [code]);
   return (
-    <Screen title={service?.name ?? "Үйлчилгээ"}>
+    <Screen title="Үйлчилгээ">
       {!service ? (
         <StateView title={error || "Үйлчилгээ ачаалж байна"} loading={!error} />
       ) : (
@@ -32,14 +44,22 @@ export default function ServiceScreen() {
               хүлээгдэж байна.
             </Banner>
           )}
-          <Copy>{service.description}</Copy>
+          <FeatureSummary
+            icon={careIcon(service.group ?? service.category)}
+            title={service.name}
+            description={
+              service.description !== service.name
+                ? (service.description ?? undefined)
+                : undefined
+            }
+          />
           {[
             ["Багтана", service.includes],
             ["Бэлдэнэ", service.preparation],
             ["Хийхгүй", service.exclusions],
           ].map(([title, lines]) => (
             <Card key={String(title)}>
-              <Copy variant="heading">{String(title)}</Copy>
+              <SectionHeading icon={ClipboardCheck} title={String(title)} />
               {Array.isArray(lines) && lines.length ? (
                 lines.map((line) => <Copy key={line}>• {line}</Copy>)
               ) : (
@@ -48,10 +68,11 @@ export default function ServiceScreen() {
             </Card>
           ))}
           <Card>
-            <Copy variant="heading">Үнэ</Copy>
-            <Copy>
-              {formatMnt(service.priceMnt)} · {service.durationMin} минут
+            <SectionHeading title="Үйлчилгээний үнэ" />
+            <Copy variant="title" style={{ color: v.deep }}>
+              {formatMnt(service.priceMnt)}
             </Copy>
+            <Copy variant="caption">{service.durationMin} минут</Copy>
             <Copy>
               Эцсийн төлөх дүнг серверийн үнийн саналаар баталгаажуулна.
             </Copy>

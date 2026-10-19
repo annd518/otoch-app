@@ -1,5 +1,6 @@
 import React from "react";
 import { View, type ViewProps } from "react-native";
+import { onboardingVisual as v } from "@/design/onboardingVisual";
 import { theme as t } from "@/design/theme";
 
 export type SurfaceTone = "raised" | "flat" | "inset" | "pressed" | "selected";
@@ -16,7 +17,7 @@ export function NeuSurface({
           backgroundColor: tone === "selected" ? t.color.info : t.color.surface,
           borderRadius: t.radius.card,
           borderWidth: 1,
-          borderColor: tone === "selected" ? t.color.brand : t.color.border,
+          borderColor: tone === "selected" ? t.color.brand : v.ice,
         },
         tone === "raised"
           ? t.depth.soft
