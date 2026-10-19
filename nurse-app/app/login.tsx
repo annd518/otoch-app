@@ -1,9 +1,11 @@
+import { useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { AppText } from '../components/AppText'
 import { Button } from '../components/Button'
+import { ScreenHeader } from '../components/ScreenHeader'
 import { ErrorBox } from '../components/ErrorBox'
 import { Field } from '../components/Field'
 import { useSession } from '../context/SessionContext'
@@ -15,9 +17,11 @@ import { toE164 } from '../utils/phone'
 type Mode = 'phone' | 'email'
 
 export default function LoginScreen() {
+  const router = useRouter()
   const [mode, setMode] = useState<Mode>('phone')
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.background }}>
+      <ScreenHeader action={{ label: 'Бүртгүүлэх', onPress: () => router.replace('/register') }} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: theme.space[5], gap: theme.space[3] }}

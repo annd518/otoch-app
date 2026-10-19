@@ -8,6 +8,10 @@ export const API_PATHS = {
     refresh: '/api/auth/refresh',
     logout: '/api/auth/logout',
   },
+  // Request to join as a nurse (no account yet).
+  applications: {
+    create: '/api/nurse-applications',
+  },
   // Orders assigned to the signed-in nurse (server/src/routes/staffOrders.ts).
   staffOrders: {
     list: '/api/staff/orders',

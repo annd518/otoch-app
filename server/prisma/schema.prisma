@@ -489,3 +489,30 @@ model BlobCleanupJob {
   completedAt DateTime?
   createdAt DateTime @default(now())
 }
+
+enum ApplicationStatus {
+  NEW
+  CONTACTED
+  APPROVED
+  REJECTED
+}
+
+// A nurse's request to join, sent from the nurse app before she has an account (nurse
+// accounts are created by an admin after the licence and documents are checked, spec slide 35).
+model NurseApplication {
+  id              String            @id @default(cuid())
+  name            String
+  phone           String
+  licenseNo       String
+  experienceYears Int
+  status          ApplicationStatus @default(NEW)
+  consentVersion  String
+  ipHash          String
+  note            String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([phone, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([status, createdAt])
+}

@@ -41,7 +41,11 @@ function RootNavigator() {
           <Stack.Screen name="orders/[id]/incident" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
+          <Stack.Screen name="welcome" />
           <Stack.Screen name="login" />
+          <Stack.Screen name="register/index" />
+          <Stack.Screen name="register/form" />
+          <Stack.Screen name="register/done" />
         </Stack.Protected>
       </Stack>
       {!splashDone && <SplashOverlay onDone={onSplashDone} />}
