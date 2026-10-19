@@ -1,0 +1,59 @@
+# CI for the server and the nurse app. wclient/ and App/ (family app) are not covered yet.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      # Throw-away PostgreSQL (embedded-postgres), see scripts/test-isolated.mjs
+      - run: npm test
+      # Time-of-day regression: the suite must pass just before Ulaanbaatar midnight too
+      # (a one-hour slot over midnight broke 11 tests when run at 19:00-20:00 UB).
+      - name: tests at 19:30 Ulaanbaatar time
+        run: FAKE_UB_TIME=19:30 NODE_OPTIONS="--require ./scripts/fake-now.cjs" npm test -- tests/client-v2.test.ts tests/nurse-dispatch.test.ts tests/nurse-orders.test.ts
+
+  nurse-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: nurse-app
+    env:
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: nurse-app/.nvmrc
+          cache: npm
+          cache-dependency-path: nurse-app/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # The JS bundle must build (catches missing assets and bad imports).
+      - run: npx expo export --platform android --output-dir "$RUNNER_TEMP/export"
+        env:
+          EXPO_PUBLIC_API_URL: https://example.invalid

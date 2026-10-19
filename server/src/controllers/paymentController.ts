@@ -328,7 +328,13 @@ export const createQPayPayment = async (
             zoneId: lockedOrder.zoneId,
             scheduledFor: lockedOrder.scheduledFor,
             status: {
-              in: ["AWAITING_PAYMENT", "PAID", "ASSIGNED", "IN_PROGRESS"],
+              in: [
+                "AWAITING_PAYMENT",
+                "PAID",
+                "ASSIGNED",
+                "EN_ROUTE",
+                "IN_PROGRESS",
+              ],
             },
           },
         });

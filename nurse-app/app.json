@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Otoch-nurse-app",
+    "slug": "otoch-nurse-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "otoch-nurse-app",
+    "userInterfaceStyle": "light",
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0F4075",
+          "image": "./assets/splash/splash-mark@3x.png",
+          "imageWidth": 128,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#0F4075",
+            "image": "./assets/splash/splash-mark@3x.png"
+          },
+          "ios": {
+            "backgroundColor": "#0F4075",
+            "image": "./assets/splash/splash-logo@3x.png",
+            "imageWidth": 200,
+            "resizeMode": "contain",
+            "dark": {
+              "backgroundColor": "#0F4075",
+              "image": "./assets/splash/splash-logo@3x.png"
+            }
+          }
+        }
+      ],
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Үйлчлүүлэгчийн хаяг дээр ирснээ баталгаажуулахад (check-in) таны байршил шаардлагатай.",
+          "locationAlwaysAndWhenInUsePermission": "Үйлчлүүлэгчийн хаяг дээр ирснээ баталгаажуулахад (check-in) таны байршил шаардлагатай.",
+          "locationAlwaysPermission": "Үйлчлүүлэгчийн хаяг дээр ирснээ баталгаажуулахад (check-in) таны байршил шаардлагатай.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

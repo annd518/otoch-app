@@ -13,6 +13,9 @@ const verifySchema = z.object({
   challengeId: z.string().min(1),
   code: z.string().regex(/^\d{6}$/),
   name: z.string().trim().min(2).max(100).optional(),
+  // "nurse": the nurse app. Only an existing NURSE account (provisioned by an
+  // admin with this phone) can sign in; nobody is ever created through it.
+  app: z.enum(["client", "nurse"]).optional(),
 });
 const tokenSchema = z.object({ refreshToken: z.string().min(32).max(256) });
 const secret = () => {
@@ -170,7 +173,7 @@ export async function requestOtp(req: Request, res: Response) {
 export async function verifyOtp(req: Request, res: Response) {
   const parsed = verifySchema.safeParse(req.body);
   if (!parsed.success) throw validationError(parsed.error);
-  const { phone, challengeId, code, name } = parsed.data;
+  const { phone, challengeId, code, name, app } = parsed.data;
   secret();
   const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
@@ -205,6 +208,17 @@ export async function verifyOtp(req: Request, res: Response) {
       data: { consumedAt: new Date() },
     });
     let user = await tx.user.findUnique({ where: { phone } });
+    if (app === "nurse") {
+      // Same answer for unknown phone, deleted account and wrong role: no enumeration.
+      if (!user || user.deletedAt || user.role !== "NURSE")
+        return "invalid" as const;
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      };
+    }
     if (!user)
       user = await tx.user.create({
         data: {
