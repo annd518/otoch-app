@@ -1,5 +1,18 @@
 # PariwarCare - Healthcare Management System Documentation
 
+## Локалд ажиллуулах (Windows)
+
+Нэг командаар: сервер, админ вэб, Expo тус бүр өөрийн цонхонд нээгдэнэ. Аль ч хавтаснаас ажиллана, эсвэл Explorer-оос `dev.cmd`-ийг давхар товшино.
+
+```
+D:hulgaiPariwar-Care-dev.cmd          # API + админ вэб + Expo
+D:hulgaiPariwar-Care-dev.cmd web      # API + админ вэб (http://localhost:3000)
+D:hulgaiPariwar-Care-dev.cmd app      # API + Expo
+D:hulgaiPariwar-Care-dev.cmd api      # зөвхөн API (http://localhost:8000)
+```
+
+Зогсоохдоо тухайн цонхыг хаана. Анх удаа `server`, `wclient`, `App` хавтас бүрт `npm install` хийсэн байх шаардлагатай.
+
 ## 🏥 Project Overview
 
 **PariwarCare** is a comprehensive healthcare management platform designed to bridge the gap between Nepalese diaspora and their parents' healthcare needs back home. The system enables remote monitoring, professional nursing care, and real-time health tracking through a multi-platform ecosystem.
