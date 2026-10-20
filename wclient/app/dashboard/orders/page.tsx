@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import api from "@/lib/api/client";
 import { getSessionUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/session-core";
@@ -23,7 +24,20 @@ const date = (v: string | null) =>
   v
     ? new Date(v).toLocaleString("mn-MN", { timeZone: "Asia/Ulaanbaatar" })
     : "Тодорхойгүй";
-export default function StaffOrders() {
+export default function StaffOrdersPage() {
+  // useSearchParams needs a Suspense boundary for the static build
+  return (
+    <Suspense fallback={null}>
+      <StaffOrders />
+    </Suspense>
+  );
+}
+
+const shortNo = (id: string) => id.slice(-6).toUpperCase();
+
+function StaffOrders() {
+  // ?q= from the admin header search: order №, patient or nurse name
+  const q = (useSearchParams().get("q") ?? "").trim().toLowerCase();
   const [user, setUser] = useState<SessionUser | null>(null),
     [rows, setRows] = useState<Order[]>([]),
     [selected, setSelected] = useState<Order | null>(null),
@@ -113,6 +127,17 @@ export default function StaffOrders() {
       inFlight.current = false;
     }
   };
+  const shown = useMemo(
+    () =>
+      q
+        ? rows.filter((o) =>
+            [o.id, shortNo(o.id), o.patientName ?? "", o.nurse?.name ?? ""].some((v) =>
+              v.toLowerCase().includes(q),
+            ),
+          )
+        : rows,
+    [rows, q],
+  );
   if (
     !loading &&
     (!user || user.role !== "ADMIN")
@@ -120,7 +145,12 @@ export default function StaffOrders() {
     return <p className="p-6">Ажилтны эрх шаардлагатай.</p>;
   return (
     <main className="p-4 md:p-8 space-y-4">
-      <h1 className="text-2xl font-bold">Үйлчилгээний захиалгууд</h1>
+      <h1 className="text-2xl font-bold text-[#0F2A4A]">Үйлчилгээний захиалгууд</h1>
+      {q && (
+        <p className="text-sm text-slate-600">
+          “{q}” хайлтын үр дүн: {shown.length} (ачаалсан {rows.length} захиалгаас)
+        </p>
+      )}
       {testEnv && (
         <p role="status" className="p-4 bg-amber-100">
           Туршилтын орчин · бодит төлбөр биш. Зөвхөн зохиомол мэдээлэл ашиглана.
@@ -140,17 +170,19 @@ export default function StaffOrders() {
       </button>
       {loading ? (
         <p>Ачаалж байна…</p>
-      ) : !rows.length ? (
-        <p>Захиалга алга.</p>
+      ) : !shown.length ? (
+        <p>{q ? "Хайлтад тохирох захиалга алга." : "Захиалга алга."}</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {rows.map((o) => (
+          {shown.map((o) => (
             <button
               key={o.id}
-              className="border rounded-xl p-4 text-left min-h-12"
+              className="min-h-12 rounded-xl border border-slate-200 bg-white p-4 text-left hover:bg-[#EAF1F8]"
               onClick={() => void open(o.id)}
             >
+              <span className="float-right font-mono text-xs text-slate-500">№{shortNo(o.id)}</span>
               <strong>{o.patientName}</strong>
+              {o.nurse && <p className="text-sm text-slate-600">Сувилагч: {o.nurse.name}</p>}
               <p>{labels[o.status] ?? "Төлөв шинэчлэгдэж байна"}</p>
               <p>{date(o.scheduledFor)}</p>
               {o.isMock && <p>Туршилтын төлбөр · бодит QPay биш</p>}

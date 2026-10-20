@@ -4,13 +4,13 @@ import { AuthProvider } from "@/lib/context/AuthContext";
 import { Toaster } from "react-hot-toast";
 
 export const metadata = {
-  title: "PariwarCare",
-  description: "Эцэг эхээ асраарай",
+  title: "ОТОЧ Админ",
+  description: "ОТОЧ: сувилагч дуудах үйлчилгээний удирдлага",
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="mn">
       <body className="bg-[#F5F6F8] text-gray-900 min-h-screen">
         <AuthProvider>
           {children}

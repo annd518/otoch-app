@@ -234,6 +234,125 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Live order board (admin web home, spec slide 84 wireframe A-04).
+
+/** A paid order nobody took for this long is shown in red. */
+export const UNASSIGNED_ALERT_MS = 5 * 60000;
+const BOARD_STATUSES = ["PAID", "ASSIGNED", "EN_ROUTE", "IN_PROGRESS", "INCIDENT"] as const;
+
+adminRoutes.get("/board", async (_req: StaffRequest, res) => {
+  const now = new Date();
+  const dayStart = ulaanbaatarDayStart(now);
+
+  const [rows, completedToday, assignedToday, nursesOnline] = await Promise.all([
+    prisma.order.findMany({
+      where: { status: { in: [...BOARD_STATUSES] } },
+      orderBy: [{ scheduledFor: "asc" }, { createdAt: "asc" }],
+      take: 200,
+      select: {
+        id: true,
+        status: true,
+        scheduledFor: true,
+        timeSlot: true,
+        lat: true,
+        lng: true,
+        parent: { select: { name: true } },
+        assignedNurse: { select: { name: true } },
+        items: { select: { service: { select: { name: true } } } },
+        payments: {
+          where: { status: "PAID" },
+          select: { paidAt: true, createdAt: true, mode: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    }),
+    prisma.orderEvent.findMany({
+      where: { toStatus: "COMPLETED", createdAt: { gte: dayStart } },
+      distinct: ["orderId"],
+      select: { orderId: true },
+    }),
+    prisma.orderEvent.findMany({
+      where: { toStatus: "ASSIGNED", createdAt: { gte: dayStart } },
+      select: {
+        orderId: true,
+        createdAt: true,
+        order: {
+          select: {
+            payments: {
+              where: { status: "PAID" },
+              select: { paidAt: true },
+              orderBy: { createdAt: "desc" },
+              take: 1,
+            },
+          },
+        },
+      },
+    }),
+    prisma.nurseProfile.count({
+      where: {
+        status: "VERIFIED",
+        isActive: true,
+        licenseExpiresAt: { gt: now },
+        user: { deletedAt: null, role: "NURSE" },
+      },
+    }),
+  ]);
+
+  const paidAt = (r: (typeof rows)[number]) => {
+    const p = r.payments[0];
+    return p ? (p.paidAt ?? p.createdAt) : null;
+  };
+  const orders = rows.map((r) => {
+    const paid = paidAt(r);
+    const unassigned = r.status === "PAID";
+    const waitingMs = unassigned && paid ? Math.max(0, now.getTime() - paid.getTime()) : null;
+    return {
+      id: r.id,
+      // PAID and nobody assigned yet = dispatch is looking for a nurse
+      stage: unassigned ? "DISPATCHING" : r.status,
+      status: r.status,
+      scheduledFor: r.scheduledFor?.toISOString() ?? null,
+      timeSlot: r.timeSlot,
+      service: r.items.map((i) => i.service.name).join(", ") || null,
+      patientName: r.parent.name,
+      nurse: r.assignedNurse?.name ?? null,
+      waitingMinutes: waitingMs === null ? null : Math.floor(waitingMs / 60000),
+      overdue: waitingMs !== null && waitingMs >= UNASSIGNED_ALERT_MS,
+      isMock: r.payments[0]?.mode === "mock",
+      location: r.lat !== null && r.lng !== null ? { lat: r.lat, lng: r.lng } : null,
+    };
+  });
+
+  // Time from payment to a nurse taking it, for orders assigned today
+  const waits = assignedToday.flatMap((e) => {
+    const p = e.order.payments[0]?.paidAt;
+    return p && e.createdAt >= p ? [e.createdAt.getTime() - p.getTime()] : [];
+  });
+  const avgAssignMinutes =
+    waits.length > 0
+      ? Math.round((waits.reduce((s, w) => s + w, 0) / waits.length / 60000) * 10) / 10
+      : null;
+
+  return ok(
+    res,
+    {
+      generatedAt: now.toISOString(),
+      kpis: {
+        active: rows.length,
+        unassignedOverdue: orders.filter((o) => o.overdue).length,
+        completedToday: completedToday.length,
+        avgAssignMinutes,
+        assignedToday: waits.length,
+        nursesOnline,
+      },
+      orders,
+    },
+    "Захиалгын самбар",
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Users and staff. Customers (CHILD) are listed read-only: their accounts are
 // closed through the account deletion flow, not here.
 
