@@ -39,7 +39,9 @@ import {
   khorooCount,
   parseAddress,
   type AddressParts,
+  type District,
 } from "@/utils/ubAddress";
+import { SelectField } from "@/components/ui/SelectField";
 import {
   expiryFromInput,
   expiryProblem,
@@ -333,40 +335,32 @@ export default function Booking() {
       {!!error && <Banner error>{error}</Banner>}
       {step === 1 && (
         <>
-          <Copy variant="label">Дүүрэг</Copy>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-            {UB_DISTRICTS.map((d) => (
-              <Chip
-                key={d.name}
-                label={d.name}
-                selected={address.district === d.name}
-                // another district has other khoroo numbers: choose it again
-                onPress={() =>
-                  setAddress({ district: d.name, khoroo: undefined })
-                }
-                style={{ width: "47%" }}
-              />
-            ))}
-          </View>
-          {address.district && (
-            <>
-              <Copy variant="label">{`${address.district} дүүргийн хороо`}</Copy>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {Array.from(
-                  { length: khorooCount(address.district) },
-                  (_, i) => i + 1,
-                ).map((k) => (
-                  <Chip
-                    key={k}
-                    label={String(k)}
-                    selected={address.khoroo === k}
-                    onPress={() => setAddress({ khoroo: k })}
-                    style={{ minWidth: 64 }}
-                  />
-                ))}
-              </View>
-            </>
-          )}
+          <SelectField
+            label="Дүүрэг"
+            placeholder="Дүүргээ сонгоно уу"
+            value={address.district}
+            options={UB_DISTRICTS.map((d) => ({
+              value: d.name,
+              label: `${d.name} дүүрэг`,
+            }))}
+            // another district has other khoroo numbers: choose it again
+            onChange={(district) =>
+              setAddress({ district: district as District, khoroo: undefined })
+            }
+          />
+          <SelectField
+            label="Хороо"
+            placeholder={
+              address.district ? "Хороогоо сонгоно уу" : "Эхлээд дүүргээ сонгоно уу"
+            }
+            disabled={!address.district}
+            value={address.khoroo ? String(address.khoroo) : undefined}
+            options={Array.from(
+              { length: khorooCount(address.district) },
+              (_, i) => ({ value: String(i + 1), label: `${i + 1}-р хороо` }),
+            )}
+            onChange={(khoroo) => setAddress({ khoroo: Number(khoroo) })}
+          />
           <Input
             label="Дэлгэрэнгүй хаяг"
             placeholder="Жишээ нь: 12-р байр, 3-р орц, 45 тоот, орцны код 1234"
