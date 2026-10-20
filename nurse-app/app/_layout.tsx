@@ -61,6 +61,8 @@ function RootNavigator() {
           <Stack.Screen name="application" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="join" />
           <Stack.Screen name="login" />
         </Stack.Protected>
       </Stack>

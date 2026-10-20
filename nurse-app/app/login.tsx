@@ -1,9 +1,11 @@
-import { ShieldCheck } from "lucide-react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, ShieldCheck } from "lucide-react-native";
 import { BrandHeader, Intro, Surface } from "../components/Presentation";
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppText } from "../components/AppText";
 import { Button } from "../components/Button";
 import { ErrorBox } from "../components/ErrorBox";
 import { Field } from "../components/Field";
@@ -20,7 +22,10 @@ import { toE164 } from "../utils/phone";
 type Mode = "phone" | "email" | "register";
 
 export default function LoginScreen() {
-  const [mode, setMode] = useState<Mode>("phone");
+  const router = useRouter();
+  // /login?mode=register opens the sign-up form (from the "how to join" page).
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<Mode>(params.mode === "register" ? "register" : "phone");
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.background }}>
       <KeyboardAvoidingView
@@ -37,6 +42,18 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <BrandHeader />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Буцах"
+            hitSlop={8}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))}
+            style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start" }}
+          >
+            <ArrowLeft color={theme.color.brand} size={20} />
+            <AppText variant="label" color={theme.color.brand}>
+              Буцах
+            </AppText>
+          </Pressable>
           <Surface>
             <Intro
               title={mode === "register" ? "Сувилагчаар бүртгүүлэх" : "Тавтай морил"}
