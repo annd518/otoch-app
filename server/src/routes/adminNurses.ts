@@ -59,6 +59,7 @@ function serialize(p: Row, now: Date) {
     submittedAt: p.submittedAt?.toISOString() ?? null,
     reviewNote: p.reviewNote,
     reviewedAt: p.reviewedAt?.toISOString() ?? null,
+    districts: p.districts,
     documents: Object.fromEntries(DOCUMENT_KINDS.map((k) => [k, docs.get(k) ?? null])),
     missing: missingItems(p, p.user.name, now),
   };

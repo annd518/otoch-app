@@ -35,7 +35,7 @@ export const isEditable = (p: Pick<NurseProfile, "status" | "submittedAt">) => {
 
 type ProfileWithDocs = Pick<
   NurseProfile,
-  "licenseNo" | "licenseExpiresAt" | "employer" | "experienceYears"
+  "licenseNo" | "licenseExpiresAt" | "employer" | "experienceYears" | "districts"
 > & { documents: Pick<NurseDocument, "kind">[] };
 
 /** What is still missing before the application can be sent (Mongolian labels). */
@@ -48,6 +48,7 @@ export function missingItems(p: ProfileWithDocs, name: string, now: Date): strin
     missing.push(`Зөвшөөрөл ${MIN_LICENSE_DAYS}-аас дээш хоног хүчинтэй байх`);
   if (!p.employer) missing.push("Ажлын газар");
   if (p.experienceYears === null || p.experienceYears === undefined) missing.push("Ажилласан жил");
+  if (p.districts.length === 0) missing.push("Ажиллах дүүрэг");
   const have = new Set(p.documents.map((d) => d.kind));
   for (const kind of DOCUMENT_KINDS) if (!have.has(kind)) missing.push(DOCUMENT_LABEL[kind]);
   return missing;

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 
 import { http } from '../services/http'
-import { fetchProfile, setOnline, type NurseProfile } from '../services/offers'
+import { fetchProfile, setDistricts, setOnline, type NurseProfile } from '../services/offers'
 
 // undefined = not loaded yet; null = the server has no profile for this nurse.
 export function useProfile() {
@@ -28,5 +28,15 @@ export function useProfile() {
     setBusy(false)
   }, [])
 
-  return { profile, error, busy, load, toggle }
+  const saveDistricts = useCallback(async (districts: string[]) => {
+    setBusy(true)
+    setError(null)
+    const result = await setDistricts(http, districts)
+    if (result.ok) setProfile(result.data.profile)
+    else setError(result.message)
+    setBusy(false)
+    return result.ok
+  }, [])
+
+  return { profile, error, busy, load, toggle, saveDistricts }
 }

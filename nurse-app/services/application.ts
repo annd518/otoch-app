@@ -3,6 +3,7 @@
 import { API_PATHS } from '../config/api'
 import { isRecord, type ApiResult } from './apiResult'
 import type { HttpClient, UploadFile } from './httpClient'
+import { isUbDistrict } from '../utils/districts'
 
 export const DOCUMENT_KINDS = ['LICENSE', 'DIPLOMA', 'ID_CARD', 'PORTRAIT'] as const
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number]
@@ -47,6 +48,8 @@ export interface Application {
   licenseExpiresAt: string | null
   employer: string | null
   experienceYears: number | null
+  // districts calls come from
+  districts: string[]
   submittedAt: string | null
   reviewNote: string | null
   // upload time per document, null when missing
@@ -60,6 +63,7 @@ export interface ApplicationDetails {
   licenseExpiresAt?: string
   employer?: string
   experienceYears?: number
+  districts?: string[]
 }
 
 const text = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
@@ -79,6 +83,7 @@ export function parseApplicationEnvelope(data: unknown): Application | null {
     licenseExpiresAt: optText(a.licenseExpiresAt),
     employer: optText(a.employer),
     experienceYears: typeof a.experienceYears === 'number' ? a.experienceYears : null,
+    districts: Array.isArray(a.districts) ? a.districts.filter(isUbDistrict) : [],
     submittedAt: optText(a.submittedAt),
     reviewNote: optText(a.reviewNote),
     documents: Object.fromEntries(DOCUMENT_KINDS.map((k) => [k, optText(docs[k])])) as Record<
@@ -105,6 +110,7 @@ export interface DetailsForm {
   licenseExpiresAt: string
   employer: string
   experienceYears: string
+  districts: string[]
 }
 
 /** Form text → request body, or field errors in Mongolian. */
@@ -125,6 +131,8 @@ export function detailsFromForm(form: DetailsForm):
   const years = Number(form.experienceYears)
   if (!/^\d{1,2}$/.test(form.experienceYears.trim()) || years > 60) errors.experienceYears = 'Жилийг тоогоор оруулна уу'
   else details.experienceYears = years
+  if (form.districts.length === 0) errors.districts = 'Ажиллах дүүргээ сонгоно уу'
+  else details.districts = form.districts
   return Object.keys(errors).length > 0 ? { ok: false, errors } : { ok: true, details }
 }
 

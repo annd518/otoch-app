@@ -12,6 +12,8 @@ import {
 } from "../services/dispatch";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { requireNurse } from "./nurseOrders";
+import { orderDistrict } from "../services/ubDistricts";
+import { districtsSchema } from "./nurseApplication";
 
 interface NurseRequest extends Request {
   user?: { userId: string; role: string };
@@ -23,7 +25,7 @@ nurseOffers.use(requireNurse);
 
 nurseOffers.get("/offers", async (req: NurseRequest, res) => {
   const now = new Date();
-  const rows = await prisma.orderOffer.findMany({
+  const all = await prisma.orderOffer.findMany({
     where: {
       nurseId: req.user!.userId,
       status: "PENDING",
@@ -39,6 +41,18 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
       },
     },
     orderBy: { expiresAt: "asc" },
+  });
+  // Only calls from the nurse's districts are shown (also after the nurse
+  // changes them while an offer is still open). Empty = every district.
+  const { districts = [] } =
+    (await prisma.nurseProfile.findUnique({
+      where: { userId: req.user!.userId },
+      select: { districts: true },
+    })) ?? {};
+  const rows = all.filter((r) => {
+    if (districts.length === 0) return true;
+    const d = orderDistrict(r.order.addressText);
+    return d !== null && districts.includes(d);
   });
   const zones = await prisma.serviceZone.findMany({
     where: { id: { in: rows.flatMap((r) => (r.order.zoneId ? [r.order.zoneId] : [])) } },
@@ -65,7 +79,11 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
             scheduledFor: r.order.scheduledFor?.toISOString() ?? null,
             timeSlot: r.order.timeSlot,
             // The exact address is shared only once the nurse accepts.
-            area: r.order.zoneId ? (zoneName.get(r.order.zoneId) ?? null) : null,
+            area: orderDistrict(r.order.addressText)
+              ? `${orderDistrict(r.order.addressText)} дүүрэг`
+              : r.order.zoneId
+                ? (zoneName.get(r.order.zoneId) ?? null)
+                : null,
           },
           earnings: quote
             ? {
@@ -110,6 +128,7 @@ const serializeProfile = (
     licenseNo: p.licenseNo,
     licenseExpiresAt: p.licenseExpiresAt?.toISOString() ?? null,
     skillTags: p.skillTags,
+    districts: p.districts,
     // Why the nurse cannot go online (null = can).
     blocker,
   };
@@ -123,7 +142,15 @@ nurseOffers.get("/me", async (req: NurseRequest, res) => {
 });
 
 nurseOffers.put("/me", async (req: NurseRequest, res) => {
-  const p = z.object({ isActive: z.boolean() }).strict().safeParse(req.body);
+  // isActive: the online toggle; districts: where calls come from (any time,
+  // it is the nurse's preference, not something the admin verified)
+  const p = z
+    .object({ isActive: z.boolean().optional(), districts: districtsSchema.optional() })
+    .strict()
+    .refine((v) => v.isActive !== undefined || v.districts !== undefined, {
+      message: "Өөрчлөх зүйл алга",
+    })
+    .safeParse(req.body);
   if (!p.success) throw validationError(p.error);
   const userId = req.user!.userId;
   const profile = await prisma.nurseProfile.findUnique({ where: { userId } });
@@ -138,7 +165,10 @@ nurseOffers.put("/me", async (req: NurseRequest, res) => {
   if (!profile) throw new ApiError(409, "NOT_ELIGIBLE", "Бүртгэл админаар баталгаажаагүй байна");
   const updated = await prisma.nurseProfile.update({
     where: { userId },
-    data: { isActive: p.data.isActive },
+    data: {
+      ...(p.data.isActive !== undefined && { isActive: p.data.isActive }),
+      ...(p.data.districts !== undefined && { districts: p.data.districts }),
+    },
   });
   return ok(res, { profile: serializeProfile(updated) }, "Хадгалагдлаа");
 });
