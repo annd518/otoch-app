@@ -65,9 +65,13 @@ export default function Home() {
   );
   const current = orders.find(
     (o) =>
-      !["COMPLETED", "CANCELLED", "EXPIRED", "BLOCKED_RED_FLAG"].includes(
-        o.status,
-      ),
+      ![
+        "REFUSED",
+        "COMPLETED",
+        "CANCELLED",
+        "EXPIRED",
+        "BLOCKED_RED_FLAG",
+      ].includes(o.status),
   );
   return (
     <Screen

@@ -13,6 +13,9 @@ export interface Slot {
   endsAt: string;
 }
 export interface ClinicalRecord {
+  source?: "legacy" | "nurse";
+  orderId?: string;
+  nurseName?: string | null;
   id: string;
   patientName: string;
   at: string;

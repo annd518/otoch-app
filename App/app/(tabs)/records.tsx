@@ -69,6 +69,12 @@ export default function Records() {
           <Card key={r.id}>
             <SectionHeading icon={FileText} title={r.patientName} />
             <Copy>{dateTimeLabel(r.at)}</Copy>
+            {r.source === "nurse" && (
+              <Copy variant="caption">
+                Сувилагчийн гарын үсэгтэй эргэлтийн тэмдэглэл
+                {r.nurseName ? ` · ${r.nurseName}` : ""}. Эмчийн онош биш.
+              </Copy>
+            )}
             <Copy>{r.notes ?? "Бичгэн тэмдэглэл ороогүй байна."}</Copy>
             {r.pdfAvailable ? (
               <Button

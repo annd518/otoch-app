@@ -67,7 +67,8 @@ try {
     const testFiles = requested.length
         ? requested
         : readdirSync(path.join(root, 'tests'))
-            .filter((f) => f.endsWith('.test.ts'))
+            // Cross-app journey has its own complete fixture catalog and must use a fresh DB.
+            .filter((f) => f.endsWith('.test.ts') && f !== 'app-link.test.ts')
             .map((f) => path.join('tests', f))
     exitCode = run('node', ['--import', 'tsx', '--test', '--test-concurrency=1', ...testFiles])
 } catch (err) {

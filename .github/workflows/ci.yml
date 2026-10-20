@@ -1,4 +1,4 @@
-# CI for the server and the nurse app. wclient/ and App/ (family app) are not covered yet.
+# Server, nurse and customer regression; cross-app journey runs in its own disposable server-test DB. wclient is unchanged.
 name: ci
 
 on:
@@ -29,6 +29,8 @@ jobs:
       - run: npm run typecheck
       # Throw-away PostgreSQL (embedded-postgres), see scripts/test-isolated.mjs
       - run: npm test
+      - name: customer and nurse API journey without admin
+        run: npm run test:app-link
       # Time-of-day regression: the suite must pass just before Ulaanbaatar midnight too
       # (a one-hour slot over midnight broke 11 tests when run at 19:00-20:00 UB).
       - name: tests at 19:30 Ulaanbaatar time
@@ -57,3 +59,23 @@ jobs:
       - run: npx expo export --platform android --output-dir "$RUNNER_TEMP/export"
         env:
           EXPO_PUBLIC_API_URL: https://example.invalid
+
+  customer-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: App
+    env:
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: App/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint -- --no-cache
+      - run: npm test
