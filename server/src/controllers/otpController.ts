@@ -121,6 +121,9 @@ export async function requestOtp(req: Request, res: Response) {
     });
     return tx.otpChallenge.create({
       data: {
+        // same clock as the rate-limit window above (not the database default),
+        // so the counts never mix two clocks
+        createdAt: now,
         phone,
         ipHash,
         codeHash: await bcrypt.hash(code, 10),
