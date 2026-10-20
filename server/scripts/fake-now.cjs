@@ -2,9 +2,8 @@
 //   FAKE_UB_TIME=19:30 NODE_OPTIONS="--require ./scripts/fake-now.cjs" npm test
 // Makes "now" read as HH:MM Ulaanbaatar time today, so time-of-day bugs (a slot over
 // midnight, a 2-hour rule near a boundary) reproduce on any machine at any hour. Database
-// defaults (createdAt) still use the real clock, so OTP rate-limit tests can differ when
-// the faked time is far from the real one; use times within a couple of hours of real time
-// for those, or run tests/client-v2.test.ts only.
+// defaults (createdAt) still use the real clock: code that compares a stored time with
+// "now" must write that time itself (the OTP rate limit does, so it works at any fake hour).
 const Real = Date;
 const [h, m] = (process.env.FAKE_UB_TIME || '').split(':').map(Number);
 if (Number.isFinite(h)) {
