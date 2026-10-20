@@ -57,6 +57,7 @@ import {
 import {
   createInvoice,
   getInvoice,
+  devMockPay,
   getPaymentState,
   recoverPayment,
   type Invoice,
@@ -406,6 +407,10 @@ export const apiService = {
 
   getInvoice(orderId: string, paymentId: string): Promise<ApiResult<Invoice>> {
     return getInvoice(client, orderId, paymentId);
+  },
+
+  devMockPay(orderId: string, paymentId: string): Promise<ApiResult<true>> {
+    return devMockPay(client, orderId, paymentId);
   },
 
   recoverPayment(

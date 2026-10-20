@@ -225,6 +225,19 @@ export async function getInvoice(client: HttpClient, orderId: string, paymentId:
   return markNotImplemented(result, PAYMENT_NOT_IMPLEMENTED_MESSAGE)
 }
 
+/**
+ * Development only: marks a MOCK invoice paid (the server answers 404 unless
+ * QPAY_MODE=mock and not production). Never reaches QPay.
+ */
+export function devMockPay(client: HttpClient, orderId: string, paymentId: string): Promise<ApiResult<true>> {
+  return client.request({
+    method: 'POST',
+    path: `/api/dev/qpay-mock/orders/${encodeURIComponent(orderId)}/payments/${encodeURIComponent(paymentId)}/pay`,
+    body: {},
+    parse: () => true as const,
+  })
+}
+
 function fromFailure(result: { kind: string; message: string }): RecoveryResult {
   if (result.kind === 'not_implemented') return { kind: 'unavailable', message: result.message }
   return { kind: 'error', message: result.message }
