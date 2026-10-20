@@ -75,6 +75,15 @@ export function getStorage(): BlobStorage | null {
   return null;
 }
 
+/** A nurse document: an image or a PDF, by magic bytes (spec N-01: зураг/PDF). */
+export function detectDocumentType(
+  buf: Buffer,
+): "image/jpeg" | "image/png" | "application/pdf" | null {
+  if (buf.length >= 5 && buf.subarray(0, 5).toString("latin1") === "%PDF-")
+    return "application/pdf";
+  return detectImageType(buf);
+}
+
 /** Real file type from magic bytes (extension and Content-Type are ignored) */
 export function detectImageType(
   buf: Buffer,

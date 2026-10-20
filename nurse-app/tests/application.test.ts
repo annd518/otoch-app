@@ -23,6 +23,7 @@ const application = (over: Record<string, unknown> = {}) => ({
   licenseExpiresAt: null,
   employer: null,
   experienceYears: null,
+  districts: ['Баянгол', 'Москва'],
   submittedAt: null,
   reviewNote: null,
   documents: { LICENSE: '2026-10-20T01:00:00.000Z', DIPLOMA: null, ID_CARD: null, PORTRAIT: null },
@@ -38,6 +39,7 @@ test('parses an application and rejects an unknown state', () => {
   assert.equal(a.documents.LICENSE, '2026-10-20T01:00:00.000Z')
   assert.equal(a.documents.DIPLOMA, null)
   assert.deepEqual(a.missing, ['Зөвшөөрлийн дугаар'])
+  assert.deepEqual(a.districts, ['Баянгол'])
   assert.equal(parseApplicationEnvelope({ application: application({ state: 'APPROVED' }) }), null)
   assert.equal(parseApplicationEnvelope({ application: { state: 'DRAFT' } }), null)
   assert.equal(parseApplicationEnvelope(null), null)
@@ -59,6 +61,7 @@ test('the form becomes a request body or field errors', () => {
     licenseExpiresAt: '2028.5.31',
     employer: 'Нэгдүгээр эмнэлэг',
     experienceYears: '7',
+    districts: ['Баянзүрх', 'Хан-Уул'],
   })
   assert.deepEqual(ok, {
     ok: true,
@@ -68,12 +71,13 @@ test('the form becomes a request body or field errors', () => {
       licenseExpiresAt: '2028-05-31',
       employer: 'Нэгдүгээр эмнэлэг',
       experienceYears: 7,
+      districts: ['Баянзүрх', 'Хан-Уул'],
     },
   })
-  const bad = detailsFromForm({ name: 'Б', licenseNo: '', licenseExpiresAt: '2028-13-01', employer: '', experienceYears: '' })
+  const bad = detailsFromForm({ name: 'Б', licenseNo: '', licenseExpiresAt: '2028-13-01', employer: '', experienceYears: '', districts: [] })
   assert.equal(bad.ok, false)
   if (!bad.ok)
-    assert.deepEqual(Object.keys(bad.errors).sort(), ['employer', 'experienceYears', 'licenseExpiresAt', 'licenseNo', 'name'])
+    assert.deepEqual(Object.keys(bad.errors).sort(), ['districts', 'employer', 'experienceYears', 'licenseExpiresAt', 'licenseNo', 'name'])
 })
 
 test('registration sends app=nurse, register and the name; a non-nurse answer stores nothing', async () => {

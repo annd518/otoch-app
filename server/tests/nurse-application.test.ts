@@ -65,6 +65,7 @@ async function completeAndSubmit(token: string) {
     licenseExpiresAt: inDays(400),
     employer: "Улсын нэгдүгээр төв эмнэлэг",
     experienceYears: 5,
+    districts: ["Сүхбаатар", "Баянзүрх"],
   });
   assert.equal(put.status, 200, JSON.stringify(put.json));
   for (const kind of KINDS) assert.equal((await upload(token, kind)).status, 201);
@@ -136,8 +137,20 @@ it("an application is sent only when complete and is locked while the admin deci
 
   assert.equal((await app(token, "PUT", "", { licenseExpiresAt: "2026-02-30" })).status, 400);
   assert.equal((await app(token, "PUT", "", { status: "VERIFIED" })).status, 400);
-  const notImage = await upload(token, "LICENSE", Buffer.from("%PDF-1.4 not an image"));
-  assert.equal(notImage.status, 415);
+  // a PDF is accepted (spec N-01: зураг/PDF); anything else is refused by its bytes
+  const pdf = await upload(token, "DIPLOMA", Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF"));
+  assert.equal(pdf.status, 201, JSON.stringify(pdf.json));
+  const pdfBack = await fetch(`${srv.baseUrl}/api/nurse/application/documents/DIPLOMA`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(pdfBack.headers.get("content-type"), "application/pdf");
+  const notDoc = await upload(token, "LICENSE", Buffer.from("PK\u0003\u0004 a zip file"));
+  assert.equal(notDoc.status, 415);
+  assert.ok(
+    (await app(token, "GET")).json.data.application.missing.includes("Ажиллах дүүрэг"),
+  );
+  assert.equal((await app(token, "PUT", "", { districts: [] })).status, 400);
+  assert.equal((await app(token, "PUT", "", { districts: ["Дархан"] })).status, 400);
   assert.equal((await upload(token, "SELFIE")).status, 400);
 
   const sent = await completeAndSubmit(token);
@@ -194,6 +207,7 @@ it("admin rejects with a reason, the nurse fixes it, then admin approves and the
   assert.ok(row);
   assert.equal(row.name, "Сараа Сувилагч");
   assert.equal(row.licenseNo, "СУ-12345");
+  assert.deepEqual(row.districts, ["Баянзүрх", "Сүхбаатар"]);
   assert.ok(row.documents.LICENSE);
   assert.ok(queue.json.data.counts.SUBMITTED >= 1);
   assert.equal((await adminApi("GET", "?status=NOPE")).status, 400);

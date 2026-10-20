@@ -9,6 +9,7 @@ import {
   formatCountdown,
   parseOffers,
   parseProfileEnvelope,
+  setDistricts,
   remainingSeconds,
   setOnline,
 } from '../services/offers'
@@ -95,6 +96,15 @@ test('profile: null row, verified row, blocker, and the online toggle request', 
   assert.equal(p?.profile?.status, 'VERIFIED')
   assert.deepEqual(p?.profile?.skillTags, ['INJ'])
   assert.equal(p?.profile?.blocker, null)
+  assert.deepEqual(p?.profile?.districts, [])
+})
+
+test('setDistricts sends only the districts', async () => {
+  const t = recorder(200, { success: true, data: { profile: { status: 'VERIFIED', isActive: true, skillTags: [], districts: ['Баянгол', 'Хан-Уул'] } } })
+  const r = await setDistricts(t.client, ['Баянгол', 'Хан-Уул'])
+  assert.equal(t.seen[0].method, 'PUT')
+  assert.deepEqual(t.seen[0].body, { districts: ['Баянгол', 'Хан-Уул'] })
+  assert.deepEqual(r.ok && r.data.profile?.districts, ['Баянгол', 'Хан-Уул'])
 })
 
 test('setOnline sends only isActive', async () => {

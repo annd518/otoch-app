@@ -6,17 +6,19 @@ import {
   FormSection,
 } from "../../components/Presentation";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../components/AppText";
 import { Button } from "../../components/Button";
+import { DistrictPicker } from "../../components/DistrictPicker";
 import { ErrorBox } from "../../components/ErrorBox";
 import { useSession } from "../../context/SessionContext";
 import { theme } from "../../design/theme";
 import { useProfile } from "../../hooks/useProfile";
 import { formatUbDate } from "../../utils/orderView";
+import { districtsText } from "../../utils/districts";
 
 const STATUS_LABEL = {
   PENDING: "Баталгаажуулалт хүлээгдэж байна",
@@ -27,7 +29,9 @@ const STATUS_LABEL = {
 
 export default function ProfileScreen() {
   const { user, signOut } = useSession();
-  const { profile, error, busy, load, toggle } = useProfile();
+  const { profile, error, busy, load, toggle, saveDistricts } = useProfile();
+  // null = not editing
+  const [districts, setDistricts] = useState<string[] | null>(null);
   const router = useRouter();
 
   useFocusEffect(
@@ -98,6 +102,37 @@ export default function ProfileScreen() {
                 />
               </View>
             </Surface>
+
+            <FormSection title="Ажиллах дүүрэг">
+              <AppText variant="caption" color={theme.color.secondary}>
+                Зөвхөн сонгосон дүүргүүдээс дуудлага ирнэ.
+              </AppText>
+              {districts === null ? (
+                <>
+                  <AppText variant="label">{districtsText(p.districts)}</AppText>
+                  <Button
+                    label="Дүүрэг өөрчлөх"
+                    variant="secondary"
+                    onPress={() => setDistricts(p.districts)}
+                  />
+                </>
+              ) : (
+                <>
+                  <DistrictPicker value={districts} onChange={setDistricts} disabled={busy} />
+                  <Button
+                    label="Хадгалах"
+                    loading={busy}
+                    disabled={districts.length === 0}
+                    onPress={() =>
+                      void saveDistricts(districts).then((saved) => {
+                        if (saved) setDistricts(null);
+                      })
+                    }
+                  />
+                  <Button label="Болих" variant="secondary" onPress={() => setDistricts(null)} />
+                </>
+              )}
+            </FormSection>
 
             <FormSection title="Мэргэжлийн мэдээлэл">
               <Intro title="Бүртгэл, зөвшөөрөл" icon={BadgeCheck} />

@@ -25,6 +25,8 @@ export interface NurseProfile {
   licenseNo: string | null
   licenseExpiresAt: string | null
   skillTags: string[]
+  // districts calls come from; empty = every district
+  districts: string[]
   // Why the nurse cannot go online; null when they can.
   blocker: string | null
 }
@@ -86,6 +88,7 @@ export function parseProfileEnvelope(data: unknown): { profile: NurseProfile | n
       licenseNo: optText(p.licenseNo),
       licenseExpiresAt: optText(p.licenseExpiresAt),
       skillTags: Array.isArray(p.skillTags) ? p.skillTags.filter((t): t is string => typeof t === 'string') : [],
+      districts: Array.isArray(p.districts) ? p.districts.filter((t): t is string => typeof t === 'string') : [],
       blocker: optText(p.blocker),
     },
   }
@@ -115,3 +118,7 @@ export const fetchProfile = (client: HttpClient) =>
 
 export const setOnline = (client: HttpClient, isActive: boolean) =>
   client.request({ method: 'PUT', path: API_PATHS.nurse.me, body: { isActive }, parse: parseProfileEnvelope })
+
+// Districts can be changed at any time; calls come only from these.
+export const setDistricts = (client: HttpClient, districts: string[]) =>
+  client.request({ method: 'PUT', path: API_PATHS.nurse.me, body: { districts }, parse: parseProfileEnvelope })

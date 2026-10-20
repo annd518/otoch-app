@@ -200,6 +200,9 @@ model NurseProfile {
   licenseExpiresAt DateTime?
   skillTags        String[] // INJ, IV, WOUND, CATH, NG, CARE
   zoneIds          String[] // empty = every zone
+  // Ulaanbaatar districts the nurse works in (Баянгол, ...). Offers come only
+  // from these; empty = every district (nurses registered before districts).
+  districts        String[]    @default([])
   isActive         Boolean     @default(false) // the nurse's own "online" toggle
   // Application the nurse sends from the nurse app (spec N-01, slide 35)
   employer         String?

@@ -4,6 +4,7 @@
 // for an admin to assign by hand (POST /api/staff/orders/:id/assign).
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/http";
+import { orderDistrict } from "./ubDistricts";
 
 export const OFFER_TTL_MS = 120_000;
 export const WAVE_SIZE = 3;
@@ -41,12 +42,15 @@ export interface ProfileLike {
   licenseExpiresAt: Date | null;
   skillTags: string[];
   zoneIds: string[];
+  districts: string[];
 }
 
 /** Why this nurse cannot be offered (or take) the order; null when eligible. */
 export function ineligibleReason(
   profile: ProfileLike | null,
-  need: { skills: readonly string[]; zoneId: string | null },
+  // district: undefined = not about one order (going online); null = an older
+  // free-text address with no district
+  need: { skills: readonly string[]; zoneId: string | null; district?: string | null },
   now: Date,
 ): string | null {
   if (!profile || profile.status !== "VERIFIED")
@@ -62,6 +66,12 @@ export function ineligibleReason(
     !profile.zoneIds.includes(need.zoneId)
   )
     return "Энэ бүс таны ажиллах бүсэд ороогүй байна";
+  if (
+    need.district !== undefined &&
+    profile.districts.length > 0 &&
+    (!need.district || !profile.districts.includes(need.district))
+  )
+    return "Энэ дүүрэг таны ажиллах дүүрэгт ороогүй байна";
   return null;
 }
 
@@ -153,7 +163,11 @@ export async function runDispatchCycle(
           user: { deletedAt: null, role: "NURSE" },
         },
       });
-      const need = { skills: orderSkills(order.items), zoneId: order.zoneId };
+      const need = {
+        skills: orderSkills(order.items),
+        zoneId: order.zoneId,
+        district: orderDistrict(order.addressText),
+      };
       const eligible: string[] = [];
       for (const p of profiles) {
         if (ineligibleReason(p, need, now)) continue;
@@ -247,7 +261,11 @@ export async function acceptOffer(
     const profile = await tx.nurseProfile.findUnique({ where: { userId: nurseId } });
     const reason = ineligibleReason(
       profile,
-      { skills: orderSkills(order.items), zoneId: order.zoneId },
+      {
+        skills: orderSkills(order.items),
+        zoneId: order.zoneId,
+        district: orderDistrict(order.addressText),
+      },
       now,
     );
     if (reason) throw new ApiError(409, "NOT_ELIGIBLE", reason);

@@ -27,6 +27,8 @@ type Nurse = {
   experienceYears: number | null;
   experienceBelowRecommended: boolean;
   skillTags: string[];
+  // districts calls come from; empty = every district (older accounts)
+  districts: string[];
   isActive: boolean;
   submittedAt: string | null;
   reviewNote: string | null;
@@ -166,6 +168,9 @@ export default function NurseVerificationPage() {
                   {n.phone ?? n.email}
                   {n.licenseNo ? ` · №${n.licenseNo}` : ""}
                 </p>
+                {n.districts.length > 0 && (
+                  <p className="text-xs text-gray-600">{n.districts.join(", ")}</p>
+                )}
                 <p className="mt-1 text-xs text-gray-500">
                   {n.submittedAt ? `Илгээсэн: ${formatUb(n.submittedAt)}` : "Илгээгээгүй"}
                   {n.missing.length > 0 ? ` · Дутуу ${n.missing.length}` : ""}
@@ -189,6 +194,7 @@ export default function NurseVerificationPage() {
 
 function DocumentImage({ nurseId, kind, uploadedAt }: { nurseId: string; kind: Kind; uploadedAt: string | null }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [isPdf, setIsPdf] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -200,7 +206,9 @@ function DocumentImage({ nurseId, kind, uploadedAt }: { nurseId: string; kind: K
       .get(`/admin/nurses/${nurseId}/documents/${kind}`, { responseType: "blob" })
       .then((r) => {
         if (cancelled) return;
-        objectUrl = URL.createObjectURL(r.data as Blob);
+        const blob = r.data as Blob;
+        objectUrl = URL.createObjectURL(blob);
+        setIsPdf(blob.type === "application/pdf");
         setUrl(objectUrl);
       })
       .catch(() => !cancelled && setFailed(true));
@@ -217,6 +225,16 @@ function DocumentImage({ nurseId, kind, uploadedAt }: { nurseId: string; kind: K
           <span className="text-xs text-red-600">Оруулаагүй</span>
         ) : failed ? (
           <span className="text-xs text-red-600">Ачаалж чадсангүй</span>
+        ) : url && isPdf ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-full w-full flex-col items-center justify-center gap-1 text-red-700 hover:bg-gray-200"
+          >
+            <span className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white">PDF</span>
+            <span className="text-xs font-medium">Нээж харах</span>
+          </a>
         ) : url ? (
           <a href={url} target="_blank" rel="noreferrer" className="h-full w-full">
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
@@ -314,6 +332,12 @@ function NurseDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
         <div>
           <dt className="text-gray-500">Ажлын газар</dt>
           <dd className="font-medium text-gray-900">{nurse.employer ?? "—"}</dd>
+        </div>
+        <div className="sm:col-span-2">
+          <dt className="text-gray-500">Ажиллах дүүрэг</dt>
+          <dd className="font-medium text-gray-900">
+            {nurse.districts.length > 0 ? nurse.districts.join(", ") : "Бүх дүүрэг"}
+          </dd>
         </div>
         <div>
           <dt className="text-gray-500">Ажилласан жил</dt>

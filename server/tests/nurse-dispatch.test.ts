@@ -70,6 +70,7 @@ type NurseOpts = Partial<{
   licenseExpiresAt: Date | null;
   skillTags: string[];
   zoneIds: string[];
+  districts: string[];
   deleted: boolean;
 }>;
 async function nurse(opts: NurseOpts = {}) {
@@ -83,6 +84,7 @@ async function nurse(opts: NurseOpts = {}) {
       licenseExpiresAt: opts.licenseExpiresAt === undefined ? future(24 * 365) : opts.licenseExpiresAt,
       skillTags: opts.skillTags ?? ["INJ"],
       zoneIds: opts.zoneIds ?? [],
+      districts: opts.districts ?? [],
       licenseNo: "L-1",
     },
   });
@@ -132,7 +134,7 @@ describe("eligibility rules", () => {
     assert.deepEqual(requiredSkills(["S01", "S05"]), []);
   });
   it("explains why a nurse is not eligible", () => {
-    const base = { status: "VERIFIED", isActive: true, licenseExpiresAt: future(10), skillTags: ["INJ"], zoneIds: [] };
+    const base = { status: "VERIFIED", isActive: true, licenseExpiresAt: future(10), skillTags: ["INJ"], zoneIds: [], districts: [] as string[] };
     const need = { skills: ["INJ"], zoneId: "Z1" };
     const now = new Date();
     assert.equal(ineligibleReason(base, need, now), null);
@@ -144,6 +146,14 @@ describe("eligibility rules", () => {
     assert.ok(ineligibleReason(base, { skills: ["IV"], zoneId: "Z1" }, now));
     assert.ok(ineligibleReason({ ...base, zoneIds: ["Z2"] }, need, now));
     assert.equal(ineligibleReason({ ...base, zoneIds: ["Z1"] }, need, now), null);
+    // districts: empty = all; otherwise the order's district must be one of them
+    const inBz = { ...need, district: "Баянзүрх" };
+    assert.equal(ineligibleReason(base, inBz, now), null);
+    assert.equal(ineligibleReason({ ...base, districts: ["Баянзүрх", "Сүхбаатар"] }, inBz, now), null);
+    assert.ok(ineligibleReason({ ...base, districts: ["Сүхбаатар"] }, inBz, now));
+    assert.ok(ineligibleReason({ ...base, districts: ["Сүхбаатар"] }, { ...need, district: null }, now));
+    // going online is not about one order
+    assert.equal(ineligibleReason({ ...base, districts: ["Сүхбаатар"] }, need, now), null);
   });
 });
 
@@ -196,6 +206,23 @@ describe("dispatch waves", () => {
     const taken = await paid({ assignedNurseId: (await nurse()).id });
     await runDispatchCycle(prisma);
     for (const o of [far, none, flagged, taken]) assert.equal((await offersOf(o.id)).length, 0, o.id);
+  });
+
+  it("offers a call only to nurses who work in its district", async () => {
+    const bz = await nurse({ districts: ["Баянзүрх"] });
+    const both = await nurse({ districts: ["Сүхбаатар", "Баянзүрх"] });
+    const sb = await nurse({ districts: ["Сүхбаатар"] });
+    const any = await nurse({ districts: [] });
+    const o = await paid({ addressText: "Баянзүрх дүүрэг, 5-р хороо, 12-р байр" });
+    await runDispatchCycle(prisma);
+    const asked = new Set((await offersOf(o.id)).map((x) => x.nurseId));
+    assert.ok(asked.has(bz.id) && asked.has(both.id) && asked.has(any.id));
+    assert.ok(!asked.has(sb.id));
+
+    // an older free-text address has no district: only nurses without a district list
+    const legacy = await paid({ addressText: "Нууц хаяг 12-34", scheduledFor: future(9) });
+    await runDispatchCycle(prisma);
+    assert.deepEqual((await offersOf(legacy.id)).map((x) => x.nurseId), [any.id]);
   });
 
   it("skips a nurse with another visit within 2 hours", async () => {
@@ -326,6 +353,30 @@ describe("nurse offers API and profile", () => {
     assert.equal(JSON.stringify(r.json).includes("Нууц хаяг"), false);
     assert.equal(JSON.stringify(r.json).includes("99112233"), false);
     assert.equal((await call("GET", "/api/nurse/offers", child)).status, 403);
+  });
+
+  it("a nurse sets districts; offers outside them are hidden and cannot be accepted", async () => {
+    const n = await nurse();
+    const o = await paid({ addressText: "Хан-Уул дүүрэг, 3-р хороо, 7 тоот" });
+    await runDispatchCycle(prisma);
+    const mine = (await offersOf(o.id)).find((x) => x.nurseId === n.id);
+    assert.ok(mine);
+    const before = await call("GET", "/api/nurse/offers", n.token);
+    const shown = before.json.data.offers.find((x: { id: string }) => x.id === mine!.id);
+    assert.equal(shown.order.area, "Хан-Уул дүүрэг");
+    assert.equal(JSON.stringify(before.json).includes("7 тоот"), false);
+
+    assert.equal((await call("PUT", "/api/nurse/me", n.token, { districts: [] })).status, 400);
+    assert.equal((await call("PUT", "/api/nurse/me", n.token, { districts: ["Москва"] })).status, 400);
+    const set = await call("PUT", "/api/nurse/me", n.token, { districts: ["Сүхбаатар", "Баянгол", "Сүхбаатар"] });
+    assert.equal(set.status, 200);
+    assert.deepEqual(set.json.data.profile.districts, ["Баянгол", "Сүхбаатар"]);
+
+    const after = await call("GET", "/api/nurse/offers", n.token);
+    assert.equal(after.json.data.offers.some((x: { id: string }) => x.id === mine!.id), false);
+    const acc = await call("POST", `/api/nurse/offers/${mine!.id}/accept`, n.token);
+    assert.equal(acc.status, 409);
+    assert.equal(errorCode(acc), "NOT_ELIGIBLE");
   });
 
   it("online toggle: refused when unverified or licence expired, allowed otherwise", async () => {

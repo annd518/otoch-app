@@ -7,7 +7,8 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
-import { detectImageType, getStorage } from "../services/storage";
+import { detectDocumentType, getStorage } from "../services/storage";
+import { UB_DISTRICTS } from "../services/ubDistricts";
 import {
   DOCUMENT_KINDS,
   applicationState,
@@ -24,7 +25,11 @@ interface NurseRequest extends Request {
 }
 
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
-const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png" };
+const EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "application/pdf": "pdf",
+};
 
 export const nurseApplication = Router();
 nurseApplication.use(authenticateToken);
@@ -94,6 +99,7 @@ export function serializeApplication(p: LoadedProfile, now = new Date()) {
     submittedAt: p.submittedAt?.toISOString() ?? null,
     reviewNote: p.reviewNote,
     reviewedAt: p.reviewedAt?.toISOString() ?? null,
+    districts: p.districts,
     documents: Object.fromEntries(DOCUMENT_KINDS.map((k) => [k, docs.get(k) ?? null])),
     missing: missingItems(p, p.user.name, now),
   };
@@ -116,6 +122,12 @@ nurseApplication.get("/", async (req: NurseRequest, res) => {
   return ok(res, { application: serializeApplication(p) }, "Бүртгэлийн өргөдөл");
 });
 
+/** One or more Ulaanbaatar districts, no duplicates (kept in the list order). */
+export const districtsSchema = z
+  .array(z.enum(UB_DISTRICTS))
+  .min(1, "Хамгийн багадаа нэг дүүрэг сонгоно уу")
+  .transform((v) => UB_DISTRICTS.filter((d) => v.includes(d)));
+
 const detailsSchema = z
   .object({
     name: z.string().trim().min(2, "Нэр хамгийн багадаа 2 тэмдэгт").max(100).optional(),
@@ -126,6 +138,7 @@ const detailsSchema = z
       .optional(),
     employer: z.string().trim().min(2, "Ажлын газар оруулна уу").max(200).optional(),
     experienceYears: z.number().int().min(0).max(60).optional(),
+    districts: districtsSchema.optional(),
   })
   .strict();
 
@@ -164,9 +177,9 @@ nurseApplication.post("/documents", async (req: NurseRequest, res) => {
   const file = raw as UploadedFile;
   if (file.truncated || file.size > MAX_DOCUMENT_BYTES)
     throw new ApiError(413, "FILE_TOO_LARGE", "Файл 10 MB-аас их байна");
-  const mimeType = detectImageType(file.data);
+  const mimeType = detectDocumentType(file.data);
   if (!mimeType)
-    throw new ApiError(415, "UNSUPPORTED_MEDIA_TYPE", "Зөвхөн JPEG эсвэл PNG зураг илгээнэ");
+    throw new ApiError(415, "UNSUPPORTED_MEDIA_TYPE", "Зөвхөн JPEG, PNG зураг эсвэл PDF файл илгээнэ");
   const storage = requireStorage();
 
   const storageKey = `nurses/${userId}/${randomUUID()}.${EXT[mimeType]}`;
