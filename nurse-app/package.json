@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test \".test-dist/tests/**/*.test.js\""
+    "test": "tsc -p tsconfig.test.json && node --test \".test-dist/tests/**/*.test.js\"",
+    "check:text": "node scripts/check-raw-text.cjs"
   },
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",

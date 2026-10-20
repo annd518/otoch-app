@@ -60,11 +60,11 @@ export function Intro({
         <AppText variant="heading" accessibilityRole="header">
           {title}
         </AppText>
-        {description && (
+        {description ? (
           <AppText variant="caption" color={t.color.secondary}>
             {description}
           </AppText>
-        )}
+        ) : null}
       </View>
     </View>
   );
@@ -153,7 +153,7 @@ export function TaskBody({
       >
         {children}
       </ScrollView>
-      {footer && (
+      {footer ? (
         <View
           style={{
             padding: 20,
@@ -165,7 +165,7 @@ export function TaskBody({
         >
           {footer}
         </View>
-      )}
+      ) : null}
     </KeyboardAvoidingView>
   );
 }

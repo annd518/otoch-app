@@ -300,7 +300,6 @@ export default function OrderDetailScreen() {
 
             {actionError ? <ErrorBox message={actionError} /> : null}
             <FormSection title="Нэмэлт үйлдэл">
-              {" "}
               {actions?.reject ? (
                 <Button
                   label="Татгалзах"
