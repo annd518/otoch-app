@@ -33,6 +33,14 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { zoneContaining } from "@/utils/geo";
 import { missingForStepOne } from "@/utils/bookingStepOne";
 import {
+  MAX_DETAIL_LENGTH,
+  UB_DISTRICTS,
+  composeAddress,
+  khorooCount,
+  parseAddress,
+  type AddressParts,
+} from "@/utils/ubAddress";
+import {
   expiryFromInput,
   expiryProblem,
   formatDateInput,
@@ -67,6 +75,13 @@ export default function Booking() {
   const { state, dispatch } = useBookingDraft();
   const { details, service } = state;
   const stepOneMissing = missingForStepOne(details);
+  // district, khoroo and details live in the one address text the order stores
+  const address = parseAddress(details.addressText);
+  const setAddress = (patch: Partial<AddressParts>) =>
+    dispatch({
+      type: "updateDetails",
+      patch: { addressText: composeAddress({ ...address, ...patch }) },
+    });
   const [step, setStep] = useState(1),
     [parents, setParents] = useState<Parent[]>([]),
     [zones, setZones] = useState<Zone[]>([]),
@@ -318,12 +333,47 @@ export default function Booking() {
       {!!error && <Banner error>{error}</Banner>}
       {step === 1 && (
         <>
+          <Copy variant="label">Дүүрэг</Copy>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            {UB_DISTRICTS.map((d) => (
+              <Chip
+                key={d.name}
+                label={d.name}
+                selected={address.district === d.name}
+                // another district has other khoroo numbers: choose it again
+                onPress={() =>
+                  setAddress({ district: d.name, khoroo: undefined })
+                }
+                style={{ width: "47%" }}
+              />
+            ))}
+          </View>
+          {address.district && (
+            <>
+              <Copy variant="label">{`${address.district} дүүргийн хороо`}</Copy>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {Array.from(
+                  { length: khorooCount(address.district) },
+                  (_, i) => i + 1,
+                ).map((k) => (
+                  <Chip
+                    key={k}
+                    label={String(k)}
+                    selected={address.khoroo === k}
+                    onPress={() => setAddress({ khoroo: k })}
+                    style={{ minWidth: 64 }}
+                  />
+                ))}
+              </View>
+            </>
+          )}
           <Input
             label="Дэлгэрэнгүй хаяг"
-            value={details.addressText}
-            onChangeText={(addressText) =>
-              dispatch({ type: "updateDetails", patch: { addressText } })
-            }
+            placeholder="Жишээ нь: 12-р байр, 3-р орц, 45 тоот, орцны код 1234"
+            maxLength={MAX_DETAIL_LENGTH}
+            multiline
+            value={address.detail}
+            onChangeText={(detail) => setAddress({ detail })}
           />
           {!zones.length && (
             <StateView

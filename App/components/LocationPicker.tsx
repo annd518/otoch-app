@@ -3,11 +3,10 @@ import { StyleSheet, View } from "react-native";
 import MapView, { Polygon, type Details, type Region } from "react-native-maps";
 import { MapPin } from "lucide-react-native";
 
-import { Banner, Button, Copy, Input } from "@/components/ui";
+import { Button, Copy } from "@/components/ui";
 import { theme as t } from "@/design/theme";
 import {
   initialRegion,
-  isInside,
   roundPoint,
   type LatLng,
   type ZoneBounds,
@@ -22,13 +21,10 @@ const corners = (b: ZoneBounds) => [
   { latitude: b.maxLat, longitude: b.minLng },
 ];
 
-const parseCoord = (value: string) =>
-  value.trim() && Number.isFinite(Number(value)) ? Number(value) : undefined;
-
 // Address point picker: the user pans the map under a fixed centre pin.
 // Only a user gesture sets the point, so an untouched map never submits the
 // default city centre. No device GPS is used (see docs/release/privacy-policy-draft.md).
-// Manual coordinate entry stays available as a fallback.
+// The point is chosen on the map only; coordinates are never typed or shown.
 export function LocationPicker({
   value,
   zones,
@@ -42,16 +38,12 @@ export function LocationPicker({
 }) {
   const selected = zones.find((z) => z.id === selectedZoneId) ?? null;
   const [region] = useState(() => initialRegion(value, selected?.bounds));
-  const [manual, setManual] = useState(false);
   const touched = useRef(false);
-  const map = useRef<MapView>(null);
   // Map centre right now (the pin tip), whether or not a gesture was detected
   const center = useRef<LatLng>({ lat: region.latitude, lng: region.longitude });
 
   const hasPoint =
     typeof value.lat === "number" && typeof value.lng === "number";
-  const outside =
-    hasPoint && !!selected?.bounds && !isInside(selected.bounds, value as LatLng);
 
   const onRegionChangeComplete = (r: Region, details?: Details) => {
     center.current = { lat: r.latitude, lng: r.longitude };
@@ -61,15 +53,6 @@ export function LocationPicker({
     onChange(roundPoint(center.current));
   };
   const confirmCenter = () => onChange(roundPoint(center.current));
-
-  const setManualCoord = (patch: Partial<LatLng>) => {
-    const next = { ...value, ...patch };
-    onChange(next);
-    if (typeof next.lat === "number" && typeof next.lng === "number")
-      map.current?.animateCamera({
-        center: { latitude: next.lat, longitude: next.lng },
-      });
-  };
 
   return (
     <View style={{ gap: t.space[1] }}>
@@ -84,7 +67,6 @@ export function LocationPicker({
         }}
       >
         <MapView
-          ref={map}
           style={StyleSheet.absoluteFill}
           initialRegion={region}
           onRegionChangeComplete={onRegionChangeComplete}
@@ -124,35 +106,9 @@ export function LocationPicker({
       />
       <Copy variant="caption" style={{ color: t.color.secondary }}>
         {hasPoint
-          ? `Сонгосон цэг: ${value.lat!.toFixed(5)}, ${value.lng!.toFixed(5)}`
+          ? "✓ Байршил газрын зураг дээр тэмдэглэгдлээ. Өөрчлөх бол тэмдгийг шилжүүлээд дээрх товчийг дарна уу."
           : "Цэг сонгоогүй байна: улаан тэмдгийг байрандаа тааруулаад дээрх товчийг дарна уу."}
       </Copy>
-      {outside && (
-        <Banner error>
-          {`Сонгосон цэг "${selected!.name}" бүсээс гадна байна. Цэгээ засах эсвэл өөр бүс сонгоно уу.`}
-        </Banner>
-      )}
-      <Button
-        secondary
-        title={manual ? "Гараар оруулахыг хаах" : "Координат гараар оруулах"}
-        onPress={() => setManual((m) => !m)}
-      />
-      {manual && (
-        <>
-          <Input
-            label="Өргөрөг"
-            keyboardType="decimal-pad"
-            value={value.lat?.toString() ?? ""}
-            onChangeText={(v) => setManualCoord({ lat: parseCoord(v) })}
-          />
-          <Input
-            label="Уртраг"
-            keyboardType="decimal-pad"
-            value={value.lng?.toString() ?? ""}
-            onChangeText={(v) => setManualCoord({ lng: parseCoord(v) })}
-          />
-        </>
-      )}
     </View>
   );
 }
