@@ -1,7 +1,7 @@
 "use client"
 
 import { AdminSummary } from "./AdminSummary"
-import { UserManagement } from "./UserManagement"
+import { LiveBoard } from "./LiveBoard"
 import { useRoleProtection } from "@/lib/hooks/useRoleProtection"
 import type { UserRole } from "@/lib/auth/session-core"
 
@@ -12,28 +12,12 @@ export default function AdminDashboard() {
   useRoleProtection(ROLES);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Админы хянах самбар</h1>
-          <p className="text-gray-600">
-            Захиалга, төлбөр, хэрэглэгчдийн бодит тоо. Сувилагч томилох нь
-            “Үйлчилгээний захиалгууд” хэсэгт.
-          </p>
-        </div>
+    <div className="space-y-10 p-4 sm:p-6">
+      <LiveBoard />
+      <section>
+        <h2 className="mb-4 text-xl font-bold text-[#0F2A4A]">Төлбөр, хэрэглэгчийн тойм</h2>
         <AdminSummary />
-        <section className="mt-10">
-            <h2 className="mb-1 text-2xl font-semibold text-gray-800">
-              Хэрэглэгч, ажилтан
-            </h2>
-            <p className="mb-4 text-sm text-gray-600">
-              Сувилагч (OTOCH Nurse апп) болон супер админ нэмэх, эрх солих,
-              идэвхгүй болгох, нууц үг шинэчлэх. Захиалагчийн бүртгэлийг зөвхөн
-              харна.
-            </p>
-            <UserManagement />
-          </section>
-      </div>
+      </section>
     </div>
   )
 }

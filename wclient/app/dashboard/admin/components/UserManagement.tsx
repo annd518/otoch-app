@@ -10,7 +10,7 @@ import { getSessionUser } from "@/lib/auth/session";
 type Role = "CHILD" | "NURSE" | "MEDICAL_ADMIN" | "ADMIN";
 // roles that can be given (MEDICAL_ADMIN is a leftover without rights)
 type StaffRole = "NURSE" | "ADMIN";
-type Group = "staff" | "customers" | "inactive";
+export type Group = "staff" | "customers" | "inactive";
 type Row = {
   id: string;
   name: string;
@@ -241,8 +241,8 @@ function AddStaff({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function UserManagement() {
-  const [group, setGroup] = useState<Group>("staff");
+export function UserManagement({ initialGroup = "staff" }: { initialGroup?: Group } = {}) {
+  const [group, setGroup] = useState<Group>(initialGroup);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
