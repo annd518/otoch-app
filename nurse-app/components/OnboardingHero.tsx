@@ -1,8 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
+  CalendarClock,
   CircleCheck,
-  ClipboardCheck,
   Clock,
   HeartPulse,
   ShieldCheck,
@@ -11,7 +11,7 @@ import {
 import type { WelcomeSlide } from "../design/onboarding";
 import { onboardingVisual as v } from "../design/onboardingVisual";
 
-const ICONS = { shield: ShieldCheck, wallet: Wallet, clipboard: ClipboardCheck };
+const ICONS = { shield: ShieldCheck, wallet: Wallet, calendar: CalendarClock };
 const BADGES = { heart: HeartPulse, check: CircleCheck, clock: Clock };
 
 // Same soft raised disc as the family app's onboarding (App/components/OnboardingHero.tsx),

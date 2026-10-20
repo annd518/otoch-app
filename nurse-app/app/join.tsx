@@ -15,6 +15,7 @@ const ICONS: Record<JoinIcon, LucideIcon> = {
   wallet: Wallet,
   clipboard: ClipboardCheck,
   shield: ShieldCheck,
+  handshake: HeartHandshake,
 };
 
 // "Register" for a nurse: what the work is like and what happens after she applies. The

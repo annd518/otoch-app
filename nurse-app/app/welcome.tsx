@@ -1,5 +1,4 @@
 import { useRouter } from "expo-router";
-import { Phone } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
@@ -127,16 +126,6 @@ export default function WelcomeScreen() {
             ))}
           </View>
 
-          <View style={s.notice}>
-            <View style={s.phoneBadge}>
-              <Phone color={v.yellow} size={26} strokeWidth={2} />
-            </View>
-            <View style={s.noticeDivider} />
-            <AppText style={s.noticeText}>
-              Яаралтай тусламж шаардлагатай үед <AppText style={s.emergency}>103</AppText> руу залгана уу.
-            </AppText>
-          </View>
-
           {page < LAST ? (
             <Button label="Үргэлжлүүлэх" onPress={() => goTo(page + 1)} />
           ) : (
@@ -176,26 +165,4 @@ const s = StyleSheet.create({
   dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 10 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: v.dot },
   dotActive: { width: 28, backgroundColor: v.yellow },
-  notice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: 24,
-    backgroundColor: v.surface,
-    boxShadow: v.cardShadow,
-    borderWidth: 1,
-    borderColor: v.ice,
-  },
-  noticeText: { flex: 1, color: theme.color.text, fontSize: 16, lineHeight: 23 },
-  phoneBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: v.badgeBg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  noticeDivider: { width: 1, alignSelf: "stretch", backgroundColor: v.dot },
-  emergency: { color: v.deep, fontFamily: "NotoSans_600SemiBold" },
 });

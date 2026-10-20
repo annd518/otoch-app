@@ -12,17 +12,17 @@ const allText = [
 ].join('\n')
 
 test('wording rules: not a hospital, not an emergency service, no contract terms (spec slide 10)', () => {
-  // 103 appears only in the fixed notice on the welcome screen, never in the pitch.
-  for (const word of ['эмнэлэг', 'эмчлэх', 'эмчилгээ', 'онош', '24 цаг', 'шууд', 'SOS', 'яаралтай']) {
+  // This is the nurses' app: no emergency-service wording and no 103 notice in the pitch.
+  for (const word of ['эмнэлэг', 'эмчлэх', 'эмчилгээ', 'онош', '24 цаг', 'шууд', 'SOS', 'яаралтай', '103']) {
     assert.equal(allText.toLowerCase().includes(word.toLowerCase()), false, word)
   }
   // No pay share, price or timing promises: those are contract terms.
   assert.equal(/\d\s*%|₮|хоногт|цагийн дотор|долоо хоног/.test(allText), false)
 })
 
-test('the pitch says only what the app does: three slides, four benefits, five steps', () => {
+test('the pitch says only what the app does: three slides, five benefits, five steps', () => {
   assert.equal(WELCOME_SLIDES.length, 3)
-  assert.equal(JOIN_BENEFITS.length, 4)
+  assert.equal(JOIN_BENEFITS.length, 5)
   assert.equal(JOIN_STEPS.length, 5)
   assert.equal(new Set(WELCOME_SLIDES.map((s) => s.title)).size, 3)
   // the scope rule is part of the pitch
@@ -34,12 +34,21 @@ test('the pitch says only what the app does: three slides, four benefits, five s
   assert.match(JOIN_STEPS.find((s) => s.title === 'Ярилцлага, сургалт')!.text, /Шаардлагатай бол/)
 })
 
+test('the idea of the app leads: earn from the profession and help people', () => {
+  const first = WELCOME_SLIDES[0]
+  assert.match(first.title, /орлого/)
+  assert.match(first.title, /тусал/)
+  assert.match(JOIN_INTRO.title, /тусал/)
+  assert.match(JOIN_INTRO.title, /орлого/)
+  assert.deepEqual(JOIN_BENEFITS.slice(0, 2).map((b) => b.icon), ['wallet', 'handshake'])
+})
+
 test('every slide names an icon and a badge the hero can draw', () => {
   for (const s of WELCOME_SLIDES) {
-    assert.ok(['shield', 'wallet', 'clipboard'].includes(s.icon))
+    assert.ok(['wallet', 'calendar', 'shield'].includes(s.icon))
     assert.ok(['heart', 'check', 'clock'].includes(s.badge))
   }
-  for (const b of JOIN_BENEFITS) assert.ok(['calendar', 'wallet', 'clipboard', 'shield'].includes(b.icon))
+  for (const b of JOIN_BENEFITS) assert.ok(['calendar', 'wallet', 'clipboard', 'shield', 'handshake'].includes(b.icon))
 })
 
 test('pageAt rounds to the nearest page and clamps', () => {
