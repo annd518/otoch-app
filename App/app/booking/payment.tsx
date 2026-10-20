@@ -53,6 +53,9 @@ export default function PaymentScreen() {
     null;
   const quote = state.server?.orderId === orderId ? state.quote : null;
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  // answer to a manual "Төлбөр шалгах" press (polling stays silent)
+  const [checkNote, setCheckNote] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const record = useRef<PaymentRecord | null>(null);
   const userId = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,22 +129,57 @@ export default function PaymentScreen() {
     return settle(result, paymentId);
   }, [orderId, quote, remember, settle, dispatch]);
 
-  const check = useCallback(async () => {
+  // Returns what the read found: the new phase kind, or an error message.
+  const check = useCallback(async (): Promise<
+    { kind: Phase["kind"] } | { error: string } | null
+  > => {
     const current = record.current;
-    if (!current?.paymentId || !orderId || inFlight.current) return;
+    if (!current?.paymentId || !orderId || inFlight.current) return null;
     inFlight.current = true;
     try {
       const read = await apiService.getInvoice(orderId, current.paymentId);
-      if (!mounted.current) return;
+      if (!mounted.current) return null;
       // A failed status read is not a payment result: keep the pending state.
-      if (!read.ok) return;
-      setPhase(
-        await settle(invoiceOutcome(read.data, Date.now()), read.data.id),
+      if (!read.ok) return { error: read.message };
+      const next = await settle(
+        invoiceOutcome(read.data, Date.now()),
+        read.data.id,
       );
+      setPhase(next);
+      return { kind: next.kind };
     } finally {
       inFlight.current = false;
     }
   }, [orderId, settle]);
+
+  const checkNow = async () => {
+    setChecking(true);
+    setCheckNote(null);
+    const r = await check();
+    if (mounted.current) {
+      setChecking(false);
+      if (r && "error" in r) setCheckNote(r.error);
+      else if (r?.kind === "pending")
+        setCheckNote(
+          "Төлбөр хараахан орж ирээгүй байна. Төлсний дараа дахин шалгана уу.",
+        );
+    }
+  };
+
+  // Development with QPAY_MODE=mock only: the server pretends the customer paid.
+  const mockPay = async () => {
+    const id = record.current?.paymentId;
+    if (!id || !orderId) return;
+    setChecking(true);
+    const r = await apiService.devMockPay(orderId, id);
+    if (!r.ok && mounted.current) {
+      setChecking(false);
+      setCheckNote(r.message);
+      return;
+    }
+    if (mounted.current) setChecking(false);
+    await checkNow();
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -435,12 +473,33 @@ export default function PaymentScreen() {
             borderTopColor: theme.color.border,
           }}
         >
-          {" "}
+          {checkNote ? (
+            <Text
+              style={[styles.amountCaption, { marginBottom: 12 }]}
+              accessibilityLiveRegion="polite"
+            >
+              {checkNote}
+            </Text>
+          ) : null}
+          {__DEV__ && isMock ? (
+            <TouchableOpacity
+              style={[styles.secondaryButton, { marginBottom: 12 }]}
+              disabled={checking}
+              onPress={() => void mockPay()}
+            >
+              <Text style={styles.secondaryButtonText}>
+                Туршилтаар төлсөн болгох (mock, QPay биш)
+              </Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => void check()}
+            disabled={checking}
+            onPress={() => void checkNow()}
           >
-            <Text style={styles.secondaryButtonText}>Төлбөр шалгах</Text>
+            <Text style={styles.secondaryButtonText}>
+              {checking ? "Шалгаж байна…" : "Төлбөр шалгах"}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
