@@ -62,6 +62,29 @@ export async function otpLoginFlow(
   return { ok: true, user: verified.data.user }
 }
 
+// New nurse: the same phone + OTP, with a name. An unknown phone becomes a NURSE
+// account with an unsent application; it gets no orders until an admin verifies it.
+export async function otpRegisterFlow(
+  client: HttpClient,
+  store: SessionStore,
+  phone: string,
+  challengeId: string,
+  code: string,
+  name: string,
+): Promise<LoginOutcome> {
+  const verified = await client.request({
+    method: 'POST',
+    path: API_PATHS.auth.otpVerify,
+    body: { phone, challengeId, code, app: 'nurse', register: true, name: name.trim() },
+    auth: 'none',
+    parse: parseOtpSession,
+  })
+  if (!verified.ok) return { ok: false, message: verified.message }
+  if (verified.data.user.role !== 'NURSE') return { ok: false, message: NOT_NURSE_MESSAGE }
+  await store.saveSession(verified.data)
+  return { ok: true, user: verified.data.user }
+}
+
 export async function logoutFlow(store: SessionStore): Promise<void> {
   await store.clearSession()
 }

@@ -13,9 +13,11 @@ const verifySchema = z.object({
   challengeId: z.string().min(1),
   code: z.string().regex(/^\d{6}$/),
   name: z.string().trim().min(2).max(100).optional(),
-  // "nurse": the nurse app. Only an existing NURSE account (provisioned by an
-  // admin with this phone) can sign in; nobody is ever created through it.
+  // "nurse": the nurse app. Signs in an existing NURSE account only, unless
+  // `register` is set: then an unknown phone becomes a NURSE account with an
+  // unsent application (PENDING). It gets no order until an admin verifies it.
   app: z.enum(["client", "nurse"]).optional(),
+  register: z.boolean().optional(),
 });
 const tokenSchema = z.object({ refreshToken: z.string().min(32).max(256) });
 const secret = () => {
@@ -176,7 +178,11 @@ export async function requestOtp(req: Request, res: Response) {
 export async function verifyOtp(req: Request, res: Response) {
   const parsed = verifySchema.safeParse(req.body);
   if (!parsed.success) throw validationError(parsed.error);
-  const { phone, challengeId, code, name, app } = parsed.data;
+  const { phone, challengeId, code, name, app, register } = parsed.data;
+  if (register && (app !== "nurse" || !name))
+    throw new ApiError(400, "VALIDATION_ERROR", "Бүртгүүлэхэд нэрээ оруулна уу", {
+      name: "Шаардлагатай",
+    });
   secret();
   const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${phone}))`;
@@ -212,6 +218,20 @@ export async function verifyOtp(req: Request, res: Response) {
     });
     let user = await tx.user.findUnique({ where: { phone } });
     if (app === "nurse") {
+      if (!user && register)
+        user = await tx.user.create({
+          data: {
+            phone,
+            email: `${phone.slice(1)}@nurse.otoch.invalid`,
+            name: name!,
+            password: await bcrypt.hash(randomBytes(32).toString("hex"), 10),
+            role: "NURSE",
+            nurseProfile: { create: { skillTags: [], zoneIds: [] } },
+          },
+        });
+      // The phone is proven by the code, so saying why is not an enumeration leak.
+      if (register && user && !user.deletedAt && user.role !== "NURSE")
+        return "phone_taken" as const;
       // Same answer for unknown phone, deleted account and wrong role: no enumeration.
       if (!user || user.deletedAt || user.role !== "NURSE")
         return "invalid" as const;
@@ -237,6 +257,12 @@ export async function verifyOtp(req: Request, res: Response) {
       user = await tx.user.update({ where: { id: user.id }, data: { name } });
     return { id: user.id, name: user.name, email: user.email, role: user.role };
   });
+  if (result === "phone_taken")
+    throw new ApiError(
+      409,
+      "PHONE_TAKEN",
+      "Энэ дугаар өөр төрлийн бүртгэлтэй. Сувилагчаар өөр дугаараар бүртгүүлнэ үү",
+    );
   if (typeof result === "string")
     throw new ApiError(
       result === "locked" ? 429 : 400,

@@ -185,9 +185,10 @@ model Order {
 }
 
 enum NurseStatus {
-  PENDING
+  PENDING // an application: not sent yet (submittedAt null) or waiting for an admin
   VERIFIED
   SUSPENDED
+  REJECTED // the nurse fixes the application (reviewNote) and sends it again
 }
 
 // What an admin verified about a nurse (spec slide 35). Only a VERIFIED nurse with a
@@ -200,10 +201,59 @@ model NurseProfile {
   skillTags        String[] // INJ, IV, WOUND, CATH, NG, CARE
   zoneIds          String[] // empty = every zone
   isActive         Boolean     @default(false) // the nurse's own "online" toggle
+  // Application the nurse sends from the nurse app (spec N-01, slide 35)
+  employer         String?
+  experienceYears  Int?
+  submittedAt      DateTime?
+  // Admin's decision (spec A-01). reviewNote is the reason shown to the nurse.
+  reviewNote       String?
+  reviewedAt       DateTime?
+  reviewedById     String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents NurseDocument[]
+  reviews   NurseReviewEvent[]
+}
+
+enum NurseDocumentKind {
+  LICENSE // professional licence
+  DIPLOMA
+  ID_CARD
+  PORTRAIT
+}
+
+// One private image per kind; a new upload replaces the old one. Read only by
+// the nurse and an admin through the API (never a public URL).
+model NurseDocument {
+  id            String            @id @default(cuid())
+  nurseId       String
+  kind          NurseDocumentKind
+  storageDriver String
+  storageKey    String            @unique
+  mimeType      String
+  sizeBytes     Int
+  sha256        String
+  createdAt     DateTime          @default(now())
+
+  nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Cascade)
+
+  @@unique([nurseId, kind])
+}
+
+// Audit trail of an application: SUBMITTED, APPROVED, REJECTED, SUSPENDED.
+model NurseReviewEvent {
+  id        String   @id @default(cuid())
+  nurseId   String
+  actorId   String
+  action    String
+  note      String?
+  createdAt DateTime @default(now())
+
+  nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Cascade)
+
+  @@index([nurseId, createdAt])
 }
 
 enum OfferStatus {

@@ -21,6 +21,12 @@ export const API_PATHS = {
     decline: (id: string) => `/api/nurse/offers/${encodeURIComponent(id)}/decline`,
     me: '/api/nurse/me',
   },
+  // Registration application reviewed by an admin (server/src/routes/nurseApplication.ts).
+  application: {
+    root: '/api/nurse/application',
+    documents: '/api/nurse/application/documents',
+    submit: '/api/nurse/application/submit',
+  },
   // Visit flow for the assigned nurse (server/src/routes/nurseOrders.ts,
   // docs/nurse-app-api-proposal.md).
   nurseOrders: {

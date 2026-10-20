@@ -17,7 +17,7 @@ import {
 } from "../services/otp";
 import { toE164 } from "../utils/phone";
 
-type Mode = "phone" | "email";
+type Mode = "phone" | "email" | "register";
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<Mode>("phone");
@@ -39,20 +39,39 @@ export default function LoginScreen() {
           <BrandHeader />
           <Surface>
             <Intro
-              title="Тавтай морил"
-              description="Бүртгэлтэй сувилагчийн эрхээр нэвтэрнэ үү."
+              title={mode === "register" ? "Сувилагчаар бүртгүүлэх" : "Тавтай морил"}
+              description={
+                mode === "register"
+                  ? "Утсаа баталгаажуулаад мэргэжлийн зөвшөөрөл, баримтаа илгээнэ. Админ шалгаж баталгаажуулсны дараа дуудлага авна."
+                  : "Бүртгэлтэй сувилагчийн эрхээр нэвтэрнэ үү."
+              }
               icon={ShieldCheck}
             />
           </Surface>
-          {mode === "phone" ? <PhoneLogin /> : <EmailLogin />}
+          {mode === "email" ? (
+            <EmailLogin />
+          ) : (
+            <PhoneLogin key={mode} register={mode === "register"} />
+          )}
+          {mode !== "register" ? (
+            <Button
+              label={
+                mode === "phone"
+                  ? "И-мэйлээр нэвтрэх"
+                  : "Утасны дугаараар нэвтрэх"
+              }
+              variant="secondary"
+              onPress={() => setMode(mode === "phone" ? "email" : "phone")}
+            />
+          ) : null}
           <Button
             label={
-              mode === "phone"
-                ? "И-мэйлээр нэвтрэх"
-                : "Утасны дугаараар нэвтрэх"
+              mode === "register"
+                ? "Бүртгэлтэй юу? Нэвтрэх"
+                : "Шинээр бүртгүүлэх"
             }
             variant="secondary"
-            onPress={() => setMode(mode === "phone" ? "email" : "phone")}
+            onPress={() => setMode(mode === "register" ? "phone" : "register")}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -60,8 +79,9 @@ export default function LoginScreen() {
   );
 }
 
-function PhoneLogin() {
-  const { signInWithOtp } = useSession();
+function PhoneLogin({ register }: { register: boolean }) {
+  const { signInWithOtp, registerWithOtp } = useSession();
+  const [name, setName] = useState("");
   const [digits, setDigits] = useState("");
   const [code, setCode] = useState("");
   const [challenge, setChallenge] = useState<OtpChallenge | null>(null);
@@ -76,10 +96,11 @@ function PhoneLogin() {
   }, []);
 
   const phone = toE164(digits);
+  const nameOk = !register || name.trim().length >= 2;
   const wait = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
   async function send() {
-    if (!phone || busy) return;
+    if (!phone || !nameOk || busy) return;
     setBusy(true);
     setError(null);
     const result = await requestOtp(http, phone);
@@ -100,7 +121,9 @@ function PhoneLogin() {
     if (!phone || !challenge || busy) return;
     setBusy(true);
     setError(null);
-    const outcome = await signInWithOtp(phone, challenge.challengeId, code);
+    const outcome = register
+      ? await registerWithOtp(phone, challenge.challengeId, code, name)
+      : await signInWithOtp(phone, challenge.challengeId, code);
     // On success the session guard in app/_layout.tsx replaces this screen.
     if (!outcome.ok) setError(outcome.message);
     setBusy(false);
@@ -108,6 +131,17 @@ function PhoneLogin() {
 
   return (
     <View style={{ gap: theme.space[3] }}>
+      {register ? (
+        <Field
+          label="Овог нэр"
+          autoComplete="name"
+          textContentType="name"
+          maxLength={100}
+          editable={!challenge}
+          value={name}
+          onChangeText={setName}
+        />
+      ) : null}
       <Field
         label="Утасны дугаар"
         unit="+976"
@@ -136,7 +170,7 @@ function PhoneLogin() {
           />
           {error ? <ErrorBox message={error} /> : null}
           <Button
-            label="Нэвтрэх"
+            label={register ? "Бүртгүүлэх" : "Нэвтрэх"}
             loading={busy}
             disabled={code.length !== 6}
             onPress={() => void verify()}
@@ -162,7 +196,7 @@ function PhoneLogin() {
           <Button
             label="Код авах"
             loading={busy}
-            disabled={!phone}
+            disabled={!phone || !nameOk}
             onPress={() => void send()}
           />
         </>

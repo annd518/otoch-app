@@ -101,10 +101,18 @@ export default function CallsScreen() {
                   Та идэвхгүй байна, шинэ дуудлага ирэхгүй
                 </AppText>
                 {profile.profile?.blocker || !profile.profile ? (
-                  <AppText variant="caption" color={theme.color.warning}>
-                    {profile.profile?.blocker ??
-                      "Бүртгэл админаар баталгаажаагүй байна"}
-                  </AppText>
+                  <>
+                    <AppText variant="caption" color={theme.color.warning}>
+                      {profile.profile?.blocker ??
+                        "Бүртгэл админаар баталгаажаагүй байна"}
+                    </AppText>
+                    {profile.profile?.status !== "VERIFIED" ? (
+                      <Button
+                        label="Бүртгэлийн өргөдөл"
+                        onPress={() => router.push("/application")}
+                      />
+                    ) : null}
+                  </>
                 ) : (
                   <Button
                     label="Идэвхтэй болох"
