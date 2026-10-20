@@ -20,7 +20,7 @@ export interface Offer {
 }
 
 export interface NurseProfile {
-  status: 'PENDING' | 'VERIFIED' | 'SUSPENDED'
+  status: 'PENDING' | 'VERIFIED' | 'SUSPENDED' | 'REJECTED'
   isActive: boolean
   licenseNo: string | null
   licenseExpiresAt: string | null
@@ -78,7 +78,7 @@ export function parseProfileEnvelope(data: unknown): { profile: NurseProfile | n
   if (!isRecord(data) || !('profile' in data)) return null
   const p = data.profile
   if (p === null) return { profile: null }
-  if (!isRecord(p) || (p.status !== 'PENDING' && p.status !== 'VERIFIED' && p.status !== 'SUSPENDED')) return null
+  if (!isRecord(p) || (p.status !== 'PENDING' && p.status !== 'VERIFIED' && p.status !== 'SUSPENDED' && p.status !== 'REJECTED')) return null
   return {
     profile: {
       status: p.status,

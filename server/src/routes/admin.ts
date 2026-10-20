@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
+import { adminNurses } from "./adminNurses";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -25,6 +26,8 @@ adminRoutes.use(async (req: StaffRequest, _res, next) => {
   req.user!.role = user.role;
   next();
 });
+
+adminRoutes.use("/nurses", adminNurses);
 
 const UB_OFFSET_MS = 8 * 3600000;
 /** Start of the Ulaanbaatar calendar day / month that contains `now`. */
@@ -75,6 +78,7 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
     attentionUnassigned,
     attentionPayments,
     recent,
+    pendingNurses,
   ] = await Promise.all([
     prisma.order.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.order.count({
@@ -147,6 +151,10 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
         items: { select: { service: { select: { name: true } } }, take: 1 },
       },
     }),
+    // nurse applications waiting for a decision (admin web: Баталгаажуулалт)
+    prisma.nurseProfile.count({
+      where: { status: "PENDING", submittedAt: { not: null }, user: { role: "NURSE" } },
+    }),
   ]);
 
   // Mock payments are development money: never mixed into revenue
@@ -178,6 +186,7 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
         today,
         unassignedPaid: unassigned,
       },
+      nurseApplications: pendingNurses,
       payments: {
         today: money(paidToday),
         month: money(paidMonth),
@@ -356,6 +365,8 @@ adminRoutes.post("/staff", async (req: StaffRequest, res) => {
       phone: phone ?? null,
       role,
       password: await bcrypt.hash(password, 10),
+      // a nurse starts with an unsent application; they fill it in the nurse app
+      ...(role === "NURSE" && { nurseProfile: { create: { skillTags: [], zoneIds: [] } } }),
     },
     select: { id: true, name: true, email: true, phone: true, role: true },
   });
@@ -448,6 +459,12 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
         }),
       },
     });
+    if (role === "NURSE")
+      await tx.nurseProfile.upsert({
+        where: { userId: id },
+        create: { userId: id, skillTags: [], zoneIds: [] },
+        update: {},
+      });
     // a deactivated account loses its sessions at once
     if (deactivating)
       await tx.refreshSession.updateMany({

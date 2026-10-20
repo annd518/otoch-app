@@ -17,9 +17,10 @@ export async function cleanupBlobs() {
   for (const job of jobs) {
     // Never remove a blob linked to an ACTIVE record, including a response lost after commit.
     if (
-      await prisma.attachment.count({
+      (await prisma.attachment.count({
         where: { storageKey: job.storageKey, status: "ACTIVE" },
-      })
+      })) ||
+      (await prisma.nurseDocument.count({ where: { storageKey: job.storageKey } }))
     ) {
       await prisma.blobCleanupJob.update({
         where: { id: job.id },

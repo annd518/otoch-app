@@ -74,6 +74,7 @@ export default function DashboardLayout({
               {(
                 [
                   ["/dashboard/admin", "Самбар"],
+                  ["/dashboard/admin/nurses", "Сувилагчийн баталгаажуулалт"],
                   ["/dashboard/orders", "Үйлчилгээний захиалгууд"],
                 ] as const
               ).map(([href, title]) => (

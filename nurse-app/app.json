@@ -58,7 +58,15 @@
           "isIosBackgroundLocationEnabled": false
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Бүртгэлийн баримт (зөвшөөрөл, диплом, үнэмлэх)-ын зургийг сонгоход зургийн сан руу хандах шаардлагатай.",
+          "cameraPermission": "Бүртгэлийн баримт болон цээж зургаа авахад камер ашиглах шаардлагатай.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

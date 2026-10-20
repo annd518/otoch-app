@@ -5,7 +5,7 @@ import {
   Surface,
   FormSection,
 } from "../../components/Presentation";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,11 +22,13 @@ const STATUS_LABEL = {
   PENDING: "Баталгаажуулалт хүлээгдэж байна",
   VERIFIED: "Баталгаажсан",
   SUSPENDED: "Түр хаагдсан",
+  REJECTED: "Буцаагдсан, засаад дахин илгээнэ үү",
 } as const;
 
 export default function ProfileScreen() {
   const { user, signOut } = useSession();
   const { profile, error, busy, load, toggle } = useProfile();
+  const router = useRouter();
 
   useFocusEffect(
     useCallback(() => {
@@ -51,10 +53,15 @@ export default function ProfileScreen() {
         {error ? <ErrorBox message={error} /> : null}
 
         {profile === undefined ? null : p === null ? (
-          <AppText color={theme.color.warning}>
-            Таны бүртгэл админаар баталгаажаагүй байна. Компанитай холбогдоно
-            уу.
-          </AppText>
+          <>
+            <AppText color={theme.color.warning}>
+              Таны бүртгэл админаар баталгаажаагүй байна.
+            </AppText>
+            <Button
+              label="Бүртгэлийн өргөдөл"
+              onPress={() => router.push("/application")}
+            />
+          </>
         ) : (
           <>
             <Surface
@@ -110,6 +117,11 @@ export default function ProfileScreen() {
                   Ур чадвар: {p.skillTags.join(", ")}
                 </AppText>
               ) : null}
+              <Button
+                label="Бүртгэлийн өргөдөл"
+                variant={p.status === "VERIFIED" ? "secondary" : "primary"}
+                onPress={() => router.push("/application")}
+              />
             </FormSection>
           </>
         )}

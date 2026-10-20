@@ -56,6 +56,8 @@ export type Summary = {
     patients: number;
   };
   attention: Attention[];
+  // nurse applications waiting for a decision
+  nurseApplications: number;
   recentOrders: {
     id: string;
     status: string;
@@ -192,6 +194,18 @@ export function AdminSummary() {
         <p className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
         </p>
+      )}
+
+      {data.nurseApplications > 0 && (
+        <Link
+          href="/dashboard/admin/nurses"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 hover:bg-amber-100"
+        >
+          <span className="font-semibold">
+            {data.nurseApplications} сувилагчийн өргөдөл баталгаажуулалт хүлээж байна
+          </span>
+          <span className="text-sm font-medium">Шалгах →</span>
+        </Link>
       )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
