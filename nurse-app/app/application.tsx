@@ -3,7 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../components/AppText";
@@ -67,6 +67,24 @@ export default function ApplicationScreen() {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState<DocumentKind | null>(null);
   const [progress, setProgress] = useState(0);
+  // why the last upload of a document failed, shown under that document
+  const [docErrors, setDocErrors] = useState<Partial<Record<DocumentKind, string>>>({});
+
+  // Errors also open an alert: the inline text is at the top of a long form and
+  // the nurse usually presses the buttons at the bottom.
+  const fail = (text: string, title = "Амжилтгүй") => {
+    setMessage(text);
+    Alert.alert(title, text);
+  };
+
+  const reload = useCallback(async (resetForm: boolean) => {
+    const r = await fetchApplication(http);
+    if (r.ok) {
+      setApp(r.data);
+      if (resetForm) setForm(toForm(r.data));
+    }
+    return r;
+  }, []);
 
   const show = useCallback((a: Application, resetForm: boolean) => {
     setApp(a);
@@ -100,11 +118,12 @@ export default function ApplicationScreen() {
     const parsed = detailsFromForm(form);
     if (!parsed.ok) {
       setErrors(parsed.errors);
+      fail(Object.values(parsed.errors).join("\n"), "Мэдээлэл дутуу байна");
       return false;
     }
     const r = await saveApplication(http, parsed.details);
     if (!r.ok) {
-      setMessage(r.message);
+      fail(r.message);
       return false;
     }
     show(r.data, true);
@@ -127,7 +146,12 @@ export default function ApplicationScreen() {
       if (r.ok) {
         show(r.data, true);
         setNotice("Өргөдөл админд илгээгдлээ");
-      } else setMessage(r.message);
+        Alert.alert("Илгээгдлээ", "Өргөдөл тань админд очлоо. Шийдвэр гарахад энд харагдана.");
+      } else {
+        fail(r.message, "Илгээж чадсангүй");
+        // what the server still misses
+        void reload(false);
+      }
     }
     setBusy(false);
   }
@@ -135,9 +159,15 @@ export default function ApplicationScreen() {
   async function send(kind: DocumentKind, file: { uri: string; name: string; type: string }) {
     setUploading(kind);
     setProgress(0);
+    setDocErrors((e) => ({ ...e, [kind]: undefined }));
     const r = await uploadDocument(http, kind, file, setProgress);
     if (r.ok) show(r.data, false);
-    else setMessage(r.message);
+    else {
+      setDocErrors((e) => ({ ...e, [kind]: r.message }));
+      fail(r.message, `${DOCUMENT_LABEL[kind]}: илгээж чадсангүй`);
+      // the server is the truth about what was stored
+      void reload(false);
+    }
     setUploading(null);
   }
 
@@ -152,7 +182,7 @@ export default function ApplicationScreen() {
     if (result.canceled || !result.assets[0]) return;
     const a = result.assets[0];
     if (a.size !== undefined && a.size > MAX_FILE_BYTES) {
-      setMessage("Файл 10 MB-аас их байна.");
+      fail("Файл 10 MB-аас их байна.");
       return;
     }
     await send(kind, {
@@ -168,7 +198,7 @@ export default function ApplicationScreen() {
     if (source === "camera") {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        setMessage(
+        fail(
           permission.canAskAgain
             ? "Зураг авахын тулд камерын зөвшөөрөл хэрэгтэй."
             : "Камерын зөвшөөрлийг утасны тохиргооноос нээнэ үү.",
@@ -212,6 +242,15 @@ export default function ApplicationScreen() {
           footer={
             app.editable ? (
               <View style={{ gap: theme.space[2] }}>
+                {app.missing.length > 0 ? (
+                  <AppText variant="caption" color={theme.color.warning}>
+                    Илгээхийн өмнө: {app.missing.join(", ")}
+                  </AppText>
+                ) : (
+                  <AppText variant="caption" color={theme.color.success}>
+                    Бүх мэдээлэл бүрэн. Админд илгээж болно.
+                  </AppText>
+                )}
                 <Button
                   label="Админд илгээх"
                   loading={busy}
@@ -344,6 +383,11 @@ export default function ApplicationScreen() {
                           : "Оруулаагүй"}
                     </AppText>
                   </View>
+                  {docErrors[kind] && uploading !== kind ? (
+                    <AppText variant="caption" color={theme.color.error}>
+                      {docErrors[kind]}
+                    </AppText>
+                  ) : null}
                   {app.editable ? (
                     <View style={{ flexDirection: "row", gap: theme.space[2] }}>
                       <View style={{ flex: 1 }}>

@@ -35,6 +35,12 @@ export const nurseApplication = Router();
 nurseApplication.use(authenticateToken);
 nurseApplication.use(requireNurse);
 
+/** iPhone photos (HEIC/HEIF) start with an "ftyp" box of these brands. */
+const isHeic = (buf: Buffer) =>
+  buf.length >= 12 &&
+  buf.subarray(4, 8).toString("latin1") === "ftyp" &&
+  ["heic", "heix", "hevc", "heif", "mif1", "msf1"].includes(buf.subarray(8, 12).toString("latin1"));
+
 export function requireStorage() {
   const storage = getStorage();
   if (!storage)
@@ -165,21 +171,44 @@ nurseApplication.put("/", async (req: NurseRequest, res) => {
 // POST /api/nurse/application/documents (multipart: file, kind). Replaces that kind.
 nurseApplication.post("/documents", async (req: NurseRequest, res) => {
   const userId = req.user!.userId;
+  // Why an upload was refused, for whoever runs the server (no personal data).
+  const refuse = (error: ApiError, detail: Record<string, unknown> = {}) => {
+    console.warn(
+      `[nurse-application] document refused: ${error.code}`,
+      JSON.stringify({ kind: req.body?.kind ?? null, ...detail }),
+    );
+    return error;
+  };
   assertEditable(await loadProfile(userId));
   const kind = String(req.body?.kind ?? "");
   if (!(DOCUMENT_KINDS as readonly string[]).includes(kind))
-    throw new ApiError(400, "VALIDATION_ERROR", "Баримтын төрөл буруу", {
-      kind: DOCUMENT_KINDS.join(", "),
-    });
+    throw refuse(
+      new ApiError(400, "VALIDATION_ERROR", "Баримтын төрөл буруу", {
+        kind: DOCUMENT_KINDS.join(", "),
+      }),
+      { fields: Object.keys(req.body ?? {}), files: Object.keys(req.files ?? {}) },
+    );
   const raw = req.files?.file;
   if (!raw || Array.isArray(raw))
-    throw new ApiError(400, "VALIDATION_ERROR", "Нэг зураг сонгоно уу", { file: "Шаардлагатай" });
+    throw refuse(
+      new ApiError(400, "VALIDATION_ERROR", "Файл ирсэнгүй. Дахин сонгоно уу", { file: "Шаардлагатай" }),
+      { files: Object.keys(req.files ?? {}), contentType: req.headers["content-type"]?.split(";")[0] },
+    );
   const file = raw as UploadedFile;
   if (file.truncated || file.size > MAX_DOCUMENT_BYTES)
-    throw new ApiError(413, "FILE_TOO_LARGE", "Файл 10 MB-аас их байна");
+    throw refuse(new ApiError(413, "FILE_TOO_LARGE", "Файл 10 MB-аас их байна"), { size: file.size });
   const mimeType = detectDocumentType(file.data);
   if (!mimeType)
-    throw new ApiError(415, "UNSUPPORTED_MEDIA_TYPE", "Зөвхөн JPEG, PNG зураг эсвэл PDF файл илгээнэ");
+    throw refuse(
+      new ApiError(
+        415,
+        "UNSUPPORTED_MEDIA_TYPE",
+        isHeic(file.data)
+          ? "Зураг HEIC хэлбэртэй байна. «Камер»-аар шууд авах эсвэл PDF болгож илгээнэ үү"
+          : "Зөвхөн JPEG, PNG зураг эсвэл PDF файл илгээнэ",
+      ),
+      { declared: file.mimetype, size: file.size },
+    );
   const storage = requireStorage();
 
   const storageKey = `nurses/${userId}/${randomUUID()}.${EXT[mimeType]}`;

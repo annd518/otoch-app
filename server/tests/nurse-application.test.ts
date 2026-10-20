@@ -146,6 +146,14 @@ it("an application is sent only when complete and is locked while the admin deci
   assert.equal(pdfBack.headers.get("content-type"), "application/pdf");
   const notDoc = await upload(token, "LICENSE", Buffer.from("PK\u0003\u0004 a zip file"));
   assert.equal(notDoc.status, 415);
+  // an iPhone HEIC photo gets a message that says what to do
+  const heic = await upload(
+    token,
+    "LICENSE",
+    Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypheic"), Buffer.alloc(16)]),
+  );
+  assert.equal(heic.status, 415);
+  assert.match(heic.json.message, /HEIC/);
   assert.ok(
     (await app(token, "GET")).json.data.application.missing.includes("Ажиллах дүүрэг"),
   );
