@@ -207,6 +207,25 @@ export default function OrderDetail() {
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>
+          {order.status === "REFUSED" && (
+            <Banner>
+              Сувилагч үйлчилгээнээс татгалзсан. Энэ захиалгыг үргэлжлүүлэх
+              боломжгүй. Дахин томилолт, төлбөрийн шийдвэр хараахан гараагүй.
+            </Banner>
+          )}
+          {order.status === "INCIDENT" && (
+            <Banner error>
+              Үйлчилгээний үеэр осол, хүндрэл бүртгэгдсэн. Шийдвэр хараахан
+              гараагүй. Яаралтай тусламж шаардлагатай бол 103 руу залгана уу.
+            </Banner>
+          )}
+          {order.status === "COMPLETED" && (
+            <Button
+              secondary
+              title="Үйлчилгээний тэмдэглэл харах"
+              onPress={() => router.push("/(tabs)/records")}
+            />
+          )}
           <FormSection title="Захиалгын явц">
             {order.timeline?.length ? (
               <EventTimeline events={order.timeline} />

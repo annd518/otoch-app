@@ -91,8 +91,33 @@ clientV2Routes.get("/availability", async (req, res) => {
   }
   return ok(res, { slots: available }, "Сул цаг");
 });
+// Signed nurse records are shared with the booking owner only after completion.
+// Signing is not a medical-admin approval; never expose signature images or draft notes.
+const completedNurseRecords = (userId: string) =>
+  prisma.visitRecord.findMany({
+    where: {
+      signedAt: { not: null },
+      order: { childId: userId, status: "COMPLETED" },
+    },
+    select: {
+      orderId: true,
+      signedAt: true,
+      note: true,
+      vitals: true,
+      procedures: true,
+      order: {
+        select: {
+          parent: { select: { name: true } },
+          assignedNurse: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { signedAt: "desc" },
+    take: 100,
+  });
 clientV2Routes.get("/records", async (req: AuthRequest, res: Response) => {
-  // Only clinician-approved legacy notes; an Order alone is never a clinical record.
+  res.setHeader("Cache-Control", "private, no-store");
+  // Legacy clinician-approved notes and separately labeled signed nurse records.
   const visits = await prisma.visit.findMany({
     where: {
       Parent: { children: { some: { id: req.user!.userId } } },
@@ -107,14 +132,31 @@ clientV2Routes.get("/records", async (req: AuthRequest, res: Response) => {
   return ok(
     res,
     {
-      records: visits.map((v) => ({
-        id: v.id,
-        patientName: v.Parent.name,
-        at: v.scheduledFor.toISOString(),
-        notes: v.vitals?.notes ?? v.notes,
-        vitals: v.vitals,
-        pdfAvailable: true,
-      })),
+      records: [
+        ...visits.map((v) => ({
+          id: v.id,
+          patientName: v.Parent.name,
+          at: v.scheduledFor.toISOString(),
+          notes: v.vitals?.notes ?? v.notes,
+          vitals: v.vitals,
+          pdfAvailable: true,
+          source: "legacy" as const,
+        })),
+        ...(await completedNurseRecords(req.user!.userId)).map((r) => ({
+          id: `order:${r.orderId}`,
+          orderId: r.orderId,
+          source: "nurse" as const,
+          patientName: r.order.parent.name,
+          at: r.signedAt!.toISOString(),
+          notes: r.note,
+          vitals: r.vitals,
+          procedures: r.procedures,
+          nurseName: r.order.assignedNurse?.name ?? null,
+          pdfAvailable: true,
+        })),
+      ]
+        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+        .slice(0, 100),
     },
     "Тэмдэглэл",
   );
@@ -122,6 +164,54 @@ clientV2Routes.get("/records", async (req: AuthRequest, res: Response) => {
 clientV2Routes.get(
   "/records/:id/pdf",
   async (req: AuthRequest, res: Response) => {
+    if (req.params.id.startsWith("order:")) {
+      const record = await prisma.visitRecord.findFirst({
+        where: {
+          orderId: req.params.id.slice(6),
+          signedAt: { not: null },
+          order: { childId: req.user!.userId, status: "COMPLETED" },
+        },
+        select: {
+          signedAt: true,
+          note: true,
+          vitals: true,
+          procedures: true,
+          order: {
+            select: {
+              parent: { select: { name: true } },
+              assignedNurse: { select: { name: true } },
+            },
+          },
+        },
+      });
+      if (!record) throw new ApiError(404, "NOT_FOUND", "Тэмдэглэл олдсонгүй");
+      const labels: Record<string, string> = {
+        systolic: "Дээд даралт",
+        diastolic: "Доод даралт",
+        pulse: "Судасны цохилт",
+        temperatureC: "Халуун",
+        spo2: "Хүчилтөрөгч",
+      };
+      const lines = [
+        "ОТОЧ · Сувилагчийн эргэлтийн тэмдэглэл",
+        record.order.parent.name,
+        `Гарын үсгээр баталгаажсан: ${record.signedAt!.toISOString()}`,
+        `Сувилагч: ${record.order.assignedNurse?.name ?? "Мэдээлэлгүй"}`,
+        record.note ?? "Бичгэн тэмдэглэл ороогүй",
+        ...Object.entries((record.vitals ?? {}) as Record<string, unknown>).map(
+          ([k, v]) => `${labels[k] ?? k}: ${v}`,
+        ),
+        `Ажилбар: ${(record.procedures as string[]).join(", ")}`,
+        "Энэ нь эмчийн онош, эмнэлгийн админы баталгаа биш.",
+      ];
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="otoch-nurse-record.pdf"',
+      );
+      return res.send(Buffer.from(await recordPdf(lines)));
+    }
     const visit = await prisma.visit.findFirst({
       where: {
         id: req.params.id,

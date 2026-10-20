@@ -39,10 +39,16 @@ export default function OrdersScreen() {
     filter === "past"
       ? o.status === "COMPLETED"
       : filter === "cancelled"
-        ? ["CANCELLED", "EXPIRED", "BLOCKED_RED_FLAG"].includes(o.status)
-        : !["COMPLETED", "CANCELLED", "EXPIRED", "BLOCKED_RED_FLAG"].includes(
+        ? ["CANCELLED", "EXPIRED", "BLOCKED_RED_FLAG", "REFUSED"].includes(
             o.status,
-          ),
+          )
+        : ![
+            "COMPLETED",
+            "CANCELLED",
+            "EXPIRED",
+            "BLOCKED_RED_FLAG",
+            "REFUSED",
+          ].includes(o.status),
   );
   return (
     <Screen
