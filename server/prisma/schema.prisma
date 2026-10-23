@@ -138,6 +138,7 @@ enum OrderStatus {
   COMPLETED
   REFUSED
   INCIDENT
+  NO_SHOW // the nurse came, nobody was there (spec slide 25: no refund)
   CANCELLED
   EXPIRED
 }

@@ -9,6 +9,7 @@ const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Дууссан',
   REFUSED: 'Татгалзсан',
   INCIDENT: 'Осол бүртгэсэн',
+  NO_SHOW: 'Үйлчлүүлэгч байгаагүй',
   CANCELLED: 'Цуцлагдсан',
   EXPIRED: 'Хугацаа дууссан',
 }
@@ -78,6 +79,9 @@ export interface AvailableActions {
   record: boolean
   reject: boolean
   incident: boolean
+  // before check-in only
+  noShow: boolean
+  release: boolean
 }
 
 // Mirrors the server guards in nurseOrders.ts / staffOrders.ts; the server stays the authority.
@@ -90,6 +94,8 @@ export function availableActions(status: string): AvailableActions {
     record: status === 'IN_PROGRESS',
     reject: open,
     incident: open,
+    noShow: status === 'ASSIGNED' || status === 'EN_ROUTE',
+    release: status === 'ASSIGNED' || status === 'EN_ROUTE',
   }
 }
 

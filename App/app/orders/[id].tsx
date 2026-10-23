@@ -268,17 +268,27 @@ export default function OrderDetail() {
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>
-          {order.status === "CANCELLED" && order.cancellation && (
+          {(order.status === "CANCELLED" || order.status === "EXPIRED") &&
+            order.cancellation && (
             <Banner>
-              {order.cancellation.by === "ADMIN"
-                ? "Захиалгыг компани цуцалсан."
-                : "Та захиалгаа цуцалсан."}
+              {order.cancellation.by === "SYSTEM"
+                ? "Захиалсан цагт сувилагч олдоогүй тул захиалга цуцлагдсан."
+                : order.cancellation.by === "ADMIN"
+                  ? "Захиалгыг компани цуцалсан."
+                  : "Та захиалгаа цуцалсан."}
               {order.cancellation.by === "ADMIN" && order.cancellation.reason
                 ? ` Шалтгаан: ${order.cancellation.reason}.`
                 : ""}
               {order.cancellation.refund
                 ? ` ${formatMnt(order.cancellation.refund.amountMnt)} (${order.cancellation.refund.percent}%) ${REFUND_TEXT[order.cancellation.refund.status]}.`
                 : " Буцаах мөнгө байхгүй."}
+            </Banner>
+          )}
+          {order.status === "NO_SHOW" && (
+            <Banner>
+              Сувилагч товлосон цагт хаяг дээр ирж хүлээсэн боловч таныг
+              олсонгүй. Цуцлалтын нөхцлийн дагуу төлбөр буцаагдахгүй. Алдаа
+              гарсан гэж үзвэл компанитай холбогдоно уу.
             </Banner>
           )}
           {order.status === "REFUSED" && (

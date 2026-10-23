@@ -22,7 +22,13 @@ import { StatusBadge } from "../../../components/StatusBadge";
 import { theme } from "../../../design/theme";
 import { useOrder } from "../../../hooks/useOrder";
 import { http } from "../../../services/http";
-import { enRoute } from "../../../services/nurseVisit";
+import * as Location from "expo-location";
+import {
+  RELEASE_REASONS,
+  enRoute,
+  noShow,
+  releaseOrder,
+} from "../../../services/nurseVisit";
 import { postEta } from "../../../services/staffOrders";
 import {
   availableActions,
@@ -95,6 +101,65 @@ export default function OrderDetailScreen() {
     setActionError(null);
     const outcome = await run(call, options);
     if (!outcome.ok) setActionError(outcome.message);
+  }
+
+  // Nobody at the address after the wait: the server checks the time and the location.
+  function confirmNoShow() {
+    Alert.alert(
+      "Үйлчлүүлэгч байхгүй юу?",
+      "Товлосон цагаас 15 минут хүлээсний дараа хаяг дээрээс бүртгэнэ. Үйлчлүүлэгчид мэдэгдэл очиж, төлбөр буцаагдахгүй.",
+      [
+        { text: "Болих", style: "cancel" },
+        { text: "Бүртгэх", style: "destructive", onPress: () => void reportNoShow() },
+      ],
+    );
+  }
+  async function reportNoShow() {
+    setActionError(null);
+    let position: Location.LocationObject;
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") {
+        setActionError("Байршлын зөвшөөрөл хэрэгтэй.");
+        return;
+      }
+      position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    } catch {
+      setActionError("Байршлыг тодорхойлж чадсангүй. GPS асаалттай эсэхийг шалгана уу.");
+      return;
+    }
+    await go((o) =>
+      noShow(http, o.id, {
+        version: o.version,
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      }),
+    );
+  }
+
+  // Withdraw before the visit: dispatch offers the call to another nurse.
+  function confirmRelease() {
+    Alert.alert(
+      "Дуудлагаас гарах уу?",
+      "Дуудлага өөр сувилагч руу шилжинэ. Шалтгаанаа сонгоно уу.",
+      [
+        ...RELEASE_REASONS.map((reason) => ({
+          text: reason,
+          onPress: () => void release(reason),
+        })),
+        { text: "Болих", style: "cancel" as const },
+      ],
+    );
+  }
+  async function release(reason: string) {
+    if (!order) return;
+    setActionError(null);
+    const r = await releaseOrder(http, order.id, { version: order.version, reason });
+    if (r.ok) router.replace("/");
+    else {
+      setActionError(r.message);
+      void load();
+    }
   }
 
   const open = (sub: "checkin" | "record" | "reject" | "incident") =>
@@ -300,7 +365,22 @@ export default function OrderDetailScreen() {
 
             {actionError ? <ErrorBox message={actionError} /> : null}
             <FormSection title="Нэмэлт үйлдэл">
-              {" "}
+              {actions?.noShow ? (
+                <Button
+                  label="Үйлчлүүлэгч байхгүй"
+                  variant="secondary"
+                  disabled={busy}
+                  onPress={confirmNoShow}
+                />
+              ) : null}
+              {actions?.release ? (
+                <Button
+                  label="Дуудлагаас гарах"
+                  variant="secondary"
+                  disabled={busy}
+                  onPress={confirmRelease}
+                />
+              ) : null}
               {actions?.reject ? (
                 <Button
                   label="Татгалзах"

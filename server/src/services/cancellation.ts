@@ -5,6 +5,7 @@
 //  Customer, less than 2 hours before          -> 30% fee, 70% back   (⚑ fee awaits the lawyer)
 //  Customer, after the nurse arrived           -> not cancellable here (no-show, decided by staff)
 //  Admin                                       -> any active order, chooses the refund percent
+//  System, no nurse by the booked time         -> EXPIRED, 100% back (services/unassignedSweep.ts)
 //
 // The refund goes through QPay; if QPay refuses or cannot do it (a partial
 // amount), the refund waits for an admin to pay it back by hand.
@@ -30,6 +31,8 @@ const ADMIN_CANCELLABLE = [
   "IN_PROGRESS",
   "REFUSED",
   "INCIDENT",
+  // a disputed no-show can still be refunded by staff
+  "NO_SHOW",
 ] as const;
 
 export type CancelTerms =
@@ -88,7 +91,9 @@ export async function paidPayment(db: Tx | PrismaClient, orderId: string) {
 export interface CancelInput {
   orderId: string;
   actorId: string;
-  by: "CLIENT" | "ADMIN";
+  by: "CLIENT" | "ADMIN" | "SYSTEM";
+  /** SYSTEM uses EXPIRED (spec slide 25); people cancel to CANCELLED. */
+  toStatus?: "CANCELLED" | "EXPIRED";
   reason: string | null;
   /** CLIENT: the percent the customer was shown (must still hold). ADMIN: the percent to refund. */
   refundPercent: number;
@@ -122,6 +127,11 @@ export async function cancelOrder(prisma: PrismaClient, input: CancelInput, now 
           { refundPercent: String(terms.refundPercent) },
         );
       refundPercent = terms.refundPercent;
+    } else if (input.by === "SYSTEM") {
+      // only a paid order still waiting for a nurse; anything else changed meanwhile
+      if (order.status !== "PAID" || order.assignedNurseId)
+        throw new ApiError(409, "INVALID_STATUS", "Энэ захиалгыг цуцлах боломжгүй");
+      refundPercent = paidMnt > 0 ? input.refundPercent : 0;
     } else {
       if (!(ADMIN_CANCELLABLE as readonly string[]).includes(order.status))
         throw new ApiError(409, "INVALID_STATUS", "Энэ захиалгыг цуцлах боломжгүй");
@@ -131,7 +141,7 @@ export async function cancelOrder(prisma: PrismaClient, input: CancelInput, now 
     await tx.order.update({
       where: { id: order.id },
       data: {
-        status: "CANCELLED",
+        status: input.toStatus ?? "CANCELLED",
         version: { increment: 1 },
         eta: null,
         cancelledAt: now,
@@ -172,7 +182,7 @@ export async function cancelOrder(prisma: PrismaClient, input: CancelInput, now 
         type: "CANCEL",
         actorId: input.actorId,
         fromStatus: order.status,
-        toStatus: "CANCELLED",
+        toStatus: input.toStatus ?? "CANCELLED",
         metadata: { by: input.by, refundPercent, refundMnt, reason: input.reason },
       },
     });

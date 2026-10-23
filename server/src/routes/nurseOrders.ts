@@ -277,6 +277,78 @@ nurseOrders.post("/:id/en-route", async (req: NurseRequest, res) => {
   return ok(res, { order: view(order) }, "Замдаа гарлаа");
 });
 
+/**
+ * ⚑ How long the nurse waits at the address after the booked start before
+ * reporting a no-show. The spec (slide 25) gives the outcome (no refund), not
+ * the wait; 15 minutes matches the arrival window (±15 min).
+ */
+export const NO_SHOW_WAIT_MIN = 15;
+const noShowBody = z
+  .object({
+    version,
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+  })
+  .strict();
+
+// The nurse is at the address and nobody is there (spec slide 25: NO_SHOW_CLIENT).
+nurseOrders.post("/:id/no-show", async (req: NurseRequest, res) => {
+  const body = parse(noShowBody, req.body);
+  const order = await transition(req, {
+    expected: body.version,
+    from: ["ASSIGNED", "EN_ROUTE"],
+    to: "NO_SHOW",
+    event: "NO_SHOW",
+    metadata: { lat: body.lat, lng: body.lng },
+    guard: (o) => {
+      if (o.scheduledFor && Date.now() < o.scheduledFor.getTime() + NO_SHOW_WAIT_MIN * 60_000)
+        throw new ApiError(
+          422,
+          "CHECKIN_TIME_WINDOW",
+          `Товлосон цагаас хойш ${NO_SHOW_WAIT_MIN} минут хүлээсний дараа бүртгэнэ`,
+        );
+      if (o.lat !== null && o.lng !== null) {
+        const d = distanceMeters(body, { lat: o.lat, lng: o.lng });
+        if (d > CHECKIN_MAX_DISTANCE_M)
+          throw new ApiError(
+            422,
+            "CHECKIN_TOO_FAR",
+            `Үйлчлүүлэгчийн хаягаас ${CHECKIN_MAX_DISTANCE_M} м-ийн дотор байж бүртгэнэ`,
+          );
+      }
+    },
+  });
+  return ok(res, { order: view(order) }, "Үйлчлүүлэгч байхгүй гэж бүртгэлээ");
+});
+
+const releaseBody = z
+  .object({ version, reason: z.string().trim().min(3, "Шалтгаан бичнэ үү").max(300) })
+  .strict();
+
+// The nurse withdraws before the visit (spec slide 25: REASSIGNING): the order
+// goes back to dispatch, this nurse is not asked again, the customer pays nothing extra.
+nurseOrders.post("/:id/release", async (req: NurseRequest, res) => {
+  const body = parse(releaseBody, req.body);
+  const nurseId = req.user!.userId;
+  const order = await transition(req, {
+    expected: body.version,
+    from: ["ASSIGNED", "EN_ROUTE"],
+    to: "PAID",
+    event: "NURSE_RELEASE",
+    metadata: { nurseId, reason: body.reason },
+    write: async (o, tx) => {
+      await tx.order.update({ where: { id: o.id }, data: { assignedNurseId: null } });
+      // dispatch skips nurses who already have an offer row for this order
+      await tx.orderOffer.upsert({
+        where: { orderId_nurseId: { orderId: o.id, nurseId } },
+        create: { orderId: o.id, nurseId, wave: 0, status: "DECLINED", expiresAt: new Date(), respondedAt: new Date() },
+        update: { status: "DECLINED", respondedAt: new Date() },
+      });
+    },
+  });
+  return ok(res, { released: true, orderId: order.id }, "Дуудлагаас гарлаа. Өөр сувилагч руу шилжүүлнэ");
+});
+
 nurseOrders.post("/:id/checkin", async (req: NurseRequest, res) => {
   const body = parse(checkinBody, req.body);
   const order = await transition(req, {

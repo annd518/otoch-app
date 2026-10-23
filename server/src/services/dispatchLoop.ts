@@ -1,5 +1,6 @@
 import prisma from "../db/db.config";
 import { runDispatchCycle } from "./dispatch";
+import { runUnassignedSweep } from "./unassignedSweep";
 
 /**
  * Runs dispatch every DISPATCH_INTERVAL_MS (default 15 s; 0 turns it off).
@@ -14,6 +15,7 @@ export function startDispatchLoop(): void {
     if (running) return;
     running = true;
     runDispatchCycle(prisma)
+      .then(() => runUnassignedSweep(prisma))
       .catch(() => console.error("Dispatch cycle failed"))
       .finally(() => {
         running = false;
