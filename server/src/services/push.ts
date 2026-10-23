@@ -119,6 +119,25 @@ export function notifyOffer(
   });
 }
 
+/** A cancelled order: its nurse stops, and the customer hears if staff cancelled it. */
+export async function notifyOrderCancelled(
+  order: { id: string; childId: string; assignedNurseId: string | null },
+  by: "CLIENT" | "ADMIN",
+): Promise<void> {
+  if (order.assignedNurseId)
+    await sendToUsers([order.assignedNurseId], "nurse", {
+      title: "Дуудлага цуцлагдлаа",
+      body: "Энэ дуудлага руу явах шаардлагагүй.",
+      data: { type: "ORDER", orderId: order.id },
+    });
+  if (by === "ADMIN")
+    await sendToUsers([order.childId], "client", {
+      title: "Захиалга цуцлагдлаа",
+      body: "Дэлгэрэнгүй болон мөнгө буцаалтыг аппаас харна уу.",
+      data: { type: "ORDER", orderId: order.id },
+    });
+}
+
 /** Tells a nurse an admin assigned a call to them. */
 export function notifyAssignedNurse(nurseId: string, orderId: string): Promise<void> {
   return sendToUsers([nurseId], "nurse", {

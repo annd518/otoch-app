@@ -202,6 +202,8 @@ export interface Order {
   nurse?: { name: string } | null;
   eta?: string | null;
   timeline?: { id: string; status: string; at: string }[];
+  // set once the order is cancelled (server/src/services/cancellation.ts)
+  cancellation?: OrderCancellation | null;
 
   id: string;
   status: string;
@@ -217,6 +219,29 @@ export interface Order {
   // body fields the server did not store (data.ignoredFields)
   ignoredFields: string[];
 }
+
+export interface OrderCancellation {
+  at: string;
+  by: "CLIENT" | "ADMIN" | "SYSTEM" | null;
+  reason: string | null;
+  refund: {
+    percent: number;
+    amountMnt: number;
+    status: "PENDING" | "REFUNDED" | "MANUAL_REQUIRED";
+  } | null;
+}
+
+// What cancelling now would mean (spec slide 25), shown before confirming.
+export type CancelTerms =
+  | { allowed: false; reason: string }
+  | {
+      allowed: true;
+      paidMnt: number;
+      refundPercent: number;
+      refundMnt: number;
+      feeMnt: number;
+      rule: "UNPAID" | "BEFORE_ASSIGNMENT" | "EARLY" | "LATE";
+    };
 
 export interface RedFlagQuestion {
   id: string;

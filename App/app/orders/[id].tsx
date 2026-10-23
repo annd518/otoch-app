@@ -13,18 +13,37 @@ import {
   StateView,
 } from "@/components/ui";
 import React, { useCallback, useState } from "react";
-import { AppState } from "react-native";
+import { Alert, AppState } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
-import type { Order } from "@/services/apiTypes";
+import type { CancelTerms, Order } from "@/services/apiTypes";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { ulaanbaatarDate } from "@/utils/datetime";
+import { formatMnt } from "@/utils/money";
+
+// Statuses the customer may cancel (server: services/cancellation.ts).
+const CANCELLABLE = ["DRAFT", "AWAITING_PAYMENT", "PAID", "ASSIGNED", "EN_ROUTE"];
+
+/** The cancellation terms in plain words (spec slide 25). */
+function termsText(t: Extract<CancelTerms, { allowed: true }>): string {
+  if (t.rule === "UNPAID") return "Төлбөр төлөгдөөгүй тул буцаах мөнгө байхгүй.";
+  if (t.refundPercent === 100)
+    return `Төлсөн ${formatMnt(t.paidMnt)} бүрэн буцаагдана (QPay-ээр, 1–3 ажлын өдөрт).`;
+  return `Үйлчилгээ эхлэхэд 2 цагаас бага хугацаа үлдсэн тул ${formatMnt(t.feeMnt)} (${100 - t.refundPercent}%) хураамж суутгаж, ${formatMnt(t.refundMnt)} (${t.refundPercent}%) буцаана.`;
+}
+
+const REFUND_TEXT = {
+  PENDING: "буцаалт хийгдэж байна",
+  REFUNDED: "буцаагдсан",
+  MANUAL_REQUIRED: "буцаалтыг ажилтан 1–3 ажлын өдөрт хийнэ",
+} as const;
 export default function OrderDetail() {
   const { dispatch } = useBookingDraft();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null),
     [error, setError] = useState(""),
-    [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+    [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null),
+    [cancelling, setCancelling] = useState(false);
   useFocusEffect(
     useCallback(() => {
       let active = true,
@@ -60,6 +79,43 @@ export default function OrderDetail() {
       };
     }, [id]),
   );
+  // Terms first (they depend on the time left), then the customer confirms them.
+  const startCancel = async () => {
+    if (!order || cancelling) return;
+    setCancelling(true);
+    const terms = await apiService.getCancelTerms(order.id);
+    setCancelling(false);
+    if (!terms.ok) return setError(terms.message);
+    if (!terms.data.allowed)
+      return Alert.alert("Цуцлах боломжгүй", terms.data.reason);
+    const t = terms.data;
+    Alert.alert("Захиалга цуцлах уу?", termsText(t), [
+      { text: "Болих", style: "cancel" },
+      {
+        text: "Цуцлах",
+        style: "destructive",
+        onPress: () => void confirmCancel(t.refundPercent),
+      },
+    ]);
+  };
+  const confirmCancel = async (refundPercent: number) => {
+    if (!order) return;
+    setCancelling(true);
+    const r = await apiService.cancelOrder(order.id, refundPercent);
+    setCancelling(false);
+    if (r.ok) {
+      setOrder(r.data);
+      setError("");
+      return;
+    }
+    // e.g. the 2-hour line passed while the terms were open: show the new ones
+    if (r.code === "CANCEL_TERMS_CHANGED")
+      return Alert.alert("Нөхцөл өөрчлөгдлөө", r.message, [
+        { text: "Болих", style: "cancel" },
+        { text: "Дахин харах", onPress: () => void startCancel() },
+      ]);
+    setError(r.message);
+  };
   const resume = async () => {
     if (!order) return;
     const [catalog, parent] = await Promise.all([
@@ -146,9 +202,7 @@ export default function OrderDetail() {
     <Screen
       title="Захиалгын дэлгэрэнгүй"
       footer={
-        order &&
-        (order.status === "DRAFT" ||
-          ["AWAITING_PAYMENT", "PAID"].includes(order.status)) ? (
+        order && CANCELLABLE.includes(order.status) ? (
           <>
             {order.status === "DRAFT" && (
               <Button
@@ -169,6 +223,13 @@ export default function OrderDetail() {
                 }
               />
             )}
+            <Button
+              variant="ghost"
+              title="Захиалга цуцлах"
+              busy={cancelling}
+              disabled={cancelling}
+              onPress={() => void startCancel()}
+            />
           </>
         ) : undefined
       }
@@ -207,6 +268,19 @@ export default function OrderDetail() {
                 : "Ирэх хугацаа хараахан тодорхойгүй"}
             </Copy>
           </Card>
+          {order.status === "CANCELLED" && order.cancellation && (
+            <Banner>
+              {order.cancellation.by === "ADMIN"
+                ? "Захиалгыг компани цуцалсан."
+                : "Та захиалгаа цуцалсан."}
+              {order.cancellation.by === "ADMIN" && order.cancellation.reason
+                ? ` Шалтгаан: ${order.cancellation.reason}.`
+                : ""}
+              {order.cancellation.refund
+                ? ` ${formatMnt(order.cancellation.refund.amountMnt)} (${order.cancellation.refund.percent}%) ${REFUND_TEXT[order.cancellation.refund.status]}.`
+                : " Буцаах мөнгө байхгүй."}
+            </Banner>
+          )}
           {order.status === "REFUSED" && (
             <Banner>
               Сувилагч үйлчилгээнээс татгалзсан. Энэ захиалгыг үргэлжлүүлэх

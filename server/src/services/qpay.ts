@@ -36,7 +36,17 @@ export interface QPayAdapter {
     mode: QPayMode
     createInvoice(input: CreateInvoiceInput): Promise<Invoice>
     checkInvoice(invoiceId: string): Promise<PaymentCheck>
+    /**
+     * Gives money of a paid payment back. QPay v2 refunds a whole payment
+     * (DELETE /v2/payment/refund/{payment_id}); a partial amount returns
+     * { refunded: false, reason: 'PARTIAL_NOT_SUPPORTED' } so an admin refunds by hand.
+     */
+    refund(input: { providerPaymentId: string; amountMnt: number; paidAmountMnt: number }): Promise<RefundResult>
+    /** Stops an unpaid invoice from being paid later (DELETE /v2/invoice/{id}). */
+    cancelInvoice(invoiceId: string): Promise<void>
 }
+
+export type RefundResult = { refunded: true } | { refunded: false; reason: string }
 
 export class QPayConfigError extends Error {}
 
@@ -53,7 +63,7 @@ export class QPayProviderError extends Error {
 }
 
 // ---------------- mock ----------------
-interface MockInvoice { amountMnt: number; paid: boolean; paymentId: string | null; paidAmountMnt: number | null }
+interface MockInvoice { amountMnt: number; paid: boolean; paymentId: string | null; paidAmountMnt: number | null; cancelled?: boolean; refundedMnt?: number }
 const mockInvoices = new Map<string, MockInvoice>()
 let mockNextCreateFailure: 'rejected' | 'timeout' | null = null
 
@@ -74,7 +84,12 @@ export const qpayMock = {
         return true
     },
     has: (invoiceId: string) => mockInvoices.has(invoiceId),
+    /** Test helper: what was refunded / cancelled at the fake provider. */
+    invoice: (invoiceId: string) => mockInvoices.get(invoiceId) ?? null,
+    /** Test helper: make the next refund fail. */
+    failNextRefund() { mockNextRefundFailure = true },
 }
+let mockNextRefundFailure = false
 
 const mockAdapter: QPayAdapter = {
     mode: 'mock',
@@ -97,6 +112,20 @@ const mockAdapter: QPayAdapter = {
         if (!inv?.paid) return { paid: false, paymentId: null, paidAmountMnt: null, currency: null }
         return { paid: true, paymentId: inv.paymentId, paidAmountMnt: inv.paidAmountMnt, currency: 'MNT' }
     },
+    async refund({ providerPaymentId, amountMnt }) {
+        if (mockNextRefundFailure) {
+            mockNextRefundFailure = false
+            return { refunded: false, reason: 'PROVIDER_REJECTED' }
+        }
+        const inv = [...mockInvoices.values()].find((i) => i.paymentId === providerPaymentId)
+        if (!inv?.paid) return { refunded: false, reason: 'PAYMENT_NOT_FOUND' }
+        inv.refundedMnt = (inv.refundedMnt ?? 0) + amountMnt
+        return { refunded: true }
+    },
+    async cancelInvoice(invoiceId) {
+        const inv = mockInvoices.get(invoiceId)
+        if (inv) inv.cancelled = true
+    },
 }
 
 // ---------------- sandbox (unverified) ----------------
@@ -111,11 +140,11 @@ function sandboxAdapter(): QPayAdapter {
     if (!base.startsWith('https://')) throw new QPayConfigError('QPAY_BASE_URL must be HTTPS')
 
     let token: { value: string; expiresAt: number } | null = null
-    const call = async (pathname: string, body: unknown, auth: string) => {
+    const call = async (pathname: string, body: unknown, auth: string, method: 'POST' | 'DELETE' = 'POST') => {
         let res: globalThis.Response
         try {
             res = await fetch(`${base}${pathname}`, {
-                method: 'POST',
+                method,
                 headers: { 'Content-Type': 'application/json', Authorization: auth },
                 body: JSON.stringify(body ?? {}),
                 signal: AbortSignal.timeout(10_000),
@@ -190,6 +219,19 @@ function sandboxAdapter(): QPayAdapter {
                 paidAmountMnt: Number(paidRow.payment_amount),
                 currency: paidRow.payment_currency ? String(paidRow.payment_currency) : null,
             }
+        },
+        // Unverified against the sandbox: refunding needs a paid sandbox payment.
+        async refund({ providerPaymentId, amountMnt, paidAmountMnt }) {
+            if (amountMnt !== paidAmountMnt) return { refunded: false, reason: 'PARTIAL_NOT_SUPPORTED' }
+            try {
+                await call(`/v2/payment/refund/${encodeURIComponent(providerPaymentId)}`, { note: 'OTOCH cancellation' }, await bearer(), 'DELETE')
+                return { refunded: true }
+            } catch (e) {
+                return { refunded: false, reason: e instanceof QPayProviderError && e.definite ? 'PROVIDER_REJECTED' : 'PROVIDER_NO_ANSWER' }
+            }
+        },
+        async cancelInvoice(invoiceId) {
+            await call(`/v2/invoice/${encodeURIComponent(invoiceId)}`, {}, await bearer(), 'DELETE')
         },
     }
 }

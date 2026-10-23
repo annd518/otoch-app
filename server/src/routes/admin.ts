@@ -5,6 +5,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { adminNurses } from "./adminNurses";
+import { adminCancel } from "./adminCancel";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -28,6 +29,7 @@ adminRoutes.use(async (req: StaffRequest, _res, next) => {
 });
 
 adminRoutes.use("/nurses", adminNurses);
+adminRoutes.use(adminCancel);
 
 const UB_OFFSET_MS = 8 * 3600000;
 /** Start of the Ulaanbaatar calendar day / month that contains `now`. */

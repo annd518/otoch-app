@@ -5,6 +5,7 @@ import api from "@/lib/api/client";
 import { getSessionUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/session-core";
 import { ORDER_STATUS_LABELS } from "@/lib/orderLabels";
+import { CancelPanel, type Cancellation } from "./CancelPanel";
 type Order = {
   id: string;
   version: number;
@@ -18,6 +19,7 @@ type Order = {
   bookingForm?: { referralText?: string | null } | null;
   attachments?: { id: string }[];
   timeline: { id: string; status: string; at: string }[];
+  cancellation?: Cancellation;
 };
 const labels = ORDER_STATUS_LABELS;
 const date = (v: string | null) =>
@@ -245,6 +247,15 @@ function StaffOrders() {
                 </button>
               </div>
             )}
+          {user?.role === "ADMIN" && (
+            <CancelPanel
+              order={selected}
+              onDone={async () => {
+                await open(selected.id);
+                await load();
+              }}
+            />
+          )}
           {user?.role === "NURSE" &&
             ["ASSIGNED", "IN_PROGRESS"].includes(selected.status) && (
               <div className="space-y-2">

@@ -31,6 +31,7 @@ export const orderInclude = {
   items: { include: { service: true }, orderBy: { serviceCode: "asc" } },
   attachments: { where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" } },
   quotes: { orderBy: { createdAt: "desc" }, take: 1 },
+  refunds: { orderBy: { createdAt: "desc" }, take: 1 },
 } satisfies Prisma.OrderInclude;
 
 export type OrderWithItems = Prisma.OrderGetPayload<{
@@ -193,6 +194,21 @@ export function serializeOrder(order: OrderWithItems) {
     // Only a quote that still matches this exact order version is returned
     quote: isQuoteValid(latestQuote, order)
       ? serializeQuote(latestQuote)
+      : null,
+    cancellation: order.cancelledAt
+      ? {
+          at: order.cancelledAt.toISOString(),
+          by: order.cancelledBy,
+          reason: order.cancelReason,
+          refund: order.refunds[0]
+            ? {
+                id: order.refunds[0].id,
+                percent: order.refunds[0].percent,
+                amountMnt: order.refunds[0].amountMnt,
+                status: order.refunds[0].status,
+              }
+            : null,
+        }
       : null,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
