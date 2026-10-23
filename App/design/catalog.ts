@@ -30,6 +30,7 @@ export function orderStatus(status: string) {
     EN_ROUTE: "Сувилагч замдаа",
     REFUSED: "Үйлчилгээнээс татгалзсан",
     INCIDENT: "Осол, хүндрэл бүртгэгдсэн",
+    NO_SHOW: "Сувилагч таныг олсонгүй",
     IN_PROGRESS: "Үйлчилгээ эхэлсэн",
     COMPLETED: "Дууссан",
     CANCELLED: "Цуцлагдсан",

@@ -84,6 +84,15 @@ export async function sendToUsers(userIds: string[], app: PushApp, message: Push
 // Messages (Mongolian, shown on the lock screen: no patient details)
 
 const CLIENT_STATUS: Record<string, { title: string; body: string }> = {
+  // back to PAID only when the assigned nurse withdrew before the visit
+  PAID: {
+    title: "Сувилагч солигдож байна",
+    body: "Томилогдсон сувилагч гарсан тул өөр сувилагч хайж байна. Танд нэмэлт зардал гарахгүй.",
+  },
+  NO_SHOW: {
+    title: "Сувилагч таныг олсонгүй",
+    body: "Сувилагч хаяг дээр ирсэн боловч уулзаж чадсангүй. Дэлгэрэнгүйг аппаас харна уу.",
+  },
   ASSIGNED: { title: "Сувилагч олдлоо", body: "Таны дуудлагыг сувилагч хүлээн авлаа." },
   EN_ROUTE: { title: "Сувилагч замдаа гарлаа", body: "Сувилагч тань руу явж байна." },
   IN_PROGRESS: { title: "Үйлчилгээ эхэллээ", body: "Сувилагч хаяг дээр ирж, үйлчилгээ эхэлсэн." },
@@ -122,7 +131,7 @@ export function notifyOffer(
 /** A cancelled order: its nurse stops, and the customer hears if staff cancelled it. */
 export async function notifyOrderCancelled(
   order: { id: string; childId: string; assignedNurseId: string | null },
-  by: "CLIENT" | "ADMIN",
+  by: "CLIENT" | "ADMIN" | "SYSTEM",
 ): Promise<void> {
   if (order.assignedNurseId)
     await sendToUsers([order.assignedNurseId], "nurse", {
@@ -136,6 +145,21 @@ export async function notifyOrderCancelled(
       body: "Дэлгэрэнгүй болон мөнгө буцаалтыг аппаас харна уу.",
       data: { type: "ORDER", orderId: order.id },
     });
+  if (by === "SYSTEM")
+    await sendToUsers([order.childId], "client", {
+      title: "Сувилагч олдсонгүй",
+      body: "Захиалсан цагт сувилагч олдоогүй тул захиалга цуцлагдаж, төлбөр бүрэн буцаагдана.",
+      data: { type: "ORDER", orderId: order.id },
+    });
+}
+
+/** Paid a while ago and still no nurse: the customer may wait or cancel for free. */
+export function notifyNoNurseYet(order: { id: string; childId: string }): Promise<void> {
+  return sendToUsers([order.childId], "client", {
+    title: "Сувилагч хайсаар байна",
+    body: "Одоогоор сувилагч олдоогүй байна. Хүлээх эсвэл захиалгаа цуцалж төлбөрөө бүрэн буцаан авах боломжтой.",
+    data: { type: "ORDER", orderId: order.id },
+  });
 }
 
 /** Tells a nurse an admin assigned a call to them. */

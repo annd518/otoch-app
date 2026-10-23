@@ -122,6 +122,21 @@ export const reject = (
   input: { version: number; reason: RejectReason; comment?: string },
 ) => post(client, id, 'reject', input)
 
+// At the address after the wait, nobody there (spec slide 25: no-show).
+export const noShow = (client: HttpClient, id: string, input: { version: number; lat: number; lng: number }) =>
+  post(client, id, 'no-show', input)
+
+// Withdraw before the visit; the call goes to another nurse (spec slide 25).
+export const releaseOrder = (client: HttpClient, id: string, input: { version: number; reason: string }) =>
+  client.request({
+    method: 'POST',
+    path: API_PATHS.nurseOrders.action(id, 'release'),
+    body: input,
+    parse: (d) => (isRecord(d) && d.released === true ? (true as const) : null),
+  })
+
+export const RELEASE_REASONS = ['Өвчтэй, хувийн шалтгаан', 'Тээврийн асуудал', 'Өөр яаралтай ажил гарсан'] as const
+
 export const reportIncident = (client: HttpClient, id: string, input: { version: number; description: string }) =>
   post(client, id, 'incident', input)
 

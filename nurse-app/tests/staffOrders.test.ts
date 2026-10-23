@@ -96,13 +96,17 @@ test('sorting: in progress, upcoming by time, history newest first', () => {
 })
 
 test('available actions follow the server guards', () => {
-  const none = { setEta: false, enRoute: false, checkin: false, record: false, reject: false, incident: false }
+  const none = {
+    setEta: false, enRoute: false, checkin: false, record: false, reject: false, incident: false, noShow: false, release: false,
+  }
   assert.deepEqual(availableActions('ASSIGNED'), {
-    ...none, setEta: true, enRoute: true, checkin: true, reject: true, incident: true,
+    ...none, setEta: true, enRoute: true, checkin: true, reject: true, incident: true, noShow: true, release: true,
   })
-  assert.deepEqual(availableActions('EN_ROUTE'), { ...none, setEta: true, checkin: true, reject: true, incident: true })
+  assert.deepEqual(availableActions('EN_ROUTE'), {
+    ...none, setEta: true, checkin: true, reject: true, incident: true, noShow: true, release: true,
+  })
   assert.deepEqual(availableActions('IN_PROGRESS'), { ...none, record: true, reject: true, incident: true })
-  for (const done of ['COMPLETED', 'REFUSED', 'INCIDENT', 'PAID']) assert.deepEqual(availableActions(done), none)
+  for (const done of ['COMPLETED', 'REFUSED', 'INCIDENT', 'PAID', 'NO_SHOW']) assert.deepEqual(availableActions(done), none)
 })
 
 test('contact is parsed when the server sends it', () => {

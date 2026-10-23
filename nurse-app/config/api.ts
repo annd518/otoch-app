@@ -31,7 +31,10 @@ export const API_PATHS = {
   // docs/nurse-app-api-proposal.md).
   nurseOrders: {
     byId: (id: string) => `/api/nurse/orders/${encodeURIComponent(id)}`,
-    action: (id: string, action: 'en-route' | 'checkin' | 'finish' | 'reject' | 'incident') =>
+    action: (
+      id: string,
+      action: 'en-route' | 'checkin' | 'finish' | 'reject' | 'incident' | 'no-show' | 'release',
+    ) =>
       `/api/nurse/orders/${encodeURIComponent(id)}/${action}`,
     record: (id: string) => `/api/nurse/orders/${encodeURIComponent(id)}/record`,
     attachment: (id: string, attachmentId: string) =>
