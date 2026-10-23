@@ -23,6 +23,7 @@ import type {
   DraftOrderInput,
   DraftOrderPatch,
   NewParentInput,
+  CancelTerms,
   Order,
   Quote,
   Parent,
@@ -47,8 +48,10 @@ import {
   type UploadLike,
 } from "./httpClient";
 import {
+  cancelOrder,
   createDraftOrder,
   deleteAttachment,
+  getCancelTerms,
   getOrder,
   getRedFlagQuestions,
   listOrders,
@@ -390,6 +393,15 @@ export const apiService = {
 
   getOrder(orderId: string): Promise<ApiResult<Order>> {
     return getOrder(client, orderId);
+  },
+
+  getCancelTerms(orderId: string): Promise<ApiResult<CancelTerms>> {
+    return getCancelTerms(client, orderId);
+  },
+
+  cancelOrder(orderId: string, refundPercent: number): Promise<ApiResult<Order>> {
+    readCache.clear();
+    return cancelOrder(client, orderId, refundPercent);
   },
 
   reportRedFlagBlock(

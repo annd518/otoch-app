@@ -167,6 +167,10 @@ model Order {
   notes             String?
   redFlagStatus     RedFlagStatus @default(NOT_ANSWERED)
   redFlagAnsweredAt DateTime?
+  // Cancellation (spec slide 25): who (CLIENT | ADMIN | SYSTEM), when and why
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReason      String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -180,6 +184,7 @@ model Order {
   attachments    Attachment[]
   payments       Payment[]
   visitRecord    VisitRecord?
+  refunds        Refund[]
   offers         OrderOffer[]
 
   @@index([childId, status])
@@ -469,8 +474,9 @@ model Payment {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id])
-  quote Quote @relation(fields: [quoteId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id])
+  quote   Quote    @relation(fields: [quoteId], references: [id])
+  refunds Refund[]
 
   @@unique([orderId, idempotencyKey])
   @@index([orderId, status])
@@ -559,4 +565,31 @@ model PushDevice {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, app])
+}
+
+enum RefundStatus {
+  PENDING // being sent to QPay
+  REFUNDED // QPay confirmed, or an admin refunded by hand
+  MANUAL_REQUIRED // QPay refused or cannot do it (e.g. a partial refund): an admin refunds by hand
+}
+
+// Money going back to the customer after a cancellation (spec slide 25).
+model Refund {
+  id            String       @id @default(cuid())
+  orderId       String
+  paymentId     String
+  percent       Int // of the paid amount
+  amountMnt     Int
+  status        RefundStatus @default(PENDING)
+  failureCode   String?
+  requestedById String
+  resolvedById  String? // admin who refunded by hand
+  resolvedNote  String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([status, createdAt])
 }

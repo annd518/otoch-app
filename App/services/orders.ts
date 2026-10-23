@@ -13,6 +13,8 @@ import type {
   RedFlagOutcome,
   RedFlagQuestion,
   RedFlagQuestionnaire,
+  CancelTerms,
+  OrderCancellation,
 } from "./apiTypes";
 import type { HttpClient, UploadFile } from "./httpClient";
 
@@ -34,6 +36,9 @@ export const orderPaths = {
     `/api/orders/${encodeURIComponent(id)}/attachments`,
   attachment: (id: string, attachmentId: string) =>
     `/api/orders/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`,
+  cancellation: (id: string) =>
+    `/api/orders/${encodeURIComponent(id)}/cancellation`,
+  cancel: (id: string) => `/api/orders/${encodeURIComponent(id)}/cancel`,
 };
 
 const text = (value: unknown): value is string =>
@@ -91,6 +96,67 @@ function parseSavedForm(value: unknown): BookingForm | null {
       medicationSource: value.medicationSource,
     }),
   };
+}
+
+const REFUND_STATUSES = ["PENDING", "REFUNDED", "MANUAL_REQUIRED"] as const;
+
+export function parseCancellation(value: unknown): OrderCancellation | null {
+  if (!isRecord(value) || !text(value.at)) return null;
+  const r = value.refund;
+  const by = value.by;
+  return {
+    at: value.at,
+    by: by === "CLIENT" || by === "ADMIN" || by === "SYSTEM" ? by : null,
+    reason: text(value.reason) ? value.reason : null,
+    refund:
+      isRecord(r) &&
+      typeof r.percent === "number" &&
+      typeof r.amountMnt === "number" &&
+      (REFUND_STATUSES as readonly unknown[]).includes(r.status)
+        ? {
+            percent: r.percent,
+            amountMnt: r.amountMnt,
+            status: r.status as (typeof REFUND_STATUSES)[number],
+          }
+        : null,
+  };
+}
+
+export function parseCancelTerms(data: unknown): CancelTerms | null {
+  if (!isRecord(data) || !isRecord(data.terms)) return null;
+  const t = data.terms;
+  if (t.allowed === false) return { allowed: false, reason: text(t.reason) ? t.reason : "Цуцлах боломжгүй" };
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const [paidMnt, refundPercent, refundMnt, feeMnt] = [n(t.paidMnt), n(t.refundPercent), n(t.refundMnt), n(t.feeMnt)];
+  const rule = t.rule;
+  if (
+    t.allowed !== true ||
+    paidMnt === null ||
+    refundPercent === null ||
+    refundMnt === null ||
+    feeMnt === null ||
+    (rule !== "UNPAID" && rule !== "BEFORE_ASSIGNMENT" && rule !== "EARLY" && rule !== "LATE")
+  )
+    return null;
+  return { allowed: true, paidMnt, refundPercent, refundMnt, feeMnt, rule };
+}
+
+export function getCancelTerms(client: HttpClient, orderId: string): Promise<ApiResult<CancelTerms>> {
+  return client.request({ method: "GET", path: orderPaths.cancellation(orderId), parse: parseCancelTerms });
+}
+
+/** refundPercent: the one the customer saw; the server refuses if it changed meanwhile. */
+export function cancelOrder(
+  client: HttpClient,
+  orderId: string,
+  refundPercent: number,
+): Promise<ApiResult<Order>> {
+  return client.request({
+    method: "POST",
+    path: orderPaths.cancel(orderId),
+    body: { refundPercent },
+    parse: parseOrder,
+  });
 }
 
 export function parseOrder(data: unknown): Order | null {
@@ -165,6 +231,7 @@ export function parseOrder(data: unknown): Order | null {
     nurse:
       isRecord(o.nurse) && text(o.nurse.name) ? { name: o.nurse.name } : null,
     eta: text(o.eta) ? o.eta : null,
+    cancellation: parseCancellation(o.cancellation),
     timeline: Array.isArray(o.timeline)
       ? o.timeline.flatMap((e) =>
           isRecord(e) && text(e.id) && text(e.status) && text(e.at)
