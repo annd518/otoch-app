@@ -1,10 +1,14 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
+import { useCallback, useEffect } from "react";
 import { ClipboardList, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { View, useWindowDimensions } from "react-native";
 import { AppText } from "../../components/AppText";
 import { theme } from "../../design/theme";
+import { http } from "../../services/http";
+import { registerPushDevice } from "../../services/push";
+import { enablePush, usePushNavigation } from "../../utils/pushNotifications";
 
 // The default tab bar is 49 px high, too short for an icon plus a 14/20 label (the label was
 // cut off). Height includes the bottom safe-area inset. Labels now
@@ -14,6 +18,13 @@ const TAB_CONTENT_HEIGHT = 72;
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { fontScale } = useWindowDimensions();
+  // Signed in (these tabs are behind the session guard): new calls arrive as push.
+  useEffect(() => {
+    void enablePush("nurse", (device) => registerPushDevice(http, device));
+  }, []);
+  const router = useRouter();
+  const openPath = useCallback((path: string) => router.push(path as never), [router]);
+  usePushNavigation("nurse", openPath);
   return (
     <Tabs
       screenOptions={{

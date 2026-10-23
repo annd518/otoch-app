@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
 import { SKILL_TAGS } from "../services/nurseProvision";
+import { notifyApplication } from "../services/push";
 import {
   DOCUMENT_KINDS,
   RECOMMENDED_EXPERIENCE_YEARS,
@@ -193,6 +194,7 @@ adminNurses.post("/:id/approve", async (req: StaffRequest, res) => {
       },
     }),
   ]);
+  void notifyApplication(p.userId, "APPROVED");
   return ok(res, { nurse: serialize(await loadNurse(p.userId), now) }, "Сувилагч баталгаажлаа");
 });
 
@@ -219,6 +221,7 @@ adminNurses.post("/:id/reject", async (req: StaffRequest, res) => {
       data: { nurseId: p.userId, actorId: req.user!.userId, action: "REJECTED", note: parsed.data.reason },
     }),
   ]);
+  void notifyApplication(p.userId, "REJECTED");
   return ok(res, { nurse: serialize(await loadNurse(p.userId), now) }, "Өргөдөл татгалзлаа");
 });
 
@@ -249,6 +252,7 @@ adminNurses.post("/:id/suspend", async (req: StaffRequest, res) => {
       data: { nurseId: p.userId, actorId: req.user!.userId, action: "SUSPENDED", note: parsed.data.reason },
     }),
   ]);
+  void notifyApplication(p.userId, "SUSPENDED");
   return ok(
     res,
     { nurse: serialize(await loadNurse(p.userId), now), activeOrders: busy },

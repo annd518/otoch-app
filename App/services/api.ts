@@ -3,6 +3,11 @@ import * as FileSystem from "expo-file-system/legacy";
 // use fetch/axios directly. Logic lives in pure modules (httpClient, authFlow,
 // catalog, orders) that are unit tested in tests/.
 import { connectivity } from "./connectivity";
+import {
+  registerPushDevice,
+  unregisterPushDevice,
+  type PushApp,
+} from "./push";
 import { otpApi } from "./otp";
 import { clientV2 } from "./clientV2";
 import { router } from "expo-router";
@@ -295,6 +300,18 @@ export const apiService = {
 
   signup(input: SignupInput): Promise<SignupOutcome> {
     return signupFlow(client, storage, input);
+  },
+
+  registerPush(device: {
+    token: string;
+    app: PushApp;
+    platform: "ios" | "android";
+  }): Promise<ApiResult<true>> {
+    return registerPushDevice(client, device);
+  },
+
+  unregisterPush(token: string): Promise<ApiResult<true>> {
+    return unregisterPushDevice(client, token);
   },
 
   logout(): Promise<void> {

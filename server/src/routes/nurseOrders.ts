@@ -9,6 +9,7 @@ import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { getStorage } from "../services/storage";
+import { notifyOrderStatus } from "../services/push";
 
 interface NurseRequest extends Request {
   user?: { userId: string; role: string };
@@ -201,7 +202,7 @@ async function transition(
   },
 ) {
   const nurseId = req.user!.userId;
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     const order = await loadOwned(tx, req.params.id as string, nurseId);
     assertVersion(order, opts.expected);
     assertFrom(order, opts.from);
@@ -226,6 +227,9 @@ async function transition(
       include: orderInclude,
     });
   });
+  // the customer hears about it after the commit (never blocks the nurse)
+  void notifyOrderStatus(updated);
+  return updated;
 }
 
 const view = (order: LockedOrder) => ({

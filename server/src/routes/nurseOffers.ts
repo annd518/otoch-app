@@ -12,6 +12,7 @@ import {
 } from "../services/dispatch";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { requireNurse } from "./nurseOrders";
+import { notifyOrderStatus } from "../services/push";
 import { orderDistrict } from "../services/ubDistricts";
 import { districtsSchema } from "./nurseApplication";
 
@@ -105,6 +106,7 @@ nurseOffers.post("/offers/:id/accept", async (req: NurseRequest, res) => {
     where: { id: orderId },
     include: orderInclude,
   });
+  void notifyOrderStatus(order);
   return ok(
     res,
     { order: { ...serializeOrder(order), patientName: order.parent.name } },

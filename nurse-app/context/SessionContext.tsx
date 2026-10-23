@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { http } from '../services/http'
+import { unregisterPushDevice } from '../services/push'
+import { disablePush } from '../utils/pushNotifications'
 import { loginFlow, logoutFlow, otpLoginFlow, otpRegisterFlow, type LoginOutcome } from '../services/authFlow'
 import type { AppUser } from '../services/validators'
 import { sessionEvents } from '../utils/sessionEvents'
@@ -56,6 +58,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    // before the session ends: the server needs it to drop this phone's token
+    await disablePush((token) => unregisterPushDevice(http, token))
     await logoutFlow(storage)
     setUser(null)
   }, [])

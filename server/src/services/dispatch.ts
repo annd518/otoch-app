@@ -5,6 +5,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/http";
 import { orderDistrict } from "./ubDistricts";
+import { notifyOffer } from "./push";
 
 export const OFFER_TTL_MS = 120_000;
 export const WAVE_SIZE = 3;
@@ -142,7 +143,10 @@ export async function runDispatchCycle(
       await tx.$executeRaw`SELECT 1 FROM "Order" WHERE "id"=${id} FOR UPDATE`;
       const order = await tx.order.findUnique({
         where: { id },
-        include: { items: { select: { serviceCode: true } }, offers: true },
+        include: {
+          items: { select: { serviceCode: true, service: { select: { name: true } } } },
+          offers: true,
+        },
       });
       if (
         !order ||
@@ -152,7 +156,7 @@ export async function runDispatchCycle(
         order.redFlagStatus === "FLAGGED" ||
         order.offers.some((o) => o.status === "PENDING")
       )
-        return 0;
+        return null;
       const asked = new Set(order.offers.map((o) => o.nurseId));
       const profiles = await tx.nurseProfile.findMany({
         where: {
@@ -174,7 +178,7 @@ export async function runDispatchCycle(
         if (await hasConflict(tx, p.userId, order.scheduledFor, order.id)) continue;
         eligible.push(p.userId);
       }
-      if (eligible.length === 0) return 0;
+      if (eligible.length === 0) return null;
       // Spread the work: whoever has fewest visits ahead is asked first.
       const load = new Map<string, number>();
       for (const nurseId of eligible)
@@ -204,11 +208,20 @@ export async function runDispatchCycle(
           metadata: { wave, offered: chosen.length },
         },
       });
-      return chosen.length;
+      return {
+        nurseIds: chosen,
+        order: {
+          id: order.id,
+          addressText: order.addressText,
+          serviceNames: order.items.map((i) => i.service.name),
+        },
+      };
     });
-    if (created > 0) {
+    if (created) {
       ordersOffered++;
-      offersCreated += created;
+      offersCreated += created.nurseIds.length;
+      // after the commit; never throws
+      await notifyOffer(created.nurseIds, created.order);
     }
   }
   return { expired, ordersOffered, offersCreated };

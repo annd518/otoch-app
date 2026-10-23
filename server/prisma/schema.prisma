@@ -23,6 +23,7 @@ model User {
   phone          String? @unique
   deletedAt      DateTime?
   refreshSessions RefreshSession[]
+  pushDevices     PushDevice[]
   assignedOrders Order[] @relation("AssignedOrderNurse")
   nurseProfile   NurseProfile?
   orderOffers    OrderOffer[]
@@ -541,4 +542,21 @@ model BlobCleanupJob {
   attempts Int @default(0)
   completedAt DateTime?
   createdAt DateTime @default(now())
+}
+
+// A phone that receives push notifications (Expo push token). One token belongs
+// to the account last signed in on that phone; it is removed on sign-out or
+// when Expo reports it is no longer registered.
+model PushDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  app        String // client | nurse
+  platform   String // ios | android
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, app])
 }

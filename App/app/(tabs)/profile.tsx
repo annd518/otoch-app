@@ -10,6 +10,7 @@ import { theme } from "@/design/theme";
 import { useSingleFlight } from "@/components/useSingleFlight";
 import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
+import { disablePush } from "@/utils/pushNotifications";
 import type { AppUser, Parent } from "@/services/apiTypes";
 import {
   Banner,
@@ -113,6 +114,8 @@ export default function Profile() {
     .slice(0, 2)
     .join("");
   const logout = async () => {
+    // before the session ends: the server needs it to drop this phone's token
+    await disablePush((token) => apiService.unregisterPush(token));
     await apiService.logout();
     // An unsaved booking must not stay on a device the user signed out of.
     // Cleared after the session ends, so a pending save cannot write it back.
