@@ -1,5 +1,5 @@
-import { Redirect, Tabs } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { Redirect, Tabs, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { House, CalendarDays, FileText, UserRound } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,8 @@ import { storage } from "@/utils/storage";
 import { theme } from "@/design/theme";
 import { StateView, Copy } from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
+import { apiService } from "@/services/api";
+import { enablePush, usePushNavigation } from "@/utils/pushNotifications";
 export default function TabLayout() {
   const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -23,6 +25,18 @@ export default function TabLayout() {
       active = false;
     };
   }, [restore]);
+
+  // Signed in: this phone gets order notifications (nurse found, on the way, ...).
+  useEffect(() => {
+    if (auth === "in")
+      void enablePush("client", (device) => apiService.registerPush(device));
+  }, [auth]);
+  const router = useRouter();
+  const openPath = useCallback(
+    (path: string) => router.push(path as never),
+    [router],
+  );
+  usePushNavigation("client", openPath);
   if (auth === "checking")
     return (
       <View style={{ flex: 1, padding: 16 }}>

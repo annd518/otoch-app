@@ -65,6 +65,9 @@ it("SDK signed PUT/GET/DELETE stays private, returns bytes and maps storage erro
 it("orphan cleanup retries queued blobs; cleanup records completion", async () => {
   process.env.STORAGE_DRIVER = "memory";
   const storage = getStorage()!;
+  // Earlier test files leave their own queued jobs; on a slow run they are older
+  // than the 10-minute grace period too. Count only this test's job.
+  await prisma.blobCleanupJob.updateMany({ where: { completedAt: null }, data: { completedAt: new Date() } });
   await storage.put("orphan", Buffer.from("test"));
   await prisma.blobCleanupJob.create({
     data: {

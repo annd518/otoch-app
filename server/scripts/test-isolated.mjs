@@ -46,6 +46,7 @@ const env = {
     EMAIL_USER: '',
     STORAGE_DRIVER: 'memory',
     QPAY_MODE: 'mock',
+    PUSH_DRIVER: 'mock',
     QPAY_CALLBACK_SECRET: randomBytes(16).toString('hex'),
     EMAIL_PASS: '',
 }

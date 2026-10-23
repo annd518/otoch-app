@@ -4,6 +4,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { orderInclude, serializeOrder } from "../services/orders";
+import { notifyAssignedNurse, notifyOrderStatus } from "../services/push";
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
 }
@@ -205,5 +206,7 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
         include: orderInclude,
       });
     });
+    if (action !== "eta") void notifyOrderStatus(updated);
+    if (action === "assign") void notifyAssignedNurse(data.nurseId!, updated.id);
     return ok(res, { order: serializeOrder(updated) }, "Захиалга шинэчлэгдлээ");
   });

@@ -3,6 +3,7 @@ import { nurseOrders } from "./routes/nurseOrders";
 import { nurseOffers } from "./routes/nurseOffers";
 import { nurseApplication } from "./routes/nurseApplication";
 import { adminRoutes } from "./routes/admin";
+import { pushRoutes } from "./routes/push";
 import { clientV2Routes } from "./controllers/clientV2Controller";
 import express, { Request, Response } from "express";
 import cors from "cors";
@@ -89,6 +90,7 @@ export function createApp() {
   app.use("/api/nurse", nurseOffers);
   app.use("/api/admin", adminRoutes);
   app.use("/api/client", clientV2Routes);
+  app.use("/api/push", pushRoutes);
   app.use("/api/auth", authRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/parents", parentRoutes);
