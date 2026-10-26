@@ -105,3 +105,10 @@ export const ETA_CHOICES_MIN = [10, 15, 30, 45, 60] as const
 export function etaFromNow(minutes: number, nowMs: number): string {
   return new Date(nowMs + minutes * 60_000).toISOString()
 }
+
+/** "★ 4.8 · 12 үнэлгээ" (spec SCR-N11). */
+export function ratingText(r: { average: number | null; count: number }): string {
+  return r.average === null || r.count === 0
+    ? "Үйлчлүүлэгчийн үнэлгээ хараахан алга"
+    : `Үйлчлүүлэгчийн үнэлгээ: ★ ${r.average.toFixed(1)} · ${r.count} үнэлгээ`;
+}

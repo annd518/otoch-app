@@ -17,7 +17,7 @@ import { ErrorBox } from "../../components/ErrorBox";
 import { useSession } from "../../context/SessionContext";
 import { theme } from "../../design/theme";
 import { useProfile } from "../../hooks/useProfile";
-import { formatUbDate } from "../../utils/orderView";
+import { formatUbDate, ratingText } from "../../utils/orderView";
 import { districtsText } from "../../utils/districts";
 
 const STATUS_LABEL = {
@@ -147,6 +147,9 @@ export default function ProfileScreen() {
                     : ""}
                 </AppText>
               ) : null}
+              <AppText variant="caption" color={theme.color.secondary}>
+                {ratingText(p.rating)}
+              </AppText>
               {p.skillTags.length > 0 ? (
                 <AppText variant="caption" color={theme.color.secondary}>
                   Ур чадвар: {p.skillTags.join(", ")}

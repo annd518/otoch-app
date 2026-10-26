@@ -20,7 +20,10 @@ type Order = {
   attachments?: { id: string }[];
   timeline: { id: string; status: string; at: string }[];
   cancellation?: Cancellation;
+  // the customer's rating once the visit is done (spec SCR-C16)
+  rating?: { stars: number; tags: string[]; comment: string | null } | null;
 };
+const RATING_TAG_LABEL: Record<string, string> = { ON_TIME: "Цагтаа", KIND: "Эелдэг", PROFESSIONAL: "Мэргэжлийн" };
 const labels = ORDER_STATUS_LABELS;
 const date = (v: string | null) =>
   v
@@ -211,6 +214,15 @@ function StaffOrders() {
           {selected.isMock && <p>Туршилтын төлбөр · бодит QPay биш</p>}
           <p>Хаяг: {selected.address?.text ?? "Ороогүй"}</p>
           <p>Сувилагч: {selected.nurse?.name ?? "Томилогдоогүй"}</p>
+          {selected.rating && (
+            <p className={selected.rating.stars <= 2 ? "text-red-700" : undefined}>
+              Үнэлгээ: {"★".repeat(selected.rating.stars)}
+              {selected.rating.tags.length > 0
+                ? ` · ${selected.rating.tags.map((t) => RATING_TAG_LABEL[t] ?? t).join(", ")}`
+                : ""}
+              {selected.rating.comment ? ` · “${selected.rating.comment}”` : ""}
+            </p>
+          )}
           <p>Ирэх хугацаа: {date(selected.eta)}</p>
           <p>Эмчийн заалтын зураг: {selected.attachments?.length ?? 0}</p>
           {selected.bookingForm?.referralText && (

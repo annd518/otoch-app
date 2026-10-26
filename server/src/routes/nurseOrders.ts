@@ -234,6 +234,9 @@ async function transition(
 
 const view = (order: LockedOrder) => ({
   ...serializeOrder(order),
+  // A nurse sees only the average (GET /api/nurse/me), not who rated what
+  rating: null,
+  canRate: false,
   patientName: order.parent.name,
   // Phone for the "call" button; only while the visit is still ahead of or in progress.
   patientContact: isActive(order.status) ? order.parent.emergencyContact : null,

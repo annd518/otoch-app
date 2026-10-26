@@ -32,6 +32,7 @@ export const orderInclude = {
   attachments: { where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" } },
   quotes: { orderBy: { createdAt: "desc" }, take: 1 },
   refunds: { orderBy: { createdAt: "desc" }, take: 1 },
+  rating: true,
 } satisfies Prisma.OrderInclude;
 
 export type OrderWithItems = Prisma.OrderGetPayload<{
@@ -210,6 +211,16 @@ export function serializeOrder(order: OrderWithItems) {
             : null,
         }
       : null,
+    // The customer's rating of the visit (spec SCR-C16); canRate = may rate now
+    rating: order.rating
+      ? {
+          stars: order.rating.stars,
+          tags: order.rating.tags,
+          comment: order.rating.comment,
+          at: order.rating.createdAt.toISOString(),
+        }
+      : null,
+    canRate: order.status === "COMPLETED" && !!order.assignedNurseId && !order.rating,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
   };

@@ -204,6 +204,9 @@ export interface Order {
   timeline?: { id: string; status: string; at: string }[];
   // set once the order is cancelled (server/src/services/cancellation.ts)
   cancellation?: OrderCancellation | null;
+  // the customer's rating of a finished visit (spec SCR-C16)
+  rating?: OrderRating | null;
+  canRate?: boolean;
 
   id: string;
   status: string;
@@ -218,6 +221,13 @@ export interface Order {
   referralUploadAvailable: boolean | null;
   // body fields the server did not store (data.ignoredFields)
   ignoredFields: string[];
+}
+
+export type RatingTag = "ON_TIME" | "KIND" | "PROFESSIONAL";
+export interface OrderRating {
+  stars: number;
+  tags: RatingTag[];
+  comment: string | null;
 }
 
 export interface OrderCancellation {

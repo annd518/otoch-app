@@ -6,6 +6,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { ApiError } from "../utils/http";
 import { orderDistrict } from "./ubDistricts";
 import { notifyOffer } from "./push";
+import { ratingSummaries } from "./ratings";
 
 export const OFFER_TTL_MS = 120_000;
 export const WAVE_SIZE = 3;
@@ -16,6 +17,10 @@ export const CONFLICT_WINDOW_MS = 2 * 3_600_000;
 /** The nurse's share of the service price (spec slide 5, contract 70/30). */
 export const NURSE_SHARE_PERCENT = 70;
 const BUSY = ["ASSIGNED", "EN_ROUTE", "IN_PROGRESS"] as const;
+/** Withdrawals from accepted calls this recent move a nurse back in the queue (spec slide 25). */
+export const RELEASE_PENALTY_MS = 30 * 86400000;
+/** Stars assumed for a nurse nobody rated yet, so new nurses are not last. */
+export const UNRATED_STARS = 4.5;
 
 // Skill tag a service needs (spec slide 35). S01/S05 (assessment) need none.
 const SERVICE_SKILL: Record<string, string> = {
@@ -179,17 +184,38 @@ export async function runDispatchCycle(
         eligible.push(p.userId);
       }
       if (eligible.length === 0) return null;
-      // Spread the work: whoever has fewest visits ahead is asked first.
+      // Spread the work: whoever has fewest visits ahead is asked first. On a
+      // tie, fewer recent withdrawals, then the better customer rating.
       const load = new Map<string, number>();
-      for (const nurseId of eligible)
+      const releases = new Map<string, number>();
+      for (const nurseId of eligible) {
         load.set(
           nurseId,
           await tx.order.count({
             where: { assignedNurseId: nurseId, status: { in: [...BUSY] } },
           }),
         );
+        releases.set(
+          nurseId,
+          await tx.orderEvent.count({
+            where: {
+              type: "NURSE_RELEASE",
+              actorId: nurseId,
+              createdAt: { gte: new Date(now.getTime() - RELEASE_PENALTY_MS) },
+            },
+          }),
+        );
+      }
+      const ratings = await ratingSummaries(tx, eligible);
+      const stars = (id: string) => ratings.get(id)?.average ?? UNRATED_STARS;
       const chosen = eligible
-        .sort((a, b) => load.get(a)! - load.get(b)! || a.localeCompare(b))
+        .sort(
+          (a, b) =>
+            load.get(a)! - load.get(b)! ||
+            releases.get(a)! - releases.get(b)! ||
+            stars(b) - stars(a) ||
+            a.localeCompare(b),
+        )
         .slice(0, WAVE_SIZE);
       const wave = order.offers.reduce((m, o) => Math.max(m, o.wave), 0) + 1;
       await tx.orderOffer.createMany({

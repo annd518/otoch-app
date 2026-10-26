@@ -29,6 +29,8 @@ export interface NurseProfile {
   districts: string[]
   // Why the nurse cannot go online; null when they can.
   blocker: string | null
+  // customers' average stars; average null = no ratings yet
+  rating: { average: number | null; count: number }
 }
 
 const text = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
@@ -90,6 +92,10 @@ export function parseProfileEnvelope(data: unknown): { profile: NurseProfile | n
       skillTags: Array.isArray(p.skillTags) ? p.skillTags.filter((t): t is string => typeof t === 'string') : [],
       districts: Array.isArray(p.districts) ? p.districts.filter((t): t is string => typeof t === 'string') : [],
       blocker: optText(p.blocker),
+      rating:
+        isRecord(p.rating) && typeof p.rating.count === 'number'
+          ? { average: typeof p.rating.average === 'number' ? p.rating.average : null, count: p.rating.count }
+          : { average: null, count: 0 },
     },
   }
 }

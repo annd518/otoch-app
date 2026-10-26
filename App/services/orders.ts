@@ -15,6 +15,8 @@ import type {
   RedFlagQuestionnaire,
   CancelTerms,
   OrderCancellation,
+  OrderRating,
+  RatingTag,
 } from "./apiTypes";
 import type { HttpClient, UploadFile } from "./httpClient";
 
@@ -39,7 +41,47 @@ export const orderPaths = {
   cancellation: (id: string) =>
     `/api/orders/${encodeURIComponent(id)}/cancellation`,
   cancel: (id: string) => `/api/orders/${encodeURIComponent(id)}/cancel`,
+  rating: (id: string) => `/api/orders/${encodeURIComponent(id)}/rating`,
 };
+
+/** Rating chips (spec SCR-C16); codes match server/src/services/ratings.ts. */
+export const RATING_TAGS: { code: RatingTag; label: string }[] = [
+  { code: "ON_TIME", label: "Цагтаа" },
+  { code: "KIND", label: "Эелдэг" },
+  { code: "PROFESSIONAL", label: "Мэргэжлийн" },
+];
+const isRatingTag = (v: unknown): v is RatingTag =>
+  RATING_TAGS.some((t) => t.code === v);
+
+export function parseRating(value: unknown): OrderRating | null {
+  if (
+    !isRecord(value) ||
+    typeof value.stars !== "number" ||
+    !Number.isInteger(value.stars) ||
+    value.stars < 1 ||
+    value.stars > 5
+  )
+    return null;
+  return {
+    stars: value.stars,
+    tags: Array.isArray(value.tags) ? value.tags.filter(isRatingTag) : [],
+    comment: text(value.comment) ? value.comment : null,
+  };
+}
+
+export function rateOrder(
+  client: HttpClient,
+  orderId: string,
+  rating: { stars: number; tags: RatingTag[]; comment?: string },
+): Promise<ApiResult<Order>> {
+  const comment = rating.comment?.trim();
+  return client.request({
+    method: "POST",
+    path: orderPaths.rating(orderId),
+    body: { stars: rating.stars, tags: rating.tags, ...(comment && { comment }) },
+    parse: parseOrder,
+  });
+}
 
 const text = (value: unknown): value is string =>
   typeof value === "string" && value.trim() !== "";
@@ -232,6 +274,8 @@ export function parseOrder(data: unknown): Order | null {
       isRecord(o.nurse) && text(o.nurse.name) ? { name: o.nurse.name } : null,
     eta: text(o.eta) ? o.eta : null,
     cancellation: parseCancellation(o.cancellation),
+    rating: parseRating(o.rating),
+    canRate: o.canRate === true,
     timeline: Array.isArray(o.timeline)
       ? o.timeline.flatMap((e) =>
           isRecord(e) && text(e.id) && text(e.status) && text(e.at)

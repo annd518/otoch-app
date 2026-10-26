@@ -11,6 +11,7 @@ import {
 import { deleteAttachment, listAttachments, readAttachment, uploadAttachment } from '../controllers/attachmentController'
 import { createQPayPayment, getPayment } from '../controllers/paymentController'
 import { cancelClientOrder, getCancelTerms } from '../controllers/cancelController'
+import { rateOrder } from '../controllers/ratingController'
 import { authenticateToken } from '../middlwares/auth'
 import { requireRole } from '../middlwares/rbac'
 
@@ -30,6 +31,9 @@ router.post('/:id/quote', requestQuote)
 // Cancellation (spec slide 25): terms first, then confirm them
 router.get('/:id/cancellation', getCancelTerms)
 router.post('/:id/cancel', cancelClientOrder)
+
+// Rating a finished visit (spec SCR-C16)
+router.post('/:id/rating', rateOrder)
 
 // Private referral images (docs/l1-1-api.md §5)
 router.post('/:id/attachments', uploadAttachment)
