@@ -55,8 +55,8 @@ beforeEach(() => {
   pushOutbox.length = 0;
 });
 
-/** A visit in progress, paid `paidMnt`, assigned to the nurse. */
-async function inProgress(paidMnt: number, assignee = nurseId) {
+/** A visit in progress, paid `paidMnt` (of which `travelFeeMnt` travel fee), assigned to the nurse. */
+async function inProgress(paidMnt: number, assignee = nurseId, travelFeeMnt = 0) {
   const o = await prisma.order.create({
     data: {
       childId,
@@ -76,8 +76,8 @@ async function inProgress(paidMnt: number, assignee = nurseId) {
         orderVersion: 1,
         catalogVersion: "T",
         pricingVersion: "T",
-        lines: [],
-        subtotalMnt: paidMnt,
+        lines: travelFeeMnt > 0 ? [{ type: "TRAVEL_FEE", name: "Унааны зардал", zoneTier: 2, amountMnt: travelFeeMnt }] : [],
+        subtotalMnt: paidMnt - travelFeeMnt,
         totalMnt: paidMnt,
         isFixture: true,
         expiresAt: new Date(Date.now() + 600000),
@@ -105,8 +105,20 @@ const complete = (o: { id: string; version: number }) =>
   api(srv.baseUrl, "POST", `/api/staff/orders/${o.id}/complete`, { token: nurse, body: { version: o.version } });
 
 it("splits a price into the nurse's 70% and the 30% commission, in whole tögrög", () => {
-  assert.deepEqual(splitEarning(35000), { grossMnt: 35000, netMnt: 24500, commissionMnt: 10500, commissionPct: 30 });
-  assert.deepEqual(splitEarning(25001), { grossMnt: 25001, netMnt: 17500, commissionMnt: 7501, commissionPct: 30 });
+  const plain = { travelFeeMnt: 0, travelFeeNursePct: null };
+  assert.deepEqual(splitEarning(35000), { grossMnt: 35000, netMnt: 24500, commissionMnt: 10500, commissionPct: 30, ...plain });
+  assert.deepEqual(splitEarning(25001), { grossMnt: 25001, netMnt: 17500, commissionMnt: 7501, commissionPct: 30, ...plain });
+  // a 5,000₮ travel fee inside 30,000₮, all of it to the nurse: 25,000 × 70% + 5,000
+  assert.deepEqual(splitEarning(30000, 70, 5000, 100), {
+    grossMnt: 30000,
+    netMnt: 22500,
+    commissionMnt: 7500,
+    commissionPct: 30,
+    travelFeeMnt: 5000,
+    travelFeeNursePct: 100,
+  });
+  // the company keeps the whole fee
+  assert.equal(splitEarning(30000, 70, 5000, 0).netMnt, 17500);
 });
 
 it("weeks start on Monday and months on the 1st, in Ulaanbaatar time", () => {
@@ -211,4 +223,21 @@ it("the nurse app's own finish writes the earning too", async () => {
   });
   assert.equal(r.status, 200, JSON.stringify(r.json));
   assert.equal((await prisma.payoutEntry.findUniqueOrThrow({ where: { orderId: o.id } })).netMnt, 28000);
+});
+
+it("the travel fee is split by its own admin setting", async () => {
+  const put = (values: Record<string, number>) =>
+    api(srv.baseUrl, "PUT", "/api/admin/settings", { token: admin, body: { values } });
+  assert.equal((await put({ travelFeeNursePct: 100 })).status, 200);
+  try {
+    const o = await inProgress(30000, nurseId, 5000);
+    assert.equal((await complete(o)).status, 200);
+    const e = await prisma.payoutEntry.findUniqueOrThrow({ where: { orderId: o.id } });
+    assert.equal(e.netMnt, 22500);
+    assert.equal(e.commissionMnt, 7500);
+    assert.equal(e.travelFeeMnt, 5000);
+    assert.equal(e.travelFeeNursePct, 100);
+  } finally {
+    await put({ travelFeeNursePct: 70 });
+  }
 });
