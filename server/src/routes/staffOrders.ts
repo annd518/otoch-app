@@ -3,6 +3,7 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
+import { audit } from "../services/audit";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { recordEarning } from "../services/payouts";
 import { notifyAssignedNurse, notifyOrderStatus } from "../services/push";
@@ -187,6 +188,15 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
         },
       });
       if (next === "COMPLETED") await recordEarning(tx, order.id);
+      if (action === "assign")
+        await audit(tx, {
+          actorId: req.user!.userId,
+          action: "ORDER_ASSIGNED",
+          entity: "order",
+          entityId: order.id,
+          before: { status: order.status, nurseId: order.assignedNurseId },
+          after: { status: "ASSIGNED", nurseId: data.nurseId! },
+        });
       // A hand assignment ends any dispatch offers still open for this order.
       if (action === "assign")
         await tx.orderOffer.updateMany({
