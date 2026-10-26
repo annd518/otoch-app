@@ -4,6 +4,7 @@
 // records it as a Payout; there is no bank API.
 import type { Prisma } from "@prisma/client";
 import { NURSE_SHARE_PERCENT } from "./dispatch";
+import { getSettings, nurseSharePercent } from "./settings";
 
 type Tx = Prisma.TransactionClient;
 
@@ -34,7 +35,12 @@ export async function recordEarning(tx: Tx, orderId: string, now: Date = new Dat
   const gross = order?.payments[0]?.amountMnt ?? 0;
   if (!order?.assignedNurseId || order.payoutEntry || gross <= 0) return null;
   return tx.payoutEntry.create({
-    data: { nurseId: order.assignedNurseId, orderId, earnedAt: now, ...splitEarning(gross) },
+    data: {
+      nurseId: order.assignedNurseId,
+      orderId,
+      earnedAt: now,
+      ...splitEarning(gross, nurseSharePercent(await getSettings(tx))),
+    },
   });
 }
 

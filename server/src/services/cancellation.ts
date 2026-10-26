@@ -14,13 +14,21 @@ import { ApiError } from "../utils/http";
 import { logError } from "../utils/logger";
 import { getQPayAdapter } from "./qpay";
 import { notifyOrderCancelled } from "./push";
+import { getSettings } from "./settings";
 
-// ⚑ Spec slide 25: every percentage and minute lives in settings and the
-// policy is confirmed by the lawyer. These are the spec's values.
+// ⚑ Spec slide 25: the policy is confirmed by the lawyer. These are the spec's
+// values; the live ones come from the cancelFreeHours and cancelFeePct settings.
 export const CANCEL_POLICY = {
   freeHoursBefore: 2,
   lateRefundPercent: 70,
 } as const;
+export type CancelPolicy = { freeHoursBefore: number; lateRefundPercent: number };
+
+/** The cancellation policy from the admin settings. */
+export async function cancelPolicy(db: Tx | PrismaClient): Promise<CancelPolicy> {
+  const s = await getSettings(db);
+  return { freeHoursBefore: s.cancelFreeHours, lateRefundPercent: 100 - s.cancelFeePct };
+}
 
 /** Statuses a customer may cancel. */
 const CLIENT_CANCELLABLE = ["DRAFT", "AWAITING_PAYMENT", "PAID", "ASSIGNED", "EN_ROUTE"] as const;
@@ -51,6 +59,7 @@ export function clientCancelTerms(
   order: { status: string; scheduledFor: Date | null },
   paidMnt: number,
   now: Date,
+  policy: CancelPolicy = CANCEL_POLICY,
 ): CancelTerms {
   if (!(CLIENT_CANCELLABLE as readonly string[]).includes(order.status))
     return {
@@ -66,12 +75,12 @@ export function clientCancelTerms(
     ({ allowed: true, paidMnt, refundPercent: 100, refundMnt: paidMnt, feeMnt: 0, rule }) as const;
   if (order.status === "PAID") return full("BEFORE_ASSIGNMENT");
   const hoursLeft = order.scheduledFor ? (order.scheduledFor.getTime() - now.getTime()) / 3600000 : Infinity;
-  if (hoursLeft >= CANCEL_POLICY.freeHoursBefore) return full("EARLY");
-  const refundMnt = Math.floor((paidMnt * CANCEL_POLICY.lateRefundPercent) / 100);
+  if (hoursLeft >= policy.freeHoursBefore) return full("EARLY");
+  const refundMnt = Math.floor((paidMnt * policy.lateRefundPercent) / 100);
   return {
     allowed: true,
     paidMnt,
-    refundPercent: CANCEL_POLICY.lateRefundPercent,
+    refundPercent: policy.lateRefundPercent,
     refundMnt,
     feeMnt: paidMnt - refundMnt,
     rule: "LATE",
@@ -106,6 +115,7 @@ export interface CancelInput {
  * commit) asks QPay for the money back and tells the nurse. Returns the refund id.
  */
 export async function cancelOrder(prisma: PrismaClient, input: CancelInput, now = new Date()) {
+  const policy = await cancelPolicy(prisma);
   const result = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT 1 FROM "Order" WHERE "id" = ${input.orderId} FOR UPDATE`;
     const order = await tx.order.findUnique({ where: { id: input.orderId } });
@@ -116,7 +126,7 @@ export async function cancelOrder(prisma: PrismaClient, input: CancelInput, now 
 
     let refundPercent: number;
     if (input.by === "CLIENT") {
-      const terms = clientCancelTerms(order, paidMnt, now);
+      const terms = clientCancelTerms(order, paidMnt, now, policy);
       if (!terms.allowed) throw new ApiError(409, "INVALID_STATUS", terms.reason);
       // e.g. the 2-hour line passed while the customer was reading the terms
       if (terms.refundPercent !== input.refundPercent)

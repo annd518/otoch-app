@@ -30,7 +30,7 @@ function termsText(t: Extract<CancelTerms, { allowed: true }>): string {
   if (t.rule === "UNPAID") return "Төлбөр төлөгдөөгүй тул буцаах мөнгө байхгүй.";
   if (t.refundPercent === 100)
     return `Төлсөн ${formatMnt(t.paidMnt)} бүрэн буцаагдана (QPay-ээр, 1–3 ажлын өдөрт).`;
-  return `Үйлчилгээ эхлэхэд 2 цагаас бага хугацаа үлдсэн тул ${formatMnt(t.feeMnt)} (${100 - t.refundPercent}%) хураамж суутгаж, ${formatMnt(t.refundMnt)} (${t.refundPercent}%) буцаана.`;
+  return `Үйлчилгээ эхлэх цаг ойртсон тул ${formatMnt(t.feeMnt)} (${100 - t.refundPercent}%) хураамж суутгаж, ${formatMnt(t.refundMnt)} (${t.refundPercent}%) буцаана.`;
 }
 
 const REFUND_TEXT = {

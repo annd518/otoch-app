@@ -10,7 +10,9 @@ import { logError } from "../utils/logger";
 import { cancelOrder } from "./cancellation";
 import { DISPATCH_HORIZON_MS } from "./dispatch";
 import { notifyNoNurseYet } from "./push";
+import { getSettings } from "./settings";
 
+/** Default; the live value is the noNurseNoticeMin setting. */
 export const NO_NURSE_NOTICE_MS = 30 * 60000;
 /** A nurse may still check in this long after the booked start (CHECKIN_WINDOW_MIN). */
 export const EXPIRE_AFTER_START_MS = 30 * 60000;
@@ -19,6 +21,7 @@ export const SYSTEM_ACTOR = "SYSTEM";
 export async function runUnassignedSweep(prisma: PrismaClient, now: Date = new Date()) {
   let noticed = 0;
   let expired = 0;
+  const noticeMs = (await getSettings(prisma)).noNurseNoticeMin * 60000;
 
   // 1. Booked time passed: nobody can do this visit any more.
   const late = await prisma.order.findMany({
@@ -72,7 +75,7 @@ export async function runUnassignedSweep(prisma: PrismaClient, now: Date = new D
     const paidAt = o.payments[0]?.paidAt;
     if (!paidAt || !o.scheduledFor) continue;
     const searchingSince = Math.max(paidAt.getTime(), o.scheduledFor.getTime() - DISPATCH_HORIZON_MS);
-    if (now.getTime() - searchingSince < NO_NURSE_NOTICE_MS) continue;
+    if (now.getTime() - searchingSince < noticeMs) continue;
     await prisma.orderEvent.create({ data: { orderId: o.id, type: "NO_NURSE_NOTICE" } });
     await notifyNoNurseYet(o);
     noticed++;

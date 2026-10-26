@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
-import { CANCEL_POLICY, cancelOrder, clientCancelTerms, paidPayment } from "../services/cancellation";
+import { cancelOrder, cancelPolicy, clientCancelTerms, paidPayment } from "../services/cancellation";
 import { loadOwnedOrder, serializeOrder } from "../services/orders";
 
 interface AuthenticatedRequest extends Request {
@@ -14,14 +14,15 @@ interface AuthenticatedRequest extends Request {
 export const getCancelTerms = async (req: AuthenticatedRequest, res: Response) => {
   const order = await loadOwnedOrder(String(req.params.id), req.user!.userId);
   const payment = await paidPayment(prisma, order.id);
-  const terms = clientCancelTerms(order, payment?.amountMnt ?? 0, new Date());
+  const policy = await cancelPolicy(prisma);
+  const terms = clientCancelTerms(order, payment?.amountMnt ?? 0, new Date(), policy);
   return ok(
     res,
     {
       terms,
       policy: {
-        freeHoursBefore: CANCEL_POLICY.freeHoursBefore,
-        lateRefundPercent: CANCEL_POLICY.lateRefundPercent,
+        freeHoursBefore: policy.freeHoursBefore,
+        lateRefundPercent: policy.lateRefundPercent,
       },
     },
     "Цуцлалтын нөхцөл",

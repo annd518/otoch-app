@@ -5,7 +5,6 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import {
-  NURSE_SHARE_PERCENT,
   acceptOffer,
   declineOffer,
   ineligibleReason,
@@ -16,6 +15,7 @@ import { notifyOrderStatus } from "../services/push";
 import { orderDistrict } from "../services/ubDistricts";
 import { districtsSchema } from "./nurseApplication";
 import { ratingSummaries, type RatingSummary } from "../services/ratings";
+import { getSettings, nurseSharePercent } from "../services/settings";
 
 interface NurseRequest extends Request {
   user?: { userId: string; role: string };
@@ -56,6 +56,7 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
     const d = orderDistrict(r.order.addressText);
     return d !== null && districts.includes(d);
   });
+  const share = nurseSharePercent(await getSettings(prisma));
   const zones = await prisma.serviceZone.findMany({
     where: { id: { in: rows.flatMap((r) => (r.order.zoneId ? [r.order.zoneId] : [])) } },
     select: { id: true, name: true },
@@ -89,8 +90,8 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
           },
           earnings: quote
             ? {
-                nurseShareMnt: Math.floor((quote.subtotalMnt * NURSE_SHARE_PERCENT) / 100),
-                sharePercent: NURSE_SHARE_PERCENT,
+                nurseShareMnt: Math.floor((quote.subtotalMnt * share) / 100),
+                sharePercent: share,
                 isFixture: quote.isFixture,
               }
             : null,

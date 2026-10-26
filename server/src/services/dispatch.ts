@@ -7,14 +7,16 @@ import { ApiError } from "../utils/http";
 import { orderDistrict } from "./ubDistricts";
 import { notifyOffer } from "./push";
 import { ratingSummaries } from "./ratings";
+import { getSettings } from "./settings";
 
+// Defaults; the live values are the offerTtlSec and waveSize settings.
 export const OFFER_TTL_MS = 120_000;
 export const WAVE_SIZE = 3;
 /** Orders are dispatched when they start within this long (spec slide 70). */
 export const DISPATCH_HORIZON_MS = 24 * 3_600_000;
 /** A nurse cannot take two visits starting within this long of each other. */
 export const CONFLICT_WINDOW_MS = 2 * 3_600_000;
-/** The nurse's share of the service price (spec slide 5, contract 70/30). */
+/** Default nurse share (spec slide 5, contract 70/30); live: 100 - commissionPct setting. */
 export const NURSE_SHARE_PERCENT = 70;
 const BUSY = ["ASSIGNED", "EN_ROUTE", "IN_PROGRESS"] as const;
 /** Withdrawals from accepted calls this recent move a nurse back in the queue (spec slide 25). */
@@ -121,6 +123,9 @@ export async function runDispatchCycle(
   prisma: PrismaClient,
   now: Date = new Date(),
 ): Promise<DispatchSummary> {
+  const settings = await getSettings(prisma);
+  const waveSize = settings.waveSize;
+  const offerTtlMs = settings.offerTtlSec * 1000;
   const expired = (
     await prisma.orderOffer.updateMany({
       where: { status: "PENDING", expiresAt: { lte: now } },
@@ -216,14 +221,14 @@ export async function runDispatchCycle(
             stars(b) - stars(a) ||
             a.localeCompare(b),
         )
-        .slice(0, WAVE_SIZE);
+        .slice(0, waveSize);
       const wave = order.offers.reduce((m, o) => Math.max(m, o.wave), 0) + 1;
       await tx.orderOffer.createMany({
         data: chosen.map((nurseId) => ({
           orderId: order.id,
           nurseId,
           wave,
-          expiresAt: new Date(now.getTime() + OFFER_TTL_MS),
+          expiresAt: new Date(now.getTime() + offerTtlMs),
         })),
         skipDuplicates: true,
       });

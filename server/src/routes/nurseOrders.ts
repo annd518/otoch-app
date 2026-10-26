@@ -9,6 +9,7 @@ import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { recordEarning } from "../services/payouts";
+import { getSettings } from "../services/settings";
 import { getStorage } from "../services/storage";
 import { notifyOrderStatus } from "../services/push";
 
@@ -285,10 +286,10 @@ nurseOrders.post("/:id/en-route", async (req: NurseRequest, res) => {
 
 /**
  * ⚑ How long the nurse waits at the address after the booked start before
- * reporting a no-show. The spec (slide 25) gives the outcome (no refund), not
- * the wait; 15 minutes matches the arrival window (±15 min).
+ * reporting a no-show: the noShowWaitMin setting (default 15). The spec (slide
+ * 25) gives the outcome (no refund), not the wait; 15 minutes matches the
+ * arrival window (±15 min).
  */
-export const NO_SHOW_WAIT_MIN = 15;
 const noShowBody = z
   .object({
     version,
@@ -300,6 +301,7 @@ const noShowBody = z
 // The nurse is at the address and nobody is there (spec slide 25: NO_SHOW_CLIENT).
 nurseOrders.post("/:id/no-show", async (req: NurseRequest, res) => {
   const body = parse(noShowBody, req.body);
+  const waitMin = (await getSettings(prisma)).noShowWaitMin;
   const order = await transition(req, {
     expected: body.version,
     from: ["ASSIGNED", "EN_ROUTE"],
@@ -307,11 +309,11 @@ nurseOrders.post("/:id/no-show", async (req: NurseRequest, res) => {
     event: "NO_SHOW",
     metadata: { lat: body.lat, lng: body.lng },
     guard: (o) => {
-      if (o.scheduledFor && Date.now() < o.scheduledFor.getTime() + NO_SHOW_WAIT_MIN * 60_000)
+      if (o.scheduledFor && Date.now() < o.scheduledFor.getTime() + waitMin * 60_000)
         throw new ApiError(
           422,
           "CHECKIN_TIME_WINDOW",
-          `Товлосон цагаас хойш ${NO_SHOW_WAIT_MIN} минут хүлээсний дараа бүртгэнэ`,
+          `Товлосон цагаас хойш ${waitMin} минут хүлээсний дараа бүртгэнэ`,
         );
       if (o.lat !== null && o.lng !== null) {
         const d = distanceMeters(body, { lat: o.lat, lng: o.lng });
