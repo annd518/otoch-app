@@ -15,6 +15,7 @@ import {
   Tag,
   TriangleAlert,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -42,6 +43,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard/admin/nurses", title: "Баталгаажуулалт", icon: BadgeCheck, count: "applications" },
   { href: "/dashboard/admin/staff", title: "Сувилагч, ажилтан", icon: Stethoscope },
   { href: "/dashboard/admin/customers", title: "Үйлчлүүлэгч", icon: Users },
+  { href: "/dashboard/admin/payouts", title: "Сувилагчийн төлбөр", icon: Wallet },
   { href: "#catalog", title: "Каталог, үнэ, бүс", icon: Tag, soon: true },
   { href: "#reports", title: "Тайлан", icon: BarChart3, soon: true },
   { href: "#disputes", title: "Маргаан", icon: TriangleAlert, soon: true },

@@ -69,6 +69,7 @@ const ACTION_LABEL: Record<string, string> = {
   APPROVED: "Баталгаажуулсан",
   REJECTED: "Татгалзсан",
   SUSPENDED: "Түдгэлзүүлсэн",
+  BANK_UPDATED: "Дансны мэдээлэл өөрчилсөн",
 };
 // same codes as the server (services/nurseProvision.ts SKILL_TAGS)
 const SKILLS = [

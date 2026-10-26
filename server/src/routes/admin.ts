@@ -6,6 +6,7 @@ import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { adminNurses } from "./adminNurses";
 import { adminCancel } from "./adminCancel";
+import { adminPayouts } from "./adminPayouts";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -29,6 +30,7 @@ adminRoutes.use(async (req: StaffRequest, _res, next) => {
 });
 
 adminRoutes.use("/nurses", adminNurses);
+adminRoutes.use("/payouts", adminPayouts);
 adminRoutes.use(adminCancel);
 
 const UB_OFFSET_MS = 8 * 3600000;

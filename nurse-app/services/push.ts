@@ -25,5 +25,6 @@ export function pushTarget(data: unknown, app: PushApp): string | null {
   if (type === 'OFFER') return '/'
   if (type === 'ORDER') return order
   if (type === 'APPLICATION') return '/application'
+  if (type === 'EARNINGS') return '/earnings'
   return null
 }
