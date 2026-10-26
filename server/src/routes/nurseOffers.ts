@@ -15,6 +15,7 @@ import { requireNurse } from "./nurseOrders";
 import { notifyOrderStatus } from "../services/push";
 import { orderDistrict } from "../services/ubDistricts";
 import { districtsSchema } from "./nurseApplication";
+import { ratingSummaries, type RatingSummary } from "../services/ratings";
 
 interface NurseRequest extends Request {
   user?: { userId: string; role: string };
@@ -109,7 +110,7 @@ nurseOffers.post("/offers/:id/accept", async (req: NurseRequest, res) => {
   void notifyOrderStatus(order);
   return ok(
     res,
-    { order: { ...serializeOrder(order), patientName: order.parent.name } },
+    { order: { ...serializeOrder(order), rating: null, canRate: false, patientName: order.parent.name } },
     "Дуудлагыг хүлээн авлаа",
   );
 });
@@ -121,6 +122,7 @@ nurseOffers.post("/offers/:id/decline", async (req: NurseRequest, res) => {
 
 const serializeProfile = (
   p: Awaited<ReturnType<typeof prisma.nurseProfile.findUnique>>,
+  rating: RatingSummary,
 ) => {
   if (!p) return null;
   const blocker = ineligibleReason({ ...p, isActive: true }, { skills: [], zoneId: null }, new Date());
@@ -133,14 +135,18 @@ const serializeProfile = (
     districts: p.districts,
     // Why the nurse cannot go online (null = can).
     blocker,
+    // customers' average stars (spec SCR-N11)
+    rating,
   };
 };
 
 nurseOffers.get("/me", async (req: NurseRequest, res) => {
-  const profile = await prisma.nurseProfile.findUnique({
-    where: { userId: req.user!.userId },
-  });
-  return ok(res, { profile: serializeProfile(profile) }, "Профайл");
+  const userId = req.user!.userId;
+  const [profile, ratings] = await Promise.all([
+    prisma.nurseProfile.findUnique({ where: { userId } }),
+    ratingSummaries(prisma, [userId]),
+  ]);
+  return ok(res, { profile: serializeProfile(profile, ratings.get(userId)!) }, "Профайл");
 });
 
 nurseOffers.put("/me", async (req: NurseRequest, res) => {
@@ -172,5 +178,6 @@ nurseOffers.put("/me", async (req: NurseRequest, res) => {
       ...(p.data.districts !== undefined && { districts: p.data.districts }),
     },
   });
-  return ok(res, { profile: serializeProfile(updated) }, "Хадгалагдлаа");
+  const ratings = await ratingSummaries(prisma, [userId]);
+  return ok(res, { profile: serializeProfile(updated, ratings.get(userId)!) }, "Хадгалагдлаа");
 });

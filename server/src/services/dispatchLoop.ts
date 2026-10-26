@@ -1,6 +1,7 @@
 import prisma from "../db/db.config";
 import { runDispatchCycle } from "./dispatch";
 import { runUnassignedSweep } from "./unassignedSweep";
+import { runRatingReminders } from "./ratings";
 
 /**
  * Runs dispatch every DISPATCH_INTERVAL_MS (default 15 s; 0 turns it off).
@@ -16,6 +17,7 @@ export function startDispatchLoop(): void {
     running = true;
     runDispatchCycle(prisma)
       .then(() => runUnassignedSweep(prisma))
+      .then(() => runRatingReminders(prisma))
       .catch(() => console.error("Dispatch cycle failed"))
       .finally(() => {
         running = false;

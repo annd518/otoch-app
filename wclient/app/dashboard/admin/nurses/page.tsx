@@ -35,8 +35,14 @@ type Nurse = {
   reviewedAt: string | null;
   documents: Record<Kind, string | null>;
   missing: string[];
+  // customers' average stars (null = no ratings yet)
+  rating: { average: number | null; count: number } | null;
 };
 type HistoryItem = { action: string; note: string | null; actor: string | null; at: string };
+type RatingItem = { orderId: string; stars: number; tags: string[]; comment: string | null; at: string };
+
+const ratingLabel = (r: Nurse["rating"]) =>
+  r && r.average !== null && r.count > 0 ? `★ ${r.average.toFixed(1)} (${r.count})` : "Үнэлгээгүй";
 
 const TABS: { state: State; title: string }[] = [
   { state: "SUBMITTED", title: "Хүлээгдэж буй" },
@@ -172,6 +178,7 @@ export default function NurseVerificationPage() {
                   <p className="text-xs text-gray-600">{n.districts.join(", ")}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
+                  {n.state === "VERIFIED" ? `${ratingLabel(n.rating)} · ` : ""}
                   {n.submittedAt ? `Илгээсэн: ${formatUb(n.submittedAt)}` : "Илгээгээгүй"}
                   {n.missing.length > 0 ? ` · Дутуу ${n.missing.length}` : ""}
                 </p>
@@ -252,6 +259,8 @@ function DocumentImage({ nurseId, kind, uploadedAt }: { nurseId: string; kind: K
 function NurseDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
   const [nurse, setNurse] = useState<Nurse | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [ratings, setRatings] = useState<RatingItem[]>([]);
+  const [releases, setReleases] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // approve form
@@ -268,6 +277,8 @@ function NurseDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
       const n: Nurse = r.data.data.nurse;
       setNurse(n);
       setHistory(r.data.data.history);
+      setRatings(r.data.data.ratings ?? []);
+      setReleases(r.data.data.releases90d ?? 0);
       setLicenseNo(n.licenseNo ?? "");
       setExpires(n.licenseExpiresAt ?? "");
       setSkills(n.skillTags);
@@ -351,6 +362,28 @@ function NurseDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
           </dd>
         </div>
       </dl>
+
+      {nurse.state === "VERIFIED" && (
+        <div className="rounded-lg border border-gray-200 p-3 text-sm">
+          <p className="font-semibold text-gray-900">
+            Үйлчлүүлэгчийн үнэлгээ: {ratingLabel(nurse.rating)}
+          </p>
+          <p className={releases > 0 ? "text-amber-800" : "text-gray-600"}>
+            Хүлээн авсан дуудлагаас гарсан (90 хоногт): {releases}
+          </p>
+          {ratings.length > 0 && (
+            <ul className="mt-2 space-y-1 text-gray-700">
+              {ratings.map((r) => (
+                <li key={r.orderId} className={r.stars <= 2 ? "text-red-700" : undefined}>
+                  {formatUb(r.at)} · {"★".repeat(r.stars)}
+                  {r.tags.length > 0 ? ` · ${r.tags.join(", ")}` : ""}
+                  {r.comment ? ` · “${r.comment}”` : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {nurse.missing.length > 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">

@@ -15,7 +15,7 @@ import {
 } from '../services/offers'
 import { resolveApiConfig } from '../utils/apiConfig'
 import { formatMnt } from '../utils/money'
-import { formatUbDate } from '../utils/orderView'
+import { formatUbDate, ratingText } from '../utils/orderView'
 
 const config = resolveApiConfig({ isDev: true, platform: 'ios', explicitUrl: 'http://api.test' })
 
@@ -97,6 +97,10 @@ test('profile: null row, verified row, blocker, and the online toggle request', 
   assert.deepEqual(p?.profile?.skillTags, ['INJ'])
   assert.equal(p?.profile?.blocker, null)
   assert.deepEqual(p?.profile?.districts, [])
+  // no ratings yet
+  assert.deepEqual(p?.profile?.rating, { average: null, count: 0 })
+  const rated = parseProfileEnvelope({ profile: { status: 'VERIFIED', rating: { average: 4.7, count: 12 } } })
+  assert.deepEqual(rated?.profile?.rating, { average: 4.7, count: 12 })
 })
 
 test('setDistricts sends only the districts', async () => {
@@ -120,4 +124,9 @@ test('money and dates', () => {
   assert.equal(formatUbDate('2028-05-31T15:59:59.000Z'), '2028.05.31')
   assert.equal(formatUbDate('2028-05-31T16:00:00.000Z'), '2028.06.01')
   assert.equal(formatUbDate('x'), null)
+})
+
+test('rating text shows the average with one decimal, or that there is none yet', () => {
+  assert.equal(ratingText({ average: null, count: 0 }), 'Үйлчлүүлэгчийн үнэлгээ хараахан алга')
+  assert.equal(ratingText({ average: 5, count: 3 }), 'Үйлчлүүлэгчийн үнэлгээ: ★ 5.0 · 3 үнэлгээ')
 })

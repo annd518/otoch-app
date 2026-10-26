@@ -27,6 +27,7 @@ model User {
   assignedOrders Order[] @relation("AssignedOrderNurse")
   nurseProfile   NurseProfile?
   orderOffers    OrderOffer[]
+  ratingsReceived NurseRating[] @relation("NurseRatings")
   parents        Parent[] @relation("ChildParents")
   nurseVisits    Visit[]  @relation("NurseVisits")
   approvedVisits Visit[]  @relation("ApprovedBy")
@@ -187,6 +188,7 @@ model Order {
   visitRecord    VisitRecord?
   refunds        Refund[]
   offers         OrderOffer[]
+  rating         NurseRating?
 
   @@index([childId, status])
 }
@@ -593,4 +595,22 @@ model Refund {
   payment Payment @relation(fields: [paymentId], references: [id])
 
   @@index([status, createdAt])
+}
+
+// The customer's rating of a finished visit (spec SCR-C16): 1-5 stars, optional
+// tags and comment. One per order; it cannot be changed afterwards.
+model NurseRating {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  nurseId   String
+  clientId  String
+  stars     Int // 1-5
+  tags      String[] @default([]) // ON_TIME, KIND, PROFESSIONAL
+  comment   String?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  nurse User  @relation("NurseRatings", fields: [nurseId], references: [id], onDelete: Cascade)
+
+  @@index([nurseId, createdAt])
 }

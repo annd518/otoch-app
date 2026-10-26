@@ -20,6 +20,7 @@ import type { CancelTerms, Order } from "@/services/apiTypes";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { ulaanbaatarDate } from "@/utils/datetime";
 import { formatMnt } from "@/utils/money";
+import { GivenRating, RatingCard } from "@/components/RatingCard";
 
 // Statuses the customer may cancel (server: services/cancellation.ts).
 const CANCELLABLE = ["DRAFT", "AWAITING_PAYMENT", "PAID", "ASSIGNED", "EN_ROUTE"];
@@ -303,6 +304,14 @@ export default function OrderDetail() {
               гараагүй. Яаралтай тусламж шаардлагатай бол 103 руу залгана уу.
             </Banner>
           )}
+          {order.canRate && (
+            <RatingCard
+              order={order}
+              submit={(rating) => apiService.rateOrder(order.id, rating)}
+              onRated={(updated) => setOrder(updated)}
+            />
+          )}
+          {order.rating && <GivenRating rating={order.rating} />}
           {order.status === "COMPLETED" && (
             <Button
               secondary

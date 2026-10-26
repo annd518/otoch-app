@@ -24,6 +24,7 @@ import type {
   DraftOrderPatch,
   NewParentInput,
   CancelTerms,
+  RatingTag,
   Order,
   Quote,
   Parent,
@@ -49,6 +50,7 @@ import {
 } from "./httpClient";
 import {
   cancelOrder,
+  rateOrder,
   createDraftOrder,
   deleteAttachment,
   getCancelTerms,
@@ -402,6 +404,14 @@ export const apiService = {
   cancelOrder(orderId: string, refundPercent: number): Promise<ApiResult<Order>> {
     readCache.clear();
     return cancelOrder(client, orderId, refundPercent);
+  },
+
+  rateOrder(
+    orderId: string,
+    rating: { stars: number; tags: RatingTag[]; comment?: string },
+  ): Promise<ApiResult<Order>> {
+    readCache.clear();
+    return rateOrder(client, orderId, rating);
   },
 
   reportRedFlagBlock(

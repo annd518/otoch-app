@@ -16,12 +16,16 @@ import {
   ubEndOfDay,
 } from "../services/nurseApplication";
 import { sendDocument } from "./nurseApplication";
+import { RATING_TAGS, ratingSummaries, type RatingSummary } from "../services/ratings";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
 }
 
 export const adminNurses = Router();
+
+/** How far back the admin sees a nurse's withdrawals from accepted calls. */
+const RELEASE_WINDOW_MS = 90 * 86400000;
 
 const FILTERS = ["SUBMITTED", "VERIFIED", "REJECTED", "SUSPENDED", "DRAFT"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -39,7 +43,7 @@ const include = {
 
 type Row = Prisma.NurseProfileGetPayload<{ include: typeof include }>;
 
-function serialize(p: Row, now: Date) {
+function serialize(p: Row, now: Date, rating: RatingSummary | null = null) {
   const docs = new Map(p.documents.map((d) => [d.kind, d.createdAt.toISOString()]));
   return {
     id: p.userId,
@@ -63,6 +67,7 @@ function serialize(p: Row, now: Date) {
     districts: p.districts,
     documents: Object.fromEntries(DOCUMENT_KINDS.map((k) => [k, docs.get(k) ?? null])),
     missing: missingItems(p, p.user.name, now),
+    rating,
   };
 }
 
@@ -88,7 +93,10 @@ adminNurses.get("/", async (req: StaffRequest, res) => {
   return ok(
     res,
     {
-      nurses: rows.map((r) => serialize(r, now)),
+      nurses: await (async () => {
+        const ratings = await ratingSummaries(prisma, rows.map((r) => r.userId));
+        return rows.map((r) => serialize(r, now, ratings.get(r.userId)!));
+      })(),
       counts: Object.fromEntries(FILTERS.map((f, i) => [f, counts[i]])),
     },
     "Сувилагчид",
@@ -114,10 +122,30 @@ adminNurses.get("/:id", async (req: StaffRequest, res) => {
     select: { id: true, name: true },
   });
   const actorName = new Map(actors.map((a) => [a.id, a.name]));
+  const since = new Date(Date.now() - RELEASE_WINDOW_MS);
+  const [ratings, recentRatings, releases] = await Promise.all([
+    ratingSummaries(prisma, [p.userId]),
+    prisma.nurseRating.findMany({
+      where: { nurseId: p.userId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.orderEvent.count({ where: { type: "NURSE_RELEASE", actorId: p.userId, createdAt: { gte: since } } }),
+  ]);
   return ok(
     res,
     {
-      nurse: serialize(p, new Date()),
+      nurse: serialize(p, new Date(), ratings.get(p.userId)!),
+      // latest customer ratings, with the comment (admin only)
+      ratings: recentRatings.map((r) => ({
+        orderId: r.orderId,
+        stars: r.stars,
+        tags: r.tags.map((t) => RATING_TAGS[t as keyof typeof RATING_TAGS] ?? t),
+        comment: r.comment,
+        at: r.createdAt.toISOString(),
+      })),
+      // calls the nurse withdrew from after accepting (spec slide 25), last 90 days
+      releases90d: releases,
       history: events.map((e) => ({
         action: e.action,
         note: e.note,
