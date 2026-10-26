@@ -42,7 +42,27 @@ export const orderPaths = {
     `/api/orders/${encodeURIComponent(id)}/cancellation`,
   cancel: (id: string) => `/api/orders/${encodeURIComponent(id)}/cancel`,
   rating: (id: string) => `/api/orders/${encodeURIComponent(id)}/rating`,
+  reschedule: (id: string) => `/api/orders/${encodeURIComponent(id)}/reschedule`,
 };
+
+/** Statuses whose time the customer may change (server: rescheduleController.ts). */
+export const RESCHEDULABLE = ["PAID", "ASSIGNED"];
+/** Finished or stopped orders that can be booked again with the same details. */
+export const REBOOKABLE = ["COMPLETED", "CANCELLED", "EXPIRED", "NO_SHOW", "REFUSED"];
+
+/** Another time for a paid order; the server checks the slot again. */
+export function rescheduleOrder(
+  client: HttpClient,
+  orderId: string,
+  input: { version: number; scheduledFor: string; timeSlot: string },
+): Promise<ApiResult<Order>> {
+  return client.request({
+    method: "POST",
+    path: orderPaths.reschedule(orderId),
+    body: input,
+    parse: parseOrder,
+  });
+}
 
 /** Rating chips (spec SCR-C16); codes match server/src/services/ratings.ts. */
 export const RATING_TAGS: { code: RatingTag; label: string }[] = [

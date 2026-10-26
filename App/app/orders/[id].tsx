@@ -21,6 +21,7 @@ import { useBookingDraft } from "@/context/BookingDraftContext";
 import { ulaanbaatarDate } from "@/utils/datetime";
 import { formatMnt } from "@/utils/money";
 import { GivenRating, RatingCard } from "@/components/RatingCard";
+import { REBOOKABLE, RESCHEDULABLE } from "@/services/orders";
 
 // Statuses the customer may cancel (server: services/cancellation.ts).
 const CANCELLABLE = ["DRAFT", "AWAITING_PAYMENT", "PAID", "ASSIGNED", "EN_ROUTE"];
@@ -199,11 +200,65 @@ export default function OrderDetail() {
       });
     router.push("/(tabs)/bookappointment");
   };
+  // "Дахин захиалах": the same service, patient and address as a new draft;
+  // the customer picks a new time and confirms the consent again.
+  const rebook = async () => {
+    if (!order) return;
+    const [catalog, parent] = await Promise.all([
+      apiService.getCatalog(),
+      apiService.getParent(order.parentId),
+    ]);
+    if (!catalog.ok || !parent.ok) {
+      setError(!catalog.ok ? catalog.message : !parent.ok ? parent.message : "Мэдээлэл дутуу");
+      return;
+    }
+    const service = catalog.data.services.find((s) => s.code === order.serviceCodes[0]);
+    if (!service) {
+      setError("Энэ үйлчилгээ одоогоор захиалах боломжгүй байна.");
+      return;
+    }
+    dispatch({ type: "reset" });
+    dispatch({
+      type: "selectService",
+      service,
+      catalogVersion: catalog.data.catalogVersion,
+      source: apiService.sourceOf("catalog"),
+    });
+    dispatch({
+      type: "updateDetails",
+      patch: {
+        parentId: order.parentId,
+        parentName: parent.data.name,
+        addressText: order.address?.text ?? "",
+        lat: order.address?.lat,
+        lng: order.address?.lng,
+        zoneId: order.zoneId ?? undefined,
+        date: "",
+        timeSlot: "",
+        ...(order.bookingForm && {
+          bookingForm: {
+            ...order.bookingForm,
+            consent: {
+              ...order.bookingForm.consent,
+              service: false,
+              sensitiveData: false,
+              catalogVersion: null,
+            },
+          },
+        }),
+      },
+    });
+    router.push("/(tabs)/bookappointment");
+  };
+  const reschedulable = !!order && RESCHEDULABLE.includes(order.status) && !!order.zoneId;
+  const rebookable = !!order && REBOOKABLE.includes(order.status);
   return (
     <Screen
       title="Захиалгын дэлгэрэнгүй"
       footer={
-        order && CANCELLABLE.includes(order.status) ? (
+        order && rebookable ? (
+          <Button title="Дахин захиалах" onPress={() => void rebook()} />
+        ) : order && CANCELLABLE.includes(order.status) ? (
           <>
             {order.status === "DRAFT" && (
               <Button
@@ -221,6 +276,15 @@ export default function OrderDetail() {
                     pathname: "/booking/payment",
                     params: { orderId: order.id },
                   })
+                }
+              />
+            )}
+            {reschedulable && (
+              <Button
+                secondary
+                title="Өөр цаг сонгох"
+                onPress={() =>
+                  router.push({ pathname: "/reschedule/[id]", params: { id: order.id } })
                 }
               />
             )}

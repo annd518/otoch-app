@@ -37,6 +37,7 @@ export default function RootLayout() {
           <Stack.Screen name="booking/referral" />
           <Stack.Screen name="booking/review" />
           <Stack.Screen name="booking/payment" />
+          <Stack.Screen name="reschedule/[id]" />
           <Stack.Screen
             name="booking/emergency"
             options={{ gestureEnabled: false }}

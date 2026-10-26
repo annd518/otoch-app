@@ -12,6 +12,7 @@ import { deleteAttachment, listAttachments, readAttachment, uploadAttachment } f
 import { createQPayPayment, getPayment } from '../controllers/paymentController'
 import { cancelClientOrder, getCancelTerms } from '../controllers/cancelController'
 import { rateOrder } from '../controllers/ratingController'
+import { rescheduleOrder } from '../controllers/rescheduleController'
 import { authenticateToken } from '../middlwares/auth'
 import { requireRole } from '../middlwares/rbac'
 
@@ -34,6 +35,9 @@ router.post('/:id/cancel', cancelClientOrder)
 
 // Rating a finished visit (spec SCR-C16)
 router.post('/:id/rating', rateOrder)
+
+// Another time for a paid order (spec slide 25)
+router.post('/:id/reschedule', rescheduleOrder)
 
 // Private referral images (docs/l1-1-api.md §5)
 router.post('/:id/attachments', uploadAttachment)
