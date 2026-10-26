@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createHttpClient, type FetchLike } from '../services/httpClient'
-import { getEarnings, parseEarnings, periodLabel, saveBank, weekdayShort } from '../services/earnings'
+import { getEarnings, getReceiptLink, parseEarnings, periodLabel, saveBank, weekdayShort } from '../services/earnings'
 import { resolveApiConfig } from '../utils/apiConfig'
 
 const config = resolveApiConfig({ isDev: true, platform: 'ios', explicitUrl: 'http://api.test' })
@@ -66,4 +66,13 @@ test('earnings and bank calls', async () => {
   assert.equal(b.seen[0].method, 'PUT')
   assert.equal(b.seen[0].url, 'http://api.test/api/nurse/bank')
   assert.equal(saved.ok && saved.data.accountNo, '5000123456')
+})
+
+test('a payout receipt link is a server path under /api/receipts only', async () => {
+  const ok = recorder(200, { success: true, message: 'ok', data: { path: '/api/receipts/payout/abc.def', expiresAt: '2026-10-28T03:10:00Z' } })
+  const r = await getReceiptLink(ok.client, 'p 1')
+  assert.equal(ok.seen[0].url, 'http://api.test/api/nurse/payouts/p%201/receipt-link')
+  assert.equal(r.ok && r.data, '/api/receipts/payout/abc.def')
+  const odd = recorder(200, { success: true, message: 'ok', data: { path: 'https://elsewhere.example/x' } })
+  assert.equal((await getReceiptLink(odd.client, 'p1')).ok, false)
 })

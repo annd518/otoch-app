@@ -159,6 +159,7 @@ export default function PayoutsPage() {
                   <th className="px-3 py-2">Эргэлт</th>
                   <th className="px-3 py-2">Дүн</th>
                   <th className="px-3 py-2">Гүйлгээ</th>
+                  <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -171,6 +172,15 @@ export default function PayoutsPage() {
                     <td className="px-3 py-2">
                       {p.reference}
                       {p.note ? ` · ${p.note}` : ""}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => void downloadReceipt(p.id, setError)}
+                        className="rounded-lg border border-gray-300 px-3 py-1 text-xs"
+                      >
+                        Баримт (PDF)
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -250,4 +260,19 @@ function PayForm({ due, onClose, onDone }: { due: Due; onClose: () => void; onDo
       </div>
     </form>
   );
+}
+
+/** The payout's PDF receipt (GET /api/admin/payouts/:id/receipt.pdf). */
+async function downloadReceipt(id: string, onError: (m: string) => void) {
+  try {
+    const r = await api.get(`/admin/payouts/${encodeURIComponent(id)}/receipt.pdf`, { responseType: "blob" });
+    const url = URL.createObjectURL(r.data as Blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `otoch-payout-${id.slice(-8).toUpperCase()}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch {
+    onError("Баримтыг татаж чадсангүй");
+  }
 }

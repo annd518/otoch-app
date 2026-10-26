@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Linking, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../components/AppText";
@@ -14,9 +14,11 @@ import { BrandHeader, FormSection, Intro, Surface } from "../../components/Prese
 import { EmptyState, Skeleton } from "../../components/ScreenState";
 import { theme } from "../../design/theme";
 import { http } from "../../services/http";
+import { apiConfig } from "../../utils/env";
 import {
   BANKS,
   getEarnings,
+  getReceiptLink,
   periodLabel,
   saveBank,
   weekdayShort,
@@ -122,7 +124,22 @@ export default function EarningsScreen() {
     [offset, setOffset] = useState(0),
     [data, setData] = useState<Earnings | null>(null),
     [error, setError] = useState<string | null>(null),
-    [editBank, setEditBank] = useState(false);
+    [editBank, setEditBank] = useState(false),
+    [opening, setOpening] = useState<string | null>(null);
+
+  // the PDF opens in the phone's browser through a short signed link
+  const openReceipt = async (payoutId: string) => {
+    setOpening(payoutId);
+    const r = await getReceiptLink(http, payoutId);
+    setOpening(null);
+    if (!r.ok) return setError(r.message);
+    if (!apiConfig.ok) return setError(apiConfig.error);
+    try {
+      await Linking.openURL(`${apiConfig.baseUrl}${r.data}`);
+    } catch {
+      setError("Баримтыг нээж чадсангүй");
+    }
+  };
 
   const load = useCallback(async () => {
     const r = await getEarnings(http, range, offset);
@@ -273,9 +290,25 @@ export default function EarningsScreen() {
             {data.payouts.length > 0 && (
               <FormSection title="Шилжүүлгүүд">
                 {data.payouts.map((p) => (
-                  <AppText key={p.id} variant="caption">
-                    {formatUbDate(p.paidAt) ?? ""} · {formatMnt(p.totalMnt)} · {p.visits} эргэлт
-                  </AppText>
+                  <View
+                    key={p.id}
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+                  >
+                    <AppText variant="caption" style={{ flex: 1 }}>
+                      {formatUbDate(p.paidAt) ?? ""} · {formatMnt(p.totalMnt)} · {p.visits} эргэлт
+                    </AppText>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Баримт нээх"
+                      disabled={opening === p.id}
+                      onPress={() => void openReceipt(p.id)}
+                      style={{ minHeight: 44, justifyContent: "center", paddingHorizontal: 12 }}
+                    >
+                      <AppText variant="label" color={theme.color.brand}>
+                        {opening === p.id ? "Нээж байна…" : "Баримт"}
+                      </AppText>
+                    </Pressable>
+                  </View>
                 ))}
               </FormSection>
             )}

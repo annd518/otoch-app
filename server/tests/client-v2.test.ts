@@ -598,7 +598,9 @@ it("availability rejects an invalid calendar date and excludes a short window fo
   assert.deepEqual(short.json.data.slots, []);
 });
 it("two simultaneous capacity claims create only one invoice for a single slot", async () => {
-  const start = new Date(Date.now() + 24 * 3600000),
+  // tomorrow 14:00-15:00 UB: "now + 24 h" crossed midnight when the suite ran
+  // after 23:00 UB, and the draft was refused (same cause as `startsAt` above)
+  const start = new Date(startsAt.getTime() + 4 * 3600000),
     end = new Date(start.getTime() + 3600000);
   await prisma.availabilitySlot.create({
     data: { zoneId: "TEST_V2_ZONE", startsAt: start, endsAt: end, capacity: 1 },

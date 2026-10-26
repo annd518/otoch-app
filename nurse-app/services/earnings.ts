@@ -6,6 +6,7 @@ import type { HttpClient } from './httpClient'
 export const EARNINGS_PATHS = {
   earnings: (range: EarningsRangeKind, offset: number) => `/api/nurse/earnings?range=${range}&offset=${offset}`,
   bank: '/api/nurse/bank',
+  receiptLink: (payoutId: string) => `/api/nurse/payouts/${encodeURIComponent(payoutId)}/receipt-link`,
 } as const
 
 export type EarningsRangeKind = 'week' | 'month'
@@ -128,4 +129,13 @@ export function periodLabel(e: Pick<Earnings, 'range' | 'days'>): string {
 export function weekdayShort(date: string): string {
   const names = ['Ня', 'Да', 'Мя', 'Лх', 'Пү', 'Ба', 'Бя']
   return names[new Date(`${date}T00:00:00Z`).getUTCDay()]
+}
+
+/** A 10-minute link (server path) to a payout's PDF receipt, opened in the browser. */
+export function getReceiptLink(client: HttpClient, payoutId: string): Promise<ApiResult<string>> {
+  return client.request({
+    method: 'GET',
+    path: EARNINGS_PATHS.receiptLink(payoutId),
+    parse: (d) => (isRecord(d) && typeof d.path === 'string' && d.path.startsWith('/api/receipts/') ? d.path : null),
+  })
 }
