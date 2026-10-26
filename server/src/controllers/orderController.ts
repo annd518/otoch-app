@@ -4,13 +4,13 @@ import prisma from "../db/db.config";
 import { ApiError, FieldErrors, ok, validationError } from "../utils/http";
 import { getCatalogVersion } from "../services/catalog";
 import {
-  PRICING_VERSION,
   MAX_REFERRAL_TEXT,
   QUOTE_TTL_MINUTES,
   RED_FLAG_BLOCK_ADVICE,
   assertNoFixtureDataInProduction,
   assertOrderReadyForPricing,
   computeQuote,
+  travelFeeFor,
   loadOwnedOrder,
   orderInclude,
   questionnairesFor,
@@ -804,7 +804,7 @@ export const requestQuote = async (
     );
   }
 
-  const price = computeQuote(order);
+  const price = computeQuote(order, await travelFeeFor(prisma, order.zoneId));
   const quote = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('otoch-content-publication'))`;
     const latest = await tx.serviceCatalogItem.aggregate({
@@ -830,7 +830,7 @@ export const requestQuote = async (
         orderId: order.id,
         orderVersion: order.version,
         catalogVersion,
-        pricingVersion: PRICING_VERSION,
+        pricingVersion: price.pricingVersion,
         currency: "MNT",
         lines: price.lines,
         subtotalMnt: price.subtotalMnt,

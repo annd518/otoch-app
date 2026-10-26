@@ -10,6 +10,7 @@ import {
   assertNoFixtureDataInProduction,
   assertOrderReadyForPricing,
   computeQuote,
+  travelFeeFor,
   loadOwnedOrder,
 } from "../services/orders";
 import { isUniqueViolation, readIdempotencyKey } from "../services/idempotency";
@@ -262,7 +263,7 @@ export const createQPayPayment = async (
     );
   }
   // Amount is always the server's quote, re-derived and compared — never from the client
-  const recomputed = computeQuote(order);
+  const recomputed = computeQuote(order, await travelFeeFor(prisma, order.zoneId));
   if (recomputed.totalMnt !== quote.totalMnt || quote.currency !== "MNT") {
     throw new ApiError(
       409,

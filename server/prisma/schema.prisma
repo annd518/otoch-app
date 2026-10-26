@@ -528,6 +528,8 @@ model ServiceZone {
   id String @id
   name String
   isActive Boolean @default(true)
+  // travel fee tier (spec slide 103 zone_fees): 1 = centre ... 3 = far; the amounts are settings
+  feeTier Int @default(1)
   minLat Float
   maxLat Float
   minLng Float
