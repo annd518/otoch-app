@@ -15,6 +15,7 @@ test('a tapped notification opens the matching screen', () => {
   assert.equal(pushTarget(order, 'nurse'), '/orders/o%201')
   assert.equal(pushTarget({ type: 'OFFER', orderId: 'o1' }, 'nurse'), '/')
   assert.equal(pushTarget({ type: 'APPLICATION' }, 'nurse'), '/application')
+  assert.equal(pushTarget({ type: 'EARNINGS' }, 'nurse'), '/earnings')
   assert.equal(pushTarget({ type: 'ORDER' }, 'nurse'), null)
   assert.equal(pushTarget(null, 'nurse'), null)
   assert.equal(pushTarget('x', 'client'), null)

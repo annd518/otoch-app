@@ -1,6 +1,7 @@
 import { staffOrders } from "./routes/staffOrders";
 import { nurseOrders } from "./routes/nurseOrders";
 import { nurseOffers } from "./routes/nurseOffers";
+import { nurseEarnings } from "./routes/nurseEarnings";
 import { nurseApplication } from "./routes/nurseApplication";
 import { adminRoutes } from "./routes/admin";
 import { pushRoutes } from "./routes/push";
@@ -87,6 +88,7 @@ export function createApp() {
   app.use("/api/staff/orders", staffOrders);
   app.use("/api/nurse/orders", nurseOrders);
   app.use("/api/nurse/application", nurseApplication);
+  app.use("/api/nurse", nurseEarnings);
   app.use("/api/nurse", nurseOffers);
   app.use("/api/admin", adminRoutes);
   app.use("/api/client", clientV2Routes);

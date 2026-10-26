@@ -1,6 +1,6 @@
 import { Tabs, useRouter } from "expo-router";
 import { useCallback, useEffect } from "react";
-import { ClipboardList, User } from "lucide-react-native";
+import { ClipboardList, User, Wallet } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { View, useWindowDimensions } from "react-native";
@@ -74,6 +74,24 @@ export default function TabsLayout() {
               }}
             >
               <ClipboardList color={color} size={size} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="earnings"
+        options={{
+          title: "Орлого",
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={{
+                padding: 6,
+                borderRadius: 16,
+                backgroundColor: focused ? theme.color.info : "transparent",
+                ...(focused ? theme.depth.inset : {}),
+              }}
+            >
+              <Wallet color={color} size={size} />
             </View>
           ),
         }}

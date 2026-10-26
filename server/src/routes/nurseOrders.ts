@@ -8,6 +8,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { orderInclude, serializeOrder } from "../services/orders";
+import { recordEarning } from "../services/payouts";
 import { getStorage } from "../services/storage";
 import { notifyOrderStatus } from "../services/push";
 
@@ -222,6 +223,8 @@ async function transition(
         metadata: opts.metadata,
       },
     });
+    // the nurse's earning for the visit (payout ledger)
+    if (opts.to === "COMPLETED") await recordEarning(tx, order.id);
     return tx.order.findUniqueOrThrow({
       where: { id: order.id },
       include: orderInclude,

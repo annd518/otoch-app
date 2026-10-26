@@ -12,7 +12,7 @@ export interface PushMessage {
   title: string;
   body: string;
   // read by the apps to open the right screen
-  data: { type: "ORDER" | "OFFER" | "APPLICATION"; orderId?: string };
+  data: { type: "ORDER" | "OFFER" | "APPLICATION" | "EARNINGS"; orderId?: string };
 }
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -186,4 +186,13 @@ const APPLICATION: Record<string, { title: string; body: string }> = {
 /** Tells a nurse the admin decided on their application. */
 export function notifyApplication(nurseId: string, action: "APPROVED" | "REJECTED" | "SUSPENDED"): Promise<void> {
   return sendToUsers([nurseId], "nurse", { ...APPLICATION[action], data: { type: "APPLICATION" } });
+}
+
+/** Tells a nurse an admin recorded a transfer of their earnings. */
+export function notifyPayout(nurseId: string, totalMnt: number): Promise<void> {
+  return sendToUsers([nurseId], "nurse", {
+    title: "Орлого шилжүүллээ",
+    body: `${totalMnt.toLocaleString("en-US")}₮ таны дансанд шилжүүлэгдлээ.`,
+    data: { type: "EARNINGS" },
+  });
 }

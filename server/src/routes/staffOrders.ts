@@ -4,6 +4,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { orderInclude, serializeOrder } from "../services/orders";
+import { recordEarning } from "../services/payouts";
 import { notifyAssignedNurse, notifyOrderStatus } from "../services/push";
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -185,6 +186,7 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
                 : {}),
         },
       });
+      if (next === "COMPLETED") await recordEarning(tx, order.id);
       // A hand assignment ends any dispatch offers still open for this order.
       if (action === "assign")
         await tx.orderOffer.updateMany({

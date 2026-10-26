@@ -28,6 +28,8 @@ model User {
   nurseProfile   NurseProfile?
   orderOffers    OrderOffer[]
   ratingsReceived NurseRating[] @relation("NurseRatings")
+  payoutEntries   PayoutEntry[]
+  payouts         Payout[]
   parents        Parent[] @relation("ChildParents")
   nurseVisits    Visit[]  @relation("NurseVisits")
   approvedVisits Visit[]  @relation("ApprovedBy")
@@ -189,6 +191,7 @@ model Order {
   refunds        Refund[]
   offers         OrderOffer[]
   rating         NurseRating?
+  payoutEntry    PayoutEntry?
 
   @@index([childId, status])
 }
@@ -221,6 +224,10 @@ model NurseProfile {
   reviewNote       String?
   reviewedAt       DateTime?
   reviewedById     String?
+  // Where the nurse's earnings are transferred (entered by the nurse)
+  bankName         String?
+  bankAccountNo    String?
+  bankAccountName  String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -613,4 +620,47 @@ model NurseRating {
   nurse User  @relation("NurseRatings", fields: [nurseId], references: [id], onDelete: Cascade)
 
   @@index([nurseId, createdAt])
+}
+
+// What a nurse earned for one finished visit (spec slide 98, payout_ledger):
+// the paid price, the company's commission at that moment and the nurse's net.
+// Written when the visit completes; payoutId is set when an admin pays it out.
+model PayoutEntry {
+  id            String   @id @default(cuid())
+  nurseId       String
+  orderId       String   @unique
+  grossMnt      Int
+  commissionPct Int
+  commissionMnt Int
+  netMnt        Int
+  earnedAt      DateTime
+  payoutId      String?
+  createdAt     DateTime @default(now())
+
+  nurse  User    @relation(fields: [nurseId], references: [id])
+  order  Order   @relation(fields: [orderId], references: [id])
+  payout Payout? @relation(fields: [payoutId], references: [id])
+
+  @@index([nurseId, earnedAt])
+  @@index([nurseId, payoutId])
+}
+
+// One bank transfer to a nurse, recorded by an admin after paying (no bank API).
+model Payout {
+  id          String   @id @default(cuid())
+  nurseId     String
+  totalMnt    Int
+  visits      Int
+  periodFrom  DateTime // earliest visit covered
+  periodTo    DateTime // latest visit covered
+  reference   String // bank transfer reference
+  note        String?
+  paidAt      DateTime
+  createdById String
+  createdAt   DateTime @default(now())
+
+  nurse   User          @relation(fields: [nurseId], references: [id])
+  entries PayoutEntry[]
+
+  @@index([nurseId, paidAt])
 }
