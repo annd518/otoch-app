@@ -9,6 +9,7 @@ import { audit } from "../services/audit";
 import { allow } from "../services/permissions";
 import { bankAccount } from "../services/payouts";
 import { notifyPayout } from "../services/push";
+import { payoutReceiptPdf } from "../services/payoutReceipt";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -175,4 +176,14 @@ adminPayouts.get("/:id", allow("money.view"), async (req, res) => {
     },
     "Шилжүүлэг",
   );
+});
+
+// GET /api/admin/payouts/:id/receipt.pdf: the same receipt the nurse gets
+adminPayouts.get("/:id/receipt.pdf", allow("money.view"), async (req, res) => {
+  const pdf = await payoutReceiptPdf(prisma, String(req.params.id));
+  if (!pdf) throw new ApiError(404, "PAYOUT_NOT_FOUND", "Шилжүүлэг олдсонгүй");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${pdf.fileName}"`);
+  res.setHeader("Cache-Control", "no-store");
+  return res.send(Buffer.from(pdf.bytes));
 });

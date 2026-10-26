@@ -9,6 +9,7 @@ import { requireNurse } from "./nurseOrders";
 import { getSettings, nurseSharePercent } from "../services/settings";
 import { bankAccount, earningsRange, ubDay } from "../services/payouts";
 import { ratingSummaries } from "../services/ratings";
+import { receiptToken } from "../services/payoutReceipt";
 
 interface NurseRequest extends Request {
   user?: { userId: string; email: string; role: string };
@@ -149,4 +150,17 @@ nurseEarnings.put("/bank", async (req: NurseRequest, res) => {
     }),
   ]);
   return ok(res, { bank: bankAccount(updated) }, "Дансны мэдээлэл хадгалагдлаа");
+});
+
+// GET /api/nurse/payouts/:id/receipt-link: a 10-minute link to the payout's
+// PDF receipt, opened in the phone's browser (no login header there).
+nurseEarnings.get("/payouts/:id/receipt-link", async (req: NurseRequest, res) => {
+  const nurseId = req.user!.userId;
+  const payout = await prisma.payout.findFirst({
+    where: { id: String(req.params.id), nurseId },
+    select: { id: true },
+  });
+  if (!payout) throw new ApiError(404, "PAYOUT_NOT_FOUND", "Шилжүүлэг олдсонгүй");
+  const { token, expiresAt } = receiptToken(payout.id, nurseId);
+  return ok(res, { path: `/api/receipts/payout/${token}`, expiresAt: expiresAt.toISOString() }, "Баримтын холбоос");
 });

@@ -9,7 +9,9 @@ export async function recordPdf(lines: string[]) {
     await readFile(
       path.join(process.cwd(), "assets/fonts/NotoSans_400Regular.ttf"),
     ),
-    { subset: true },
+    // the whole font: pdf-lib's subsetting dropped most Cyrillic glyphs
+    // (letters went missing in the rendered PDF)
+    { subset: false },
   );
   let page = doc.addPage(),
     y = page.getHeight() - 48;
@@ -27,15 +29,26 @@ export async function recordPdf(lines: string[]) {
     });
     y -= 20;
   };
+  const fits = (text: string) => font.widthOfTextAtSize(text, 12) <= page.getWidth() - 96;
   for (const paragraph of lines) {
     let line = "";
-    // Character wrapping supports long medication names and Cyrillic without truncation.
-    for (const ch of paragraph.replace(/[\r\n]/g, " ")) {
-      if (font.widthOfTextAtSize(line + ch, 12) > page.getWidth() - 96) {
-        draw(line);
-        line = "";
+    // Wrap at spaces; a word longer than the line (a long medication name)
+    // is broken by character, so nothing is cut off.
+    for (const word of paragraph.replace(/[\r\n]/g, " ").split(" ")) {
+      const next = line ? `${line} ${word}` : word;
+      if (fits(next)) {
+        line = next;
+        continue;
       }
-      line += ch;
+      if (line) draw(line);
+      line = "";
+      for (const ch of word) {
+        if (!fits(line + ch)) {
+          draw(line);
+          line = "";
+        }
+        line += ch;
+      }
     }
     draw(line);
   }
