@@ -4,27 +4,30 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { audit } from "../services/audit";
+import { can } from "../services/permissions";
 import { orderInclude, serializeOrder } from "../services/orders";
 import { recordEarning } from "../services/payouts";
 import { notifyAssignedNurse, notifyOrderStatus } from "../services/push";
 interface StaffRequest extends Request {
-  user?: { userId: string; role: string };
+  user?: { userId: string; role: string; adminRole?: string | null };
 }
 export const staffOrders = Router();
 staffOrders.use(authenticateToken);
 staffOrders.use(async (req: StaffRequest, _res, next) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
-    select: { role: true, deletedAt: true },
+    select: { role: true, adminRole: true, deletedAt: true },
   });
   if (
     !user ||
     user.deletedAt ||
-    // NURSE: the OTOCH Nurse app (own orders only); ADMIN: the admin web
-    !["ADMIN", "NURSE"].includes(user.role)
+    // NURSE: the OTOCH Nurse app (own orders only); ADMIN: the admin web,
+    // every back-office role may see orders (spec slide 109)
+    !(user.role === "NURSE" || (user.role === "ADMIN" && can(user.adminRole, "orders.view")))
   )
     throw new ApiError(403, "FORBIDDEN", "Staff эрх шаардлагатай");
   req.user!.role = user.role;
+  req.user!.adminRole = user.adminRole;
   next();
 });
 const scope = (req: StaffRequest) =>
@@ -34,8 +37,9 @@ const view = (req: StaffRequest, order: Parameters<typeof serializeOrder>[0]) =>
   const o = serializeOrder(order);
   return req.user!.role === "NURSE" ? { ...o, rating: null, canRate: false } : o;
 };
+/** Assigning by hand: Ops and super-admin (spec slide 109). */
 const administrator = (req: StaffRequest) => {
-  if (req.user!.role !== "ADMIN")
+  if (req.user!.role !== "ADMIN" || !can(req.user!.adminRole, "orders.manage"))
     throw new ApiError(403, "FORBIDDEN", "Томилох эрх шаардлагатай");
 };
 const expected = z.object({ version: z.number().int().positive() }).strict();

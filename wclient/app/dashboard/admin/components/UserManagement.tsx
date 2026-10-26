@@ -8,8 +8,22 @@ import api from "@/lib/api/client";
 import { getSessionUser } from "@/lib/auth/session";
 
 type Role = "CHILD" | "NURSE" | "MEDICAL_ADMIN" | "ADMIN";
-// roles that can be given (MEDICAL_ADMIN is a leftover without rights)
-type StaffRole = "NURSE" | "ADMIN";
+// What can be given: a nurse, or an admin with a back-office role (spec slide
+// 109). MEDICAL_ADMIN is a leftover without rights.
+type Access = "NURSE" | "ADMIN:SUPER_ADMIN" | "ADMIN:OPS" | "ADMIN:FINANCE" | "ADMIN:SUPPORT";
+const ACCESS: [Access, string][] = [
+  ["NURSE", "Сувилагч"],
+  ["ADMIN:SUPER_ADMIN", "Супер админ"],
+  ["ADMIN:OPS", "Ops (үйл ажиллагаа)"],
+  ["ADMIN:FINANCE", "Санхүү"],
+  ["ADMIN:SUPPORT", "Тусламжийн ажилтан"],
+];
+const accessLabel = (a: string) => ACCESS.find(([v]) => v === a)?.[1] ?? a;
+const accessOf = (u: { role: Role; adminRole: string | null }) =>
+  u.role === "ADMIN" ? `ADMIN:${u.adminRole}` : u.role;
+/** The API body for a choice: { role } or { role: "ADMIN", adminRole }. */
+const accessBody = (a: Access) =>
+  a === "NURSE" ? { role: "NURSE" as const } : { role: "ADMIN" as const, adminRole: a.slice(6) };
 export type Group = "staff" | "customers" | "inactive";
 type Row = {
   id: string;
@@ -17,6 +31,7 @@ type Row = {
   email: string;
   phone: string | null;
   role: Role;
+  adminRole: string | null;
   createdAt: string;
   active: boolean;
   deactivatedAt: string | null;
@@ -30,7 +45,6 @@ const ROLE_LABELS: Record<Role, string> = {
   MEDICAL_ADMIN: "Эмнэлгийн админ (хуучин)",
   ADMIN: "Супер админ",
 };
-const STAFF_ROLES: StaffRole[] = ["NURSE", "ADMIN"];
 const GROUPS: [Group, string][] = [
   ["staff", "Ажилтан"],
   ["customers", "Захиалагч"],
@@ -70,7 +84,7 @@ function AddStaff({ onDone }: { onDone: () => void }) {
     name: "",
     email: "",
     phone: "",
-    role: "NURSE" as StaffRole,
+    access: "NURSE" as Access,
     password: "",
   });
   const [busy, setBusy] = useState(false);
@@ -89,7 +103,7 @@ function AddStaff({ onDone }: { onDone: () => void }) {
       await api.post("/admin/staff", {
         name: form.name,
         email: form.email,
-        role: form.role,
+        ...accessBody(form.access),
         password: form.password,
         ...(form.phone.trim() && { phone: form.phone.trim() }),
       });
@@ -98,7 +112,7 @@ function AddStaff({ onDone }: { onDone: () => void }) {
         email: form.email.trim().toLowerCase(),
         password: form.password,
       });
-      setForm({ name: "", email: "", phone: "", role: "NURSE", password: "" });
+      setForm({ name: "", email: "", phone: "", access: "NURSE", password: "" });
       onDone();
     } catch (err) {
       setError(apiMessage(err, "Ажилтан нэмж чадсангүй"));
@@ -188,14 +202,14 @@ function AddStaff({ onDone }: { onDone: () => void }) {
         Эрх
         <select
           className={input}
-          value={form.role}
+          value={form.access}
           onChange={(e) =>
-            setForm({ ...form, role: e.target.value as StaffRole })
+            setForm({ ...form, access: e.target.value as Access })
           }
         >
-          {STAFF_ROLES.map((r) => (
-            <option key={r} value={r}>
-              {ROLE_LABELS[r]}
+          {ACCESS.map(([v, label]) => (
+            <option key={v} value={v}>
+              {label}
             </option>
           ))}
         </select>
@@ -284,7 +298,7 @@ export function UserManagement({ initialGroup = "staff" }: { initialGroup?: Grou
 
   const change = async (
     row: Row,
-    body: { role?: StaffRole; active?: boolean },
+    body: { role?: "NURSE" | "ADMIN"; adminRole?: string; active?: boolean },
     question: string,
   ) => {
     if (!window.confirm(question)) return;
@@ -414,12 +428,12 @@ export function UserManagement({ initialGroup = "staff" }: { initialGroup?: Grou
                       <select
                         aria-label={`${u.name}-ийн эрх`}
                         disabled={busy}
-                        value={u.role}
+                        value={accessOf(u)}
                         onChange={(e) =>
                           void change(
                             u,
-                            { role: e.target.value as StaffRole },
-                            `${u.name}-ийн эрхийг "${ROLE_LABELS[e.target.value as StaffRole]}" болгох уу?`,
+                            accessBody(e.target.value as Access),
+                            `${u.name}-ийн эрхийг "${accessLabel(e.target.value)}" болгох уу?`,
                           )
                         }
                         className="rounded-md border border-gray-300 px-2 py-1"
@@ -429,12 +443,14 @@ export function UserManagement({ initialGroup = "staff" }: { initialGroup?: Grou
                             {ROLE_LABELS.MEDICAL_ADMIN}
                           </option>
                         )}
-                        {STAFF_ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {ROLE_LABELS[r]}
+                        {ACCESS.map(([v, label]) => (
+                          <option key={v} value={v}>
+                            {label}
                           </option>
                         ))}
                       </select>
+                    ) : u.role === "ADMIN" ? (
+                      accessLabel(accessOf(u))
                     ) : (
                       ROLE_LABELS[u.role]
                     )}

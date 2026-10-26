@@ -5,6 +5,7 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
 import { audit } from "../services/audit";
+import { allow } from "../services/permissions";
 import { cancelOrder, sendRefund } from "../services/cancellation";
 import { orderInclude, serializeOrder } from "../services/orders";
 
@@ -22,7 +23,7 @@ const cancelSchema = z
   .strict();
 
 // POST /api/admin/orders/:id/cancel
-adminCancel.post("/orders/:id/cancel", async (req: StaffRequest, res) => {
+adminCancel.post("/orders/:id/cancel", allow("orders.manage"), async (req: StaffRequest, res) => {
   const p = cancelSchema.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const id = String(req.params.id);
@@ -47,7 +48,7 @@ adminCancel.post("/orders/:id/cancel", async (req: StaffRequest, res) => {
 const STATUSES = ["MANUAL_REQUIRED", "PENDING", "REFUNDED"] as const;
 
 // GET /api/admin/refunds?status=MANUAL_REQUIRED
-adminCancel.get("/refunds", async (req: StaffRequest, res) => {
+adminCancel.get("/refunds", allow("money.view"), async (req: StaffRequest, res) => {
   const status = String(req.query.status ?? "MANUAL_REQUIRED");
   if (!(STATUSES as readonly string[]).includes(status))
     throw new ApiError(400, "VALIDATION_ERROR", "Төлөв буруу", { status: STATUSES.join(", ") });
@@ -87,7 +88,7 @@ adminCancel.get("/refunds", async (req: StaffRequest, res) => {
 const resolveSchema = z.object({ note: z.string().trim().min(3, "Тэмдэглэл бичнэ үү").max(500) }).strict();
 
 // POST /api/admin/refunds/:id/resolve: the admin paid it back by hand
-adminCancel.post("/refunds/:id/resolve", async (req: StaffRequest, res) => {
+adminCancel.post("/refunds/:id/resolve", allow("money.manage"), async (req: StaffRequest, res) => {
   const p = resolveSchema.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const refund = await prisma.refund.findUnique({ where: { id: String(req.params.id) } });
@@ -111,7 +112,7 @@ adminCancel.post("/refunds/:id/resolve", async (req: StaffRequest, res) => {
 });
 
 // POST /api/admin/refunds/:id/retry: ask QPay again
-adminCancel.post("/refunds/:id/retry", async (req: StaffRequest, res) => {
+adminCancel.post("/refunds/:id/retry", allow("money.manage"), async (req: StaffRequest, res) => {
   const refund = await prisma.refund.findUnique({ where: { id: String(req.params.id) } });
   if (!refund) throw new ApiError(404, "REFUND_NOT_FOUND", "Буцаалт олдсонгүй");
   if (refund.status !== "MANUAL_REQUIRED") throw new ApiError(409, "INVALID_STATUS", "Дахин оролдох боломжгүй");

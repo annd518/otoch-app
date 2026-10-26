@@ -6,6 +6,7 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
 import { audit } from "../services/audit";
+import { allow } from "../services/permissions";
 import { bankAccount } from "../services/payouts";
 import { notifyPayout } from "../services/push";
 
@@ -19,7 +20,7 @@ export const adminPayouts = Router();
 const BANK_CHANGE_WARN_MS = 7 * 86400000;
 
 // GET /api/admin/payouts/due: every nurse with earnings not yet transferred
-adminPayouts.get("/due", async (_req, res) => {
+adminPayouts.get("/due", allow("money.view"), async (_req, res) => {
   const groups = await prisma.payoutEntry.groupBy({
     by: ["nurseId"],
     where: { payoutId: null },
@@ -78,7 +79,7 @@ const paySchema = z
   .strict();
 
 // POST /api/admin/payouts: record a bank transfer covering all unpaid visits
-adminPayouts.post("/", async (req: StaffRequest, res) => {
+adminPayouts.post("/", allow("money.manage"), async (req: StaffRequest, res) => {
   const p = paySchema.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const { nurseId, expectedNetMnt, expectedVisits, reference, note } = p.data;
@@ -141,7 +142,7 @@ const serializePayout = (
 });
 
 // GET /api/admin/payouts?nurseId=: transfers already recorded, newest first
-adminPayouts.get("/", async (req, res) => {
+adminPayouts.get("/", allow("money.view"), async (req, res) => {
   const nurseId = typeof req.query.nurseId === "string" && req.query.nurseId ? req.query.nurseId : undefined;
   const rows = await prisma.payout.findMany({
     where: nurseId ? { nurseId } : {},
@@ -153,7 +154,7 @@ adminPayouts.get("/", async (req, res) => {
 });
 
 // GET /api/admin/payouts/:id: the visits one transfer covered
-adminPayouts.get("/:id", async (req, res) => {
+adminPayouts.get("/:id", allow("money.view"), async (req, res) => {
   const payout = await prisma.payout.findUnique({
     where: { id: String(req.params.id) },
     include: { nurse: { select: { name: true } }, entries: { orderBy: { earnedAt: "asc" } } },

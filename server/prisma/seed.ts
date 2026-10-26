@@ -82,8 +82,8 @@ async function main() {
   for (const u of demoUsers) {
     users[u.role] = await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name, role: u.role, password },
-      create: { ...u, password },
+      update: { name: u.name, role: u.role, password, adminRole: u.role === "ADMIN" ? "SUPER_ADMIN" : null },
+      create: { ...u, password, adminRole: u.role === "ADMIN" ? "SUPER_ADMIN" : null },
     });
   }
 

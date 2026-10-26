@@ -6,6 +6,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
 import { audit } from "../services/audit";
+import { allow } from "../services/permissions";
 import { SKILL_TAGS } from "../services/nurseProvision";
 import { notifyApplication } from "../services/push";
 import {
@@ -24,6 +25,8 @@ interface StaffRequest extends Request {
 }
 
 export const adminNurses = Router();
+// applications and their documents: Ops and super-admin (spec slide 109)
+adminNurses.use(allow("nurses.verify"));
 
 /** How far back the admin sees a nurse's withdrawals from accepted calls. */
 const RELEASE_WINDOW_MS = 90 * 86400000;

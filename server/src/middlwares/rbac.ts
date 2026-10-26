@@ -23,14 +23,17 @@ export const requireRole = (allowedRoles: Role[]) => {
 
         const user = await prisma.user.findUnique({
             where: { id: req.user.userId },
-            select: { role: true, deletedAt: true },
+            select: { role: true, adminRole: true, deletedAt: true },
         })
         if (!user || user.deletedAt) {
             return fail(res, 401, 'ACCOUNT_DISABLED', 'Бүртгэл идэвхгүй байна. Админд хандана уу')
         }
         req.user.role = user.role
 
-        if (!allowedRoles.includes(req.user.role)) {
+        // The older endpoints that let ADMIN in are for the super-admin only;
+        // the other back-office roles use the /api/admin policy (spec slide 109).
+        const limitedAdmin = user.role === 'ADMIN' && user.adminRole !== 'SUPER_ADMIN'
+        if (!allowedRoles.includes(req.user.role) || limitedAdmin) {
             return fail(res, 403, 'FORBIDDEN', 'Хандах эрх хүрэлцэхгүй байна')
         }
 

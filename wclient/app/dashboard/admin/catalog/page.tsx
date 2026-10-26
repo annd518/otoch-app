@@ -6,6 +6,7 @@ import api from "@/lib/api/client";
 import { useRoleProtection } from "@/lib/hooks/useRoleProtection";
 import type { UserRole } from "@/lib/auth/session-core";
 import { formatMnt, formatUb } from "@/lib/orderLabels";
+import { allowed, useMyAdminAccess } from "@/lib/hooks/useAdminAccess";
 
 // Catalog prices (spec A-08). API: server/src/routes/adminSettings.ts.
 // Names and clinical content come from the approved content import, not here.
@@ -44,6 +45,7 @@ function describe(a: AuditRow): string {
 
 export default function CatalogPage() {
   useRoleProtection(ROLES);
+  const canEdit = allowed(useMyAdminAccess(), "catalog.manage");
   const [services, setServices] = useState<Service[] | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [prices, setPrices] = useState<Record<string, string>>({});
@@ -132,10 +134,11 @@ export default function CatalogPage() {
                           step={500}
                           value={p}
                           aria-label={`${s.name} үнэ`}
+                          disabled={!canEdit}
                           onChange={(e) => setPrices((x) => ({ ...x, [s.id]: e.target.value }))}
                           className="w-28 rounded-lg border border-gray-300 px-2 py-1.5 text-right"
                         />
-                        {priceChanged && (
+                        {canEdit && priceChanged && (
                           <button
                             type="button"
                             disabled={busyId === s.id}
@@ -157,6 +160,7 @@ export default function CatalogPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right">
+                      {canEdit && (
                       <button
                         type="button"
                         disabled={busyId === s.id}
@@ -173,6 +177,7 @@ export default function CatalogPage() {
                       >
                         {s.isActive ? "Түр хаах" : "Идэвхжүүлэх"}
                       </button>
+                      )}
                     </td>
                   </tr>
                 );

@@ -6,6 +6,7 @@ import api from "@/lib/api/client";
 import { useRoleProtection } from "@/lib/hooks/useRoleProtection";
 import type { UserRole } from "@/lib/auth/session-core";
 import { formatMnt, formatUb } from "@/lib/orderLabels";
+import { allowed, useMyAdminAccess } from "@/lib/hooks/useAdminAccess";
 
 // Paying nurses (spec slides 83, 98). API: server/src/routes/adminPayouts.ts.
 // The admin transfers the money in the bank, then records it here; nothing is
@@ -44,6 +45,7 @@ const errorMessage = (e: unknown, fallback: string) => {
 
 export default function PayoutsPage() {
   useRoleProtection(ROLES);
+  const canPay = allowed(useMyAdminAccess(), "money.manage");
   const [due, setDue] = useState<Due[] | null>(null);
   const [history, setHistory] = useState<Payout[]>([]);
   const [error, setError] = useState("");
@@ -115,6 +117,7 @@ export default function PayoutsPage() {
                     Данс {formatUb(d.bankChangedAt)}-д өөрчлөгдсөн. Шилжүүлэхээс өмнө сувилагчтай утсаар баталгаажуулна уу.
                   </p>
                 )}
+                {canPay && (
                 <button
                   type="button"
                   disabled={!d.bank}
@@ -123,6 +126,7 @@ export default function PayoutsPage() {
                 >
                   Шилжүүлсэн гэж бүртгэх
                 </button>
+                )}
               </li>
             ))}
           </ul>

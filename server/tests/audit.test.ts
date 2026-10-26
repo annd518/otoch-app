@@ -46,8 +46,8 @@ it("staff changes are audited without the password", async () => {
   const e = r.json.data.entries[0];
   assert.equal(e.actorId, adminId);
   assert.equal(e.actionLabel, "Ажилтны эрх, төлөв өөрчилсөн");
-  assert.deepEqual(e.before, { role: "NURSE", active: true });
-  assert.deepEqual(e.after, { role: "NURSE", active: false });
+  assert.deepEqual(e.before, { role: "NURSE", adminRole: null, active: true });
+  assert.deepEqual(e.after, { role: "NURSE", adminRole: null, active: false });
   assert.equal(JSON.stringify(r.json).includes("Pass"), false);
 });
 

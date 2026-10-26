@@ -4,6 +4,7 @@ import { Router } from "express";
 import { z } from "zod";
 import prisma from "../db/db.config";
 import { ok, validationError } from "../utils/http";
+import { allow } from "../services/permissions";
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, type AuditAction, type AuditEntity } from "../services/audit";
 
 export const adminAudit = Router();
@@ -19,7 +20,7 @@ const query = z.object({
 });
 
 // GET /api/admin/audit?entity=&action=&actorId=&entityId=&cursor=
-adminAudit.get("/audit", async (req, res) => {
+adminAudit.get("/audit", allow("audit.view"), async (req, res) => {
   const q = query.safeParse(req.query);
   if (!q.success) throw validationError(q.error);
   const { entity, action, actorId, entityId, cursor } = q.data;

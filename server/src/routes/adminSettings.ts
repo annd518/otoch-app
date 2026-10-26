@@ -13,6 +13,7 @@ import {
   invalidateSettings,
   type SettingKey,
 } from "../services/settings";
+import { allow } from "../services/permissions";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -41,7 +42,7 @@ async function auditTrail(entity: "setting" | "service") {
 }
 
 // GET /api/admin/settings
-adminSettings.get("/settings", async (_req, res) => {
+adminSettings.get("/settings", allow("catalog.view"), async (_req, res) => {
   invalidateSettings(); // the admin sees what is stored now
   const [values, rows, audit] = await Promise.all([
     getSettings(prisma),
@@ -73,7 +74,7 @@ const settingsSchema = z
   .strict();
 
 // PUT /api/admin/settings {values: {commissionPct: 30, ...}}
-adminSettings.put("/settings", async (req: StaffRequest, res) => {
+adminSettings.put("/settings", allow("catalog.manage"), async (req: StaffRequest, res) => {
   const p = settingsSchema.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const fields: Record<string, string> = {};
@@ -125,7 +126,7 @@ const serializeService = (s: Prisma.ServiceCatalogItemGetPayload<object>) => ({
 });
 
 // GET /api/admin/catalog: every service, active or not
-adminSettings.get("/catalog", async (_req, res) => {
+adminSettings.get("/catalog", allow("catalog.view"), async (_req, res) => {
   const [rows, audit] = await Promise.all([
     prisma.serviceCatalogItem.findMany({ orderBy: [{ sortOrder: "asc" }, { code: "asc" }] }),
     auditTrail("service"),
@@ -149,7 +150,7 @@ const catalogSchema = z
   });
 
 // PATCH /api/admin/catalog/:id
-adminSettings.patch("/catalog/:id", async (req: StaffRequest, res) => {
+adminSettings.patch("/catalog/:id", allow("catalog.manage"), async (req: StaffRequest, res) => {
   const p = catalogSchema.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const id = String(req.params.id);
