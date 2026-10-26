@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import type { SessionUser } from "@/lib/auth/session-core";
 import { ORDER_STATUS_LABELS } from "@/lib/orderLabels";
 import { CancelPanel, type Cancellation } from "./CancelPanel";
+import { allowed, useMyAdminAccess } from "@/lib/hooks/useAdminAccess";
 type Order = {
   id: string;
   version: number;
@@ -55,6 +56,8 @@ function StaffOrders() {
     [nextCursor, setNextCursor] = useState<string | null>(null),
     [testEnv, setTestEnv] = useState(false);
   const inFlight = useRef(false);
+  const access = useMyAdminAccess();
+  const canManage = allowed(access, "orders.manage");
   const load = useCallback(async (cursor?: string) => {
     try {
       const r = await api.get("/staff/orders", {
@@ -80,12 +83,20 @@ function StaffOrders() {
     setUser(u);
     if (u && u.role === "ADMIN") {
       void load();
-      void api
-        .get("/staff/orders/nurses")
-        .then((r) => setNurses(r.data.data.nurses))
-        .catch(() => setError("Сувилагчдыг ачаалж чадсангүй"));
     } else setLoading(false);
   }, [load]);
+  // the nurse list is for assigning by hand (Ops, super-admin)
+  useEffect(() => {
+    if (!canManage) return;
+    let alive = true;
+    api
+      .get("/staff/orders/nurses")
+      .then((r) => alive && setNurses(r.data.data.nurses))
+      .catch(() => alive && setError("Сувилагчдыг ачаалж чадсангүй"));
+    return () => {
+      alive = false;
+    };
+  }, [canManage]);
   const open = async (id: string) => {
     try {
       const r = await api.get("/staff/orders/" + encodeURIComponent(id));
@@ -234,6 +245,7 @@ function StaffOrders() {
             </div>
           )}
           {user?.role !== "NURSE" &&
+            canManage &&
             ["PAID", "ASSIGNED"].includes(selected.status) && (
               <div className="space-y-2">
                 <label htmlFor="nurse">Сувилагч сонгох</label>
@@ -262,6 +274,8 @@ function StaffOrders() {
           {user?.role === "ADMIN" && (
             <CancelPanel
               order={selected}
+              canCancel={canManage}
+              canRefund={allowed(access, "money.manage")}
               onDone={async () => {
                 await open(selected.id);
                 await load();

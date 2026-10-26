@@ -132,7 +132,7 @@ it("deactivating a nurse: refused while she has visits, then she can neither log
   const busy = await patch(nurse.id, { active: false });
   assert.equal(busy.status, 409);
   assert.equal(busy.json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
-  assert.equal((await patch(nurse.id, { role: "ADMIN" })).json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
+  assert.equal((await patch(nurse.id, { role: "ADMIN", adminRole: "SUPER_ADMIN" })).json.error.code, "NURSE_HAS_ACTIVE_ORDERS");
 
   await prisma.order.update({ where: { id: order.id }, data: { status: "COMPLETED" } });
   const off = await patch(nurse.id, { active: false });
@@ -158,7 +158,7 @@ it("a role change applies to an existing token at once", async () => {
   const nurse = await createUser("NURSE", "users-promote");
   const token = await loginAs(srv.baseUrl, nurse.email);
   assert.equal((await api(srv.baseUrl, "GET", "/api/admin/summary", { token })).status, 403);
-  const r = await patch(nurse.id, { role: "ADMIN" });
+  const r = await patch(nurse.id, { role: "ADMIN", adminRole: "SUPER_ADMIN" });
   assert.equal(r.status, 200);
   assert.equal(r.json.data.user.role, "ADMIN");
   assert.equal((await api(srv.baseUrl, "GET", "/api/admin/summary", { token })).status, 200);

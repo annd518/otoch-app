@@ -14,12 +14,22 @@ enum Role {
   ADMIN
 }
 
+// What a back-office (ADMIN) account may do (spec slide 109). Only ADMIN
+// accounts have one; services/permissions.ts maps each to its rights.
+enum AdminRole {
+  SUPER_ADMIN
+  OPS
+  FINANCE
+  SUPPORT
+}
+
 model User {
   id             String   @id @default(cuid())
   name           String
   email          String   @unique
   password       String
   role           Role
+  adminRole      AdminRole? // set exactly when role = ADMIN (DB check)
   phone          String? @unique
   deletedAt      DateTime?
   refreshSessions RefreshSession[]

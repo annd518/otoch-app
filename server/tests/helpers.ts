@@ -52,14 +52,19 @@ export const uniqueEmail = (tag: string) => `${tag}-${randomBytes(4).toString('h
 
 export const TEST_PASSWORD = 'Test-Only-123'
 
-/** Creates a user directly in the isolated DB (used for privileged roles) */
-export async function createUser(role: 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN', tag = role.toLowerCase()) {
+/** Creates a user directly in the isolated DB (used for privileged roles). An ADMIN is a super-admin unless told otherwise. */
+export async function createUser(
+    role: 'CHILD' | 'NURSE' | 'MEDICAL_ADMIN' | 'ADMIN',
+    tag = role.toLowerCase(),
+    adminRole: 'SUPER_ADMIN' | 'OPS' | 'FINANCE' | 'SUPPORT' = 'SUPER_ADMIN',
+) {
     return prisma.user.create({
         data: {
             name: `Туршилтын ${tag}`,
             email: uniqueEmail(tag),
             password: await bcrypt.hash(TEST_PASSWORD, 4),
             role,
+            adminRole: role === 'ADMIN' ? adminRole : null,
         },
     })
 }

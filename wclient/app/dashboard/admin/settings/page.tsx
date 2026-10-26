@@ -6,6 +6,7 @@ import api from "@/lib/api/client";
 import { useRoleProtection } from "@/lib/hooks/useRoleProtection";
 import type { UserRole } from "@/lib/auth/session-core";
 import { formatUb } from "@/lib/orderLabels";
+import { allowed, useMyAdminAccess } from "@/lib/hooks/useAdminAccess";
 
 // Business settings (spec slide 103). API: server/src/routes/adminSettings.ts.
 
@@ -32,6 +33,7 @@ const errorMessage = (e: unknown, fallback: string) => {
 
 export default function SettingsPage() {
   useRoleProtection(ROLES);
+  const canEdit = allowed(useMyAdminAccess(), "catalog.manage");
   const [settings, setSettings] = useState<Setting[] | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -111,6 +113,7 @@ export default function SettingsPage() {
                       min={s.min}
                       max={s.max}
                       step={1}
+                      disabled={!canEdit}
                       value={v}
                       onChange={(e) => setDraft((d) => ({ ...d, [s.key]: e.target.value }))}
                       className={`w-24 rounded-lg border px-3 py-2 text-right ${invalid ? "border-red-500" : "border-gray-300"}`}
@@ -125,6 +128,7 @@ export default function SettingsPage() {
               </div>
             );
           })}
+          {canEdit && (
           <button
             type="submit"
             disabled={busy || changed.length === 0 || changed.some((s) => {
@@ -135,6 +139,7 @@ export default function SettingsPage() {
           >
             {changed.length > 0 ? `${changed.length} өөрчлөлт хадгалах` : "Өөрчлөлт алга"}
           </button>
+          )}
         </form>
       )}
 

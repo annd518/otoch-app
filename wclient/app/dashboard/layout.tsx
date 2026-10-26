@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api/client";
+import { allowed, useAdminAccess, type AdminAccess, type Permission } from "@/lib/hooks/useAdminAccess";
 import { clearSession, getSessionUser } from "@/lib/auth/session";
 import { WEB_ROLE_REFUSED, canUseWeb, type SessionUser } from "@/lib/auth/session-core";
 
@@ -34,21 +35,23 @@ type NavItem = {
   count?: "orders" | "applications";
   // the page is not built yet: shown greyed out, not a link
   soon?: boolean;
+  // shown only to back-office roles with this right (spec slide 109)
+  perm?: Permission;
 };
 
 // Admin menu (spec slide 84). Items marked soon are on the roadmap, not working pages.
 const NAV: NavItem[] = [
-  { href: "/dashboard/admin", title: "Самбар", icon: LayoutGrid },
-  { href: "/dashboard/orders", title: "Захиалга", icon: ClipboardList, count: "orders" },
-  { href: "/dashboard/admin/nurses", title: "Баталгаажуулалт", icon: BadgeCheck, count: "applications" },
-  { href: "/dashboard/admin/staff", title: "Сувилагч, ажилтан", icon: Stethoscope },
-  { href: "/dashboard/admin/customers", title: "Үйлчлүүлэгч", icon: Users },
-  { href: "/dashboard/admin/payouts", title: "Сувилагчийн төлбөр", icon: Wallet },
-  { href: "/dashboard/admin/catalog", title: "Каталог, үнэ", icon: Tag },
+  { href: "/dashboard/admin", title: "Самбар", icon: LayoutGrid, perm: "orders.view" },
+  { href: "/dashboard/orders", title: "Захиалга", icon: ClipboardList, count: "orders", perm: "orders.view" },
+  { href: "/dashboard/admin/nurses", title: "Баталгаажуулалт", icon: BadgeCheck, count: "applications", perm: "nurses.verify" },
+  { href: "/dashboard/admin/staff", title: "Сувилагч, ажилтан", icon: Stethoscope, perm: "staff.manage" },
+  { href: "/dashboard/admin/customers", title: "Үйлчлүүлэгч", icon: Users, perm: "customers.view" },
+  { href: "/dashboard/admin/payouts", title: "Сувилагчийн төлбөр", icon: Wallet, perm: "money.view" },
+  { href: "/dashboard/admin/catalog", title: "Каталог, үнэ", icon: Tag, perm: "catalog.view" },
   { href: "#reports", title: "Тайлан", icon: BarChart3, soon: true },
   { href: "#disputes", title: "Маргаан", icon: TriangleAlert, soon: true },
-  { href: "/dashboard/admin/settings", title: "Тохиргоо", icon: Settings },
-  { href: "/dashboard/admin/audit", title: "Аудит лог", icon: History },
+  { href: "/dashboard/admin/settings", title: "Тохиргоо", icon: Settings, perm: "catalog.view" },
+  { href: "/dashboard/admin/audit", title: "Аудит лог", icon: History, perm: "audit.view" },
 ];
 
 const REFRESH_MS = 60_000;
@@ -69,14 +72,16 @@ function NavLinks({
   counts,
   isActive,
   compact,
+  access,
 }: {
   counts: { orders: number | null; applications: number | null };
   isActive: (href: string) => boolean;
   compact?: boolean;
+  access: AdminAccess | null | undefined;
 }) {
   return (
     <>
-      {NAV.map((item) => {
+      {NAV.filter((item) => !item.perm || allowed(access, item.perm)).map((item) => {
         const Icon = item.icon;
         const count = item.count ? counts[item.count] : null;
         const base = compact
@@ -153,6 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Validated user object saved at login (not a JWT decode); browser only
   const raw = useSyncExternalStore(noSubscribe, sessionSnapshot, () => "null");
   const userData = useMemo(() => JSON.parse(raw) as SessionUser | null, [raw]);
+  const access = useAdminAccess(userData && canUseWeb(userData.role) ? userData.id : null);
   const [counts, setCounts] = useState<{ orders: number | null; applications: number | null }>({
     orders: null,
     applications: null,
@@ -168,15 +174,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [userData, router]);
 
   const loadCounts = useCallback(async () => {
-    try {
-      const [board, summary] = await Promise.all([api.get("/admin/board"), api.get("/admin/summary")]);
-      setCounts({
-        orders: board.data.data.kpis.active,
-        applications: summary.data.data.nurseApplications ?? 0,
-      });
-    } catch {
-      // the menu works without the numbers
-    }
+    // each number needs its own right; the menu works without them
+    const [board, summary] = await Promise.allSettled([api.get("/admin/board"), api.get("/admin/summary")]);
+    setCounts({
+      orders: board.status === "fulfilled" ? board.value.data.data.kpis.active : null,
+      applications: summary.status === "fulfilled" ? (summary.value.data.data.nurseApplications ?? 0) : null,
+    });
   }, []);
 
   useEffect(() => {
@@ -208,7 +211,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </React.Suspense>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-white/85">
-          <span className="hidden sm:inline">{userData?.name ?? ""}</span>
+          <span className="hidden sm:inline">
+            {userData?.name ?? ""}
+            {access ? <span className="text-white/60"> ({access.adminRoleLabel})</span> : null}
+          </span>
           <span className="hidden text-white/40 sm:inline">·</span>
           <button onClick={handleLogout} className="rounded-md px-2 py-1 hover:bg-white/10 hover:text-white">
             гарах
@@ -218,13 +224,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* phone and tablet: the menu scrolls sideways under the bar */}
       <nav className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-[#EEF2F6] px-3 py-2 lg:hidden">
-        <NavLinks counts={counts} isActive={isActive} compact />
+        <NavLinks counts={counts} isActive={isActive} access={access} compact />
       </nav>
 
       <div className="flex">
         <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-slate-200 bg-[#EEF2F6] px-3 py-5 lg:block">
           <nav className="space-y-1">
-            <NavLinks counts={counts} isActive={isActive} />
+            <NavLinks counts={counts} isActive={isActive} access={access} />
           </nav>
         </aside>
         <main className="min-w-0 flex-1">

@@ -5,6 +5,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { audit } from "../services/audit";
+import { ADMIN_ROLES, ADMIN_ROLE_LABELS, allow, can, permissionsOf } from "../services/permissions";
 import { adminNurses } from "./adminNurses";
 import { adminCancel } from "./adminCancel";
 import { adminPayouts } from "./adminPayouts";
@@ -12,11 +13,11 @@ import { adminSettings } from "./adminSettings";
 import { adminAudit } from "./adminAudit";
 
 interface StaffRequest extends Request {
-  user?: { userId: string; role: string };
+  user?: { userId: string; role: string; adminRole?: string | null };
 }
 
-// Admin web (wclient /dashboard/admin). Super-admin (ADMIN) only: the spec
-// (OTOCH v2.0 p.109) gives every back-office right to the super-admin for now.
+// Admin web (wclient /dashboard/admin). Any ADMIN account gets in; what it may
+// do there depends on its back-office role (services/permissions.ts, spec 109).
 export const adminRoutes = Router();
 adminRoutes.use(authenticateToken);
 // The role and the account state are read from the database, not from the
@@ -24,13 +25,28 @@ adminRoutes.use(authenticateToken);
 adminRoutes.use(async (req: StaffRequest, _res, next) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.userId },
-    select: { role: true, deletedAt: true },
+    select: { role: true, adminRole: true, deletedAt: true },
   });
-  if (!user || user.deletedAt || user.role !== "ADMIN")
-    throw new ApiError(403, "FORBIDDEN", "Супер админ эрх шаардлагатай");
+  if (!user || user.deletedAt || user.role !== "ADMIN" || !user.adminRole)
+    throw new ApiError(403, "FORBIDDEN", "Админ эрх шаардлагатай");
   req.user!.role = user.role;
+  req.user!.adminRole = user.adminRole;
   next();
 });
+
+// GET /api/admin/me: the signed-in admin's role and rights (for the menu)
+adminRoutes.get("/me", (req: StaffRequest, res) =>
+  ok(
+    res,
+    {
+      adminRole: req.user!.adminRole,
+      adminRoleLabel: ADMIN_ROLE_LABELS[req.user!.adminRole as keyof typeof ADMIN_ROLE_LABELS],
+      permissions: permissionsOf(req.user!.adminRole),
+    },
+    "Эрх",
+  ),
+);
+
 
 adminRoutes.use("/nurses", adminNurses);
 adminRoutes.use("/payouts", adminPayouts);
@@ -66,7 +82,7 @@ const ACTIVE = [
 // Visits a nurse is committed to (cannot be deactivated or counted free).
 const NURSE_BUSY = ["ASSIGNED", "EN_ROUTE", "IN_PROGRESS"] as const;
 
-adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
+adminRoutes.get("/summary", allow("reports.view"), async (_req: StaffRequest, res) => {
   const now = new Date();
   const dayStart = ulaanbaatarDayStart(now);
   const dayEnd = new Date(dayStart.getTime() + 86400000);
@@ -249,7 +265,7 @@ adminRoutes.get("/summary", async (_req: StaffRequest, res) => {
 export const UNASSIGNED_ALERT_MS = 5 * 60000;
 const BOARD_STATUSES = ["PAID", "ASSIGNED", "EN_ROUTE", "IN_PROGRESS", "INCIDENT"] as const;
 
-adminRoutes.get("/board", async (_req: StaffRequest, res) => {
+adminRoutes.get("/board", allow("orders.view"), async (_req: StaffRequest, res) => {
   const now = new Date();
   const dayStart = ulaanbaatarDayStart(now);
 
@@ -365,16 +381,12 @@ adminRoutes.get("/board", async (_req: StaffRequest, res) => {
 // Users and staff. Customers (CHILD) are listed read-only: their accounts are
 // closed through the account deletion flow, not here.
 
-// Roles that can be given: a nurse (OTOCH Nurse app) or a super-admin.
+// Roles that can be given: a nurse (OTOCH Nurse app) or a back-office admin
+// (with an adminRole).
 const STAFF_ROLES = ["NURSE", "ADMIN"] as const;
 // Listed as staff too, so leftover MEDICAL_ADMIN accounts (no rights any
 // more) can be changed or deactivated.
 const LISTED_STAFF = ["NURSE", "MEDICAL_ADMIN", "ADMIN"] as const;
-// kept for readability at each endpoint; the router guard already requires ADMIN
-const adminOnly = (req: StaffRequest) => {
-  if (req.user!.role !== "ADMIN")
-    throw new ApiError(403, "FORBIDDEN", "Зөвхөн супер админ хэрэглэгч удирдана");
-};
 const passwordSchema = z
   .string()
   .min(10, "Нууц үг хамгийн багадаа 10 тэмдэгт")
@@ -395,16 +407,19 @@ const userSelect = {
   email: true,
   phone: true,
   role: true,
+  adminRole: true,
   createdAt: true,
   deletedAt: true,
   _count: { select: { orders: true } },
 } as const;
 
 adminRoutes.get("/users", async (req: StaffRequest, res) => {
-  adminOnly(req);
   const p = listQuery.safeParse(req.query);
   if (!p.success) throw validationError(p.error);
   const { group, q, cursor } = p.data;
+  // customers: support and ops look people up; staff accounts: super-admin only
+  if (!can(req.user!.adminRole, group === "customers" ? "customers.view" : "staff.manage"))
+    throw new ApiError(403, "FORBIDDEN", "Танд энэ үйлдлийн эрх байхгүй");
   const rows = await prisma.user.findMany({
     where: {
       ...(group === "staff" && {
@@ -464,16 +479,20 @@ const createStaff = z.object({
   email: z.string().trim().email("Имэйл хаяг буруу байна").max(200),
   phone: phoneSchema.optional(),
   role: z.enum(STAFF_ROLES),
+  // required for role ADMIN, refused otherwise
+  adminRole: z.enum(ADMIN_ROLES).optional(),
   password: passwordSchema,
+}).refine((v) => (v.role === "ADMIN") === (v.adminRole !== undefined), {
+  message: "Админы эрхийн түвшинг сонгоно уу",
+  path: ["adminRole"],
 });
 
 // POST /api/admin/staff: the only way to create a nurse / admin account
 // (public signup creates customers only). The password is never returned.
-adminRoutes.post("/staff", async (req: StaffRequest, res) => {
-  adminOnly(req);
+adminRoutes.post("/staff", allow("staff.manage"), async (req: StaffRequest, res) => {
   const p = createStaff.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
-  const { name, email, phone, role, password } = p.data;
+  const { name, email, phone, role, adminRole, password } = p.data;
   if (
     await prisma.user.findFirst({
       where: { email: { equals: email, mode: "insensitive" } },
@@ -492,18 +511,19 @@ adminRoutes.post("/staff", async (req: StaffRequest, res) => {
       email: email.toLowerCase(),
       phone: phone ?? null,
       role,
+      adminRole: role === "ADMIN" ? adminRole! : null,
       password: await bcrypt.hash(password, 10),
       // a nurse starts with an unsent application; they fill it in the nurse app
       ...(role === "NURSE" && { nurseProfile: { create: { skillTags: [], zoneIds: [] } } }),
     },
-    select: { id: true, name: true, email: true, phone: true, role: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, adminRole: true },
   });
   await audit(prisma, {
     actorId: req.user!.userId,
     action: "STAFF_CREATED",
     entity: "user",
     entityId: user.id,
-    after: { name: user.name, email: user.email, role: user.role },
+    after: { name: user.name, email: user.email, role: user.role, adminRole: user.adminRole },
   });
   return ok(res, { user }, "Ажилтан нэмэгдлээ", 201);
 });
@@ -511,16 +531,16 @@ adminRoutes.post("/staff", async (req: StaffRequest, res) => {
 const updateUser = z
   .object({
     role: z.enum(STAFF_ROLES).optional(),
+    adminRole: z.enum(ADMIN_ROLES).optional(),
     active: z.boolean().optional(),
   })
   .strict()
-  .refine((v) => v.role !== undefined || v.active !== undefined, {
+  .refine((v) => v.role !== undefined || v.adminRole !== undefined || v.active !== undefined, {
     message: "Өөрчлөх зүйл алга",
   });
 
 // PATCH /api/admin/users/:id: change a staff role, deactivate / reactivate.
-adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
-  adminOnly(req);
+adminRoutes.patch("/users/:id", allow("staff.manage"), async (req: StaffRequest, res) => {
   const p = updateUser.safeParse(req.body ?? {});
   if (!p.success) throw validationError(p.error);
   const id = String(req.params.id);
@@ -532,7 +552,7 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
     );
   const target = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, deletedAt: true },
+    select: { id: true, role: true, adminRole: true, deletedAt: true },
   });
   if (!target) throw new ApiError(404, "USER_NOT_FOUND", "Хэрэглэгч олдсонгүй");
   if (target.role === "CHILD")
@@ -542,6 +562,17 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       "Захиалагчийн бүртгэлийг энд өөрчлөхгүй",
     );
   const { role, active } = p.data;
+  const finalRole = role ?? target.role;
+  // an admin always has a back-office role; anyone else has none
+  const finalAdminRole = finalRole === "ADMIN" ? (p.data.adminRole ?? target.adminRole) : null;
+  if (finalRole === "ADMIN" && !finalAdminRole)
+    throw new ApiError(400, "VALIDATION_ERROR", "Админы эрхийн түвшинг сонгоно уу", {
+      adminRole: "Сонгоно уу",
+    });
+  if (finalRole !== "ADMIN" && p.data.adminRole !== undefined)
+    throw new ApiError(400, "VALIDATION_ERROR", "Эрхийн түвшин зөвхөн админд хамаарна", {
+      adminRole: "Зөвхөн админд",
+    });
   // a leftover MEDICAL_ADMIN can be changed or deactivated, never reactivated as such
   if (active === true && target.role === "MEDICAL_ADMIN" && role === undefined)
     throw new ApiError(
@@ -549,10 +580,11 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       "CONFLICT",
       "Эмнэлгийн админ эрх хэрэглэгдэхээ больсон. Сувилагч эсвэл супер админ эрх сонгоно уу",
     );
+  // the last active super-admin cannot lose that role (nobody could manage staff)
   const losesAdmin =
-    target.role === "ADMIN" &&
+    target.adminRole === "SUPER_ADMIN" &&
     target.deletedAt === null &&
-    ((role !== undefined && role !== "ADMIN") || active === false);
+    (finalAdminRole !== "SUPER_ADMIN" || active === false);
   const deactivating = active === false && target.deletedAt === null;
   const leavesNursing =
     target.role === "NURSE" &&
@@ -561,13 +593,13 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
   await prisma.$transaction(async (tx) => {
     if (losesAdmin) {
       const admins = await tx.user.count({
-        where: { role: "ADMIN", deletedAt: null },
+        where: { role: "ADMIN", adminRole: "SUPER_ADMIN", deletedAt: null },
       });
       if (admins <= 1)
         throw new ApiError(
           409,
           "LAST_ADMIN",
-          "Сүүлийн идэвхтэй админыг өөрчлөх боломжгүй",
+          "Сүүлийн идэвхтэй супер админыг өөрчлөх боломжгүй",
         );
     }
     if (leavesNursing) {
@@ -589,6 +621,7 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       where: { id },
       data: {
         ...(role !== undefined && { role }),
+        adminRole: finalAdminRole,
         ...(active !== undefined && {
           deletedAt: active ? null : (target.deletedAt ?? new Date()),
         }),
@@ -611,9 +644,10 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
       action: "STAFF_UPDATED",
       entity: "user",
       entityId: id,
-      before: { role: target.role, active: target.deletedAt === null },
+      before: { role: target.role, adminRole: target.adminRole, active: target.deletedAt === null },
       after: {
-        role: role ?? target.role,
+        role: finalRole,
+        adminRole: finalAdminRole,
         active: active ?? target.deletedAt === null,
       },
     });
@@ -637,8 +671,7 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
 });
 
 // POST /api/admin/users/:id/password: set a new password for a staff member
-adminRoutes.post("/users/:id/password", async (req: StaffRequest, res) => {
-  adminOnly(req);
+adminRoutes.post("/users/:id/password", allow("staff.manage"), async (req: StaffRequest, res) => {
   const p = z
     .object({ password: passwordSchema })
     .strict()

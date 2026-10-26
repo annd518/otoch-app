@@ -43,9 +43,14 @@ const message = (e: unknown, fallback: string) =>
 export function CancelPanel({
   order,
   onDone,
+  canCancel = true,
+  canRefund = true,
 }: {
   order: { id: string; status: string; cancellation?: Cancellation };
   onDone: () => Promise<void>;
+  // back-office rights (spec slide 109); the server checks them again
+  canCancel?: boolean;
+  canRefund?: boolean;
 }) {
   const [reason, setReason] = useState("");
   const [percent, setPercent] = useState(100);
@@ -85,7 +90,7 @@ export function CancelPanel({
         ) : (
           <p>Буцаах мөнгө байхгүй</p>
         )}
-        {c.refund?.status === "MANUAL_REQUIRED" && (
+        {canRefund && c.refund?.status === "MANUAL_REQUIRED" && (
           <div className="space-y-2 border-t border-gray-200 pt-2">
             <button
               className="min-h-10 rounded border bg-white px-3"
@@ -118,7 +123,7 @@ export function CancelPanel({
       </div>
     );
 
-  if (!ADMIN_CANCELLABLE.includes(order.status)) return null;
+  if (!canCancel || !ADMIN_CANCELLABLE.includes(order.status)) return null;
   return (
     <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/50 p-4 text-sm">
       <p className="font-semibold">Захиалга цуцлах</p>
