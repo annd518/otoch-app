@@ -8,15 +8,41 @@ import { getSettings, nurseSharePercent } from "./settings";
 
 type Tx = Prisma.TransactionClient;
 
-/** The nurse's net and the company's commission from a paid price (whole MNT). */
-export function splitEarning(grossMnt: number, nurseSharePercent: number = NURSE_SHARE_PERCENT) {
-  const netMnt = Math.floor((grossMnt * nurseSharePercent) / 100);
+/**
+ * The nurse's net and the company's commission from a paid price (whole MNT).
+ * The zone travel fee inside the price is split by its own percentage
+ * (travelFeeNursePct setting); the rest by the service share.
+ */
+export function splitEarning(
+  grossMnt: number,
+  nurseSharePercent: number = NURSE_SHARE_PERCENT,
+  travelFeeMnt = 0,
+  travelFeeNursePct: number = nurseSharePercent,
+) {
+  const fee = Math.min(Math.max(travelFeeMnt, 0), grossMnt);
+  const netMnt =
+    Math.floor(((grossMnt - fee) * nurseSharePercent) / 100) + Math.floor((fee * travelFeeNursePct) / 100);
   return {
     grossMnt,
     netMnt,
     commissionMnt: grossMnt - netMnt,
     commissionPct: 100 - nurseSharePercent,
+    travelFeeMnt: fee,
+    travelFeeNursePct: fee > 0 ? travelFeeNursePct : null,
   };
+}
+
+/** The travel fee inside a quote (its TRAVEL_FEE lines, spec slide 103). */
+export function travelFeeOfLines(lines: unknown): number {
+  return Array.isArray(lines)
+    ? lines.reduce(
+        (sum: number, l) =>
+          l && typeof l === "object" && (l as { type?: unknown }).type === "TRAVEL_FEE"
+            ? sum + (Number((l as { amountMnt?: unknown }).amountMnt) || 0)
+            : sum,
+        0,
+      )
+    : 0;
 }
 
 /**
@@ -29,17 +55,29 @@ export async function recordEarning(tx: Tx, orderId: string, now: Date = new Dat
     select: {
       assignedNurseId: true,
       payoutEntry: { select: { id: true } },
-      payments: { where: { status: "PAID" }, orderBy: { createdAt: "desc" }, take: 1, select: { amountMnt: true } },
+      payments: {
+        where: { status: "PAID" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { amountMnt: true, quote: { select: { lines: true } } },
+      },
     },
   });
-  const gross = order?.payments[0]?.amountMnt ?? 0;
+  const payment = order?.payments[0];
+  const gross = payment?.amountMnt ?? 0;
   if (!order?.assignedNurseId || order.payoutEntry || gross <= 0) return null;
+  const settings = await getSettings(tx);
   return tx.payoutEntry.create({
     data: {
       nurseId: order.assignedNurseId,
       orderId,
       earnedAt: now,
-      ...splitEarning(gross, nurseSharePercent(await getSettings(tx))),
+      ...splitEarning(
+        gross,
+        nurseSharePercent(settings),
+        travelFeeOfLines(payment?.quote.lines),
+        settings.travelFeeNursePct,
+      ),
     },
   });
 }

@@ -48,7 +48,9 @@ export async function payoutReceiptPdf(
     ...payout.entries.map(
       (e, i) =>
         `${i + 1}. ${ub(e.earnedAt, true)} · ${e.order.items.map((x) => x.service.name).join(", ") || "Үйлчилгээ"} · ` +
-        `үнэ ${mnt(e.grossMnt)} · шимтгэл ${e.commissionPct}% ${mnt(e.commissionMnt)} · сувилагчид ${mnt(e.netMnt)}`,
+        `үнэ ${mnt(e.grossMnt)}` +
+        (e.travelFeeMnt > 0 ? ` (унааны зардал ${mnt(e.travelFeeMnt)}, сувилагчид ${e.travelFeeNursePct}%)` : "") +
+        ` · шимтгэл ${e.commissionPct}% · компанид ${mnt(e.commissionMnt)} · сувилагчид ${mnt(e.netMnt)}`,
     ),
     "",
     `Нийт эргэлт: ${payout.visits}`,

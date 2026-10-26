@@ -645,6 +645,9 @@ model PayoutEntry {
   commissionPct Int
   commissionMnt Int
   netMnt        Int
+  // part of grossMnt that was the zone travel fee, and the nurse's % of it
+  travelFeeMnt      Int  @default(0)
+  travelFeeNursePct Int?
   earnedAt      DateTime
   payoutId      String?
   createdAt     DateTime @default(now())

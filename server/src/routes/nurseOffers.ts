@@ -16,6 +16,7 @@ import { orderDistrict } from "../services/ubDistricts";
 import { districtsSchema } from "./nurseApplication";
 import { ratingSummaries, type RatingSummary } from "../services/ratings";
 import { getSettings, nurseSharePercent } from "../services/settings";
+import { splitEarning, travelFeeOfLines } from "../services/payouts";
 
 interface NurseRequest extends Request {
   user?: { userId: string; role: string };
@@ -56,7 +57,8 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
     const d = orderDistrict(r.order.addressText);
     return d !== null && districts.includes(d);
   });
-  const share = nurseSharePercent(await getSettings(prisma));
+  const settings = await getSettings(prisma);
+  const share = nurseSharePercent(settings);
   const zones = await prisma.serviceZone.findMany({
     where: { id: { in: rows.flatMap((r) => (r.order.zoneId ? [r.order.zoneId] : [])) } },
     select: { id: true, name: true },
@@ -90,8 +92,9 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
           },
           earnings: quote
             ? {
-                // the whole paid price, travel fee included (as in the payout ledger)
-                nurseShareMnt: Math.floor((quote.totalMnt * share) / 100),
+                // as the payout ledger will count it: service share + travel fee share
+                nurseShareMnt: splitEarning(quote.totalMnt, share, travelFeeOfLines(quote.lines), settings.travelFeeNursePct)
+                  .netMnt,
                 sharePercent: share,
                 isFixture: quote.isFixture,
               }

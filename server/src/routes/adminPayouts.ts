@@ -171,6 +171,8 @@ adminPayouts.get("/:id", allow("money.view"), async (req, res) => {
         grossMnt: e.grossMnt,
         commissionPct: e.commissionPct,
         commissionMnt: e.commissionMnt,
+        travelFeeMnt: e.travelFeeMnt,
+        travelFeeNursePct: e.travelFeeNursePct,
         netMnt: e.netMnt,
       })),
     },
