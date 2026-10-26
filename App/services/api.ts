@@ -51,6 +51,7 @@ import {
 import {
   cancelOrder,
   rateOrder,
+  rescheduleOrder,
   createDraftOrder,
   deleteAttachment,
   getCancelTerms,
@@ -412,6 +413,14 @@ export const apiService = {
   ): Promise<ApiResult<Order>> {
     readCache.clear();
     return rateOrder(client, orderId, rating);
+  },
+
+  rescheduleOrder(
+    orderId: string,
+    input: { version: number; scheduledFor: string; timeSlot: string },
+  ): Promise<ApiResult<Order>> {
+    readCache.clear();
+    return rescheduleOrder(client, orderId, input);
   },
 
   reportRedFlagBlock(

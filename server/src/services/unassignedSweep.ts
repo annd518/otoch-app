@@ -61,20 +61,33 @@ export async function runUnassignedSweep(prisma: PrismaClient, now: Date = new D
       status: "PAID",
       assignedNurseId: null,
       scheduledFor: { not: null, lte: new Date(now.getTime() + DISPATCH_HORIZON_MS) },
-      events: { none: { type: "NO_NURSE_NOTICE" } },
     },
     select: {
       id: true,
       childId: true,
       scheduledFor: true,
+      // a new time (RESCHEDULE) starts the search over: one notice per time
+      events: {
+        where: { type: { in: ["NO_NURSE_NOTICE", "RESCHEDULE"] } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { type: true, createdAt: true },
+      },
       payments: { where: { status: "PAID" }, select: { paidAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
-    take: 100,
+    // already-noticed orders are skipped below, so read generously
+    take: 500,
   });
   for (const o of waiting) {
     const paidAt = o.payments[0]?.paidAt;
     if (!paidAt || !o.scheduledFor) continue;
-    const searchingSince = Math.max(paidAt.getTime(), o.scheduledFor.getTime() - DISPATCH_HORIZON_MS);
+    const last = o.events[0];
+    if (last?.type === "NO_NURSE_NOTICE") continue;
+    const searchingSince = Math.max(
+      paidAt.getTime(),
+      last?.createdAt.getTime() ?? 0,
+      o.scheduledFor.getTime() - DISPATCH_HORIZON_MS,
+    );
     if (now.getTime() - searchingSince < noticeMs) continue;
     await prisma.orderEvent.create({ data: { orderId: o.id, type: "NO_NURSE_NOTICE" } });
     await notifyNoNurseYet(o);

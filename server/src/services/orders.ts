@@ -300,64 +300,7 @@ export async function assertNoFixtureDataInProduction(
   order: OrderWithItems,
   db: Prisma.TransactionClient = prisma,
 ) {
-  if (order.items.some((i) => /^S\d{2}$/.test(i.serviceCode))) {
-    const slot = await db.availabilitySlot.findFirst({
-      where: {
-        zoneId: order.zoneId ?? "",
-        startsAt: order.scheduledFor ?? new Date(0),
-        zone: { isActive: true },
-      },
-      include: { zone: true },
-    });
-    const minWindow = Math.max(
-      ...order.items.map((i) =>
-        /^S\d{2}$/.test(i.serviceCode)
-          ? serviceConfig(i.service).windowMin
-          : 60,
-      ),
-    );
-    if (
-      !slot ||
-      order.lat === null ||
-      order.lng === null ||
-      order.lat < slot.zone.minLat ||
-      order.lat > slot.zone.maxLat ||
-      order.lng < slot.zone.minLng ||
-      order.lng > slot.zone.maxLng ||
-      slot.endsAt.getTime() - slot.startsAt.getTime() < minWindow * 60000
-    )
-      throw new ApiError(
-        422,
-        "AVAILABILITY_REQUIRED",
-        "Сонгосон хаяг эсвэл цагийн цонх боломжгүй байна",
-      );
-    const time = (date: Date) =>
-      new Intl.DateTimeFormat("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "Asia/Ulaanbaatar",
-      }).format(date);
-    if (order.timeSlot !== `${time(slot.startsAt)}-${time(slot.endsAt)}`)
-      throw new ApiError(
-        422,
-        "AVAILABILITY_REQUIRED",
-        "Цагийн цонх серверийн сул цагтай тохирохгүй байна",
-      );
-    const booked = await db.order.count({
-      where: {
-        id: { not: order.id },
-        zoneId: order.zoneId,
-        scheduledFor: order.scheduledFor,
-        status: { in: ["AWAITING_PAYMENT", "PAID", "ASSIGNED", "IN_PROGRESS"] },
-      },
-    });
-    if (booked >= slot.capacity)
-      throw new ApiError(
-        409,
-        "AVAILABILITY_REQUIRED",
-        "Сонгосон цаг дүүрсэн байна. Өөр цаг сонгоно уу",
-      );
-  }
+  await assertSlotAvailable(order, db);
   if (fixtureDataAllowed()) return;
   const fixturePrice = order.items.some((i) => i.service.isFixture);
   const questionnaires = questionnairesFor(order);
@@ -373,6 +316,73 @@ export async function assertNoFixtureDataInProduction(
       "Үнэ эсвэл аюулын шинжийн асуулга батлагдаагүй байгаа тул захиалга түр боломжгүй",
     );
   }
+}
+
+/**
+ * A v2 (S01-S10) order's time must be a free server slot in its zone, at the
+ * order's address (also used when the customer picks another time).
+ */
+export async function assertSlotAvailable(
+  order: Pick<OrderWithItems, "id" | "items" | "zoneId" | "scheduledFor" | "timeSlot" | "lat" | "lng">,
+  db: Prisma.TransactionClient = prisma,
+) {
+  if (!order.items.some((i) => /^S\d{2}$/.test(i.serviceCode))) return;
+  const slot = await db.availabilitySlot.findFirst({
+    where: {
+      zoneId: order.zoneId ?? "",
+      startsAt: order.scheduledFor ?? new Date(0),
+      zone: { isActive: true },
+    },
+    include: { zone: true },
+  });
+  const minWindow = Math.max(
+    ...order.items.map((i) =>
+      /^S\d{2}$/.test(i.serviceCode)
+        ? serviceConfig(i.service).windowMin
+        : 60,
+    ),
+  );
+  if (
+    !slot ||
+    order.lat === null ||
+    order.lng === null ||
+    order.lat < slot.zone.minLat ||
+    order.lat > slot.zone.maxLat ||
+    order.lng < slot.zone.minLng ||
+    order.lng > slot.zone.maxLng ||
+    slot.endsAt.getTime() - slot.startsAt.getTime() < minWindow * 60000
+  )
+    throw new ApiError(
+      422,
+      "AVAILABILITY_REQUIRED",
+      "Сонгосон хаяг эсвэл цагийн цонх боломжгүй байна",
+    );
+  const time = (date: Date) =>
+    new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ulaanbaatar",
+    }).format(date);
+  if (order.timeSlot !== `${time(slot.startsAt)}-${time(slot.endsAt)}`)
+    throw new ApiError(
+      422,
+      "AVAILABILITY_REQUIRED",
+      "Цагийн цонх серверийн сул цагтай тохирохгүй байна",
+    );
+  const booked = await db.order.count({
+    where: {
+      id: { not: order.id },
+      zoneId: order.zoneId,
+      scheduledFor: order.scheduledFor,
+      status: { in: ["AWAITING_PAYMENT", "PAID", "ASSIGNED", "IN_PROGRESS"] },
+    },
+  });
+  if (booked >= slot.capacity)
+    throw new ApiError(
+      409,
+      "AVAILABILITY_REQUIRED",
+      "Сонгосон цаг дүүрсэн байна. Өөр цаг сонгоно уу",
+    );
 }
 
 /** Server-side price from the current catalog. Integer MNT only. */

@@ -157,7 +157,7 @@ export async function notifyOrderCancelled(
 export function notifyNoNurseYet(order: { id: string; childId: string }): Promise<void> {
   return sendToUsers([order.childId], "client", {
     title: "Сувилагч хайсаар байна",
-    body: "Одоогоор сувилагч олдоогүй байна. Хүлээх эсвэл захиалгаа цуцалж төлбөрөө бүрэн буцаан авах боломжтой.",
+    body: "Одоогоор сувилагч олдоогүй байна. Хүлээх, өөр цаг сонгох эсвэл захиалгаа цуцалж төлбөрөө бүрэн буцаан авах боломжтой.",
     data: { type: "ORDER", orderId: order.id },
   });
 }
@@ -194,5 +194,14 @@ export function notifyPayout(nurseId: string, totalMnt: number): Promise<void> {
     title: "Орлого шилжүүллээ",
     body: `${totalMnt.toLocaleString("en-US")}₮ таны дансанд шилжүүлэгдлээ.`,
     data: { type: "EARNINGS" },
+  });
+}
+
+/** The customer moved a visit the nurse had taken: the nurse no longer has it. */
+export function notifyRescheduled(nurseId: string, orderId: string): Promise<void> {
+  return sendToUsers([nurseId], "nurse", {
+    title: "Дуудлагын цаг өөрчлөгдлөө",
+    body: "Үйлчлүүлэгч цагаа өөрчилсөн тул энэ дуудлага танаас хасагдлаа.",
+    data: { type: "ORDER", orderId },
   });
 }
