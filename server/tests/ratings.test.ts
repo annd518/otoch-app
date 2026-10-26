@@ -109,6 +109,11 @@ it("the customer rates a finished visit once; the nurse sees only the average", 
   const view = await api(srv.baseUrl, "GET", `/api/nurse/orders/${o.id}`, { token: nurse });
   assert.equal(view.status, 200, JSON.stringify(view.json));
   assert.equal(view.json.data.order.rating, null);
+  const staffView = await api(srv.baseUrl, "GET", `/api/staff/orders/${o.id}`, { token: nurse });
+  assert.equal(staffView.status, 200, JSON.stringify(staffView.json));
+  assert.equal(staffView.json.data.order.rating, null);
+  const adminView = await api(srv.baseUrl, "GET", `/api/staff/orders/${o.id}`, { token: admin });
+  assert.equal(adminView.json.data.order.rating.stars, 5);
 
   // the admin sees the comment and the average
   const detail = await api(srv.baseUrl, "GET", `/api/admin/nurses/${nurseId}`, { token: admin });

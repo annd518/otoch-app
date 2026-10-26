@@ -27,6 +27,11 @@ staffOrders.use(async (req: StaffRequest, _res, next) => {
 });
 const scope = (req: StaffRequest) =>
   req.user!.role === "NURSE" ? { assignedNurseId: req.user!.userId } : {};
+/** A nurse sees only their average (GET /api/nurse/me), never who rated what. */
+const view = (req: StaffRequest, order: Parameters<typeof serializeOrder>[0]) => {
+  const o = serializeOrder(order);
+  return req.user!.role === "NURSE" ? { ...o, rating: null, canRate: false } : o;
+};
 const administrator = (req: StaffRequest) => {
   if (req.user!.role !== "ADMIN")
     throw new ApiError(403, "FORBIDDEN", "Томилох эрх шаардлагатай");
@@ -66,7 +71,7 @@ staffOrders.get("/", async (req: StaffRequest, res) => {
       orders: rows
         .slice(0, 50)
         .map((o) => ({
-          ...serializeOrder(o),
+          ...view(req, o),
           patientName: o.parent.name,
           isMock: o.payments?.[0]?.mode === "mock",
         })),
@@ -85,7 +90,7 @@ staffOrders.get("/:id", async (req: StaffRequest, res) => {
   if (!order) throw new ApiError(404, "ORDER_NOT_FOUND", "Захиалга олдсонгүй");
   return ok(
     res,
-    { order: { ...serializeOrder(order), patientName: order.parent.name } },
+    { order: { ...view(req, order), patientName: order.parent.name } },
     "Захиалга",
   );
 });
@@ -208,5 +213,5 @@ for (const action of ["assign", "eta", "start", "complete"] as const)
     });
     if (action !== "eta") void notifyOrderStatus(updated);
     if (action === "assign") void notifyAssignedNurse(data.nurseId!, updated.id);
-    return ok(res, { order: serializeOrder(updated) }, "Захиалга шинэчлэгдлээ");
+    return ok(res, { order: view(req, updated) }, "Захиалга шинэчлэгдлээ");
   });
