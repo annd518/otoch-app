@@ -5,6 +5,7 @@ import { Router, Request } from "express";
 import { z } from "zod";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
+import { audit } from "../services/audit";
 import { bankAccount } from "../services/payouts";
 import { notifyPayout } from "../services/push";
 
@@ -110,6 +111,13 @@ adminPayouts.post("/", async (req: StaffRequest, res) => {
       },
     });
     await tx.payoutEntry.updateMany({ where: { id: { in: rows.map((r) => r.id) } }, data: { payoutId: created.id } });
+    await audit(tx, {
+      actorId: req.user!.userId,
+      action: "PAYOUT_RECORDED",
+      entity: "payout",
+      entityId: created.id,
+      after: { nurseId, totalMnt: total, visits: rows.length, reference },
+    });
     return created;
   });
   void notifyPayout(nurseId, payout.totalMnt);

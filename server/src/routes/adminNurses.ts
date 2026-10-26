@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
+import { audit } from "../services/audit";
 import { SKILL_TAGS } from "../services/nurseProvision";
 import { notifyApplication } from "../services/push";
 import {
@@ -159,6 +160,14 @@ adminNurses.get("/:id", async (req: StaffRequest, res) => {
 
 // GET /api/admin/nurses/:id/documents/:kind: the image itself (never a public URL)
 adminNurses.get("/:id/documents/:kind", async (req: StaffRequest, res) => {
+  // viewing identity documents is sensitive: every look is audited (spec slide 109)
+  await audit(prisma, {
+    actorId: req.user!.userId,
+    action: "NURSE_DOCUMENT_VIEWED",
+    entity: "nurse",
+    entityId: String(req.params.id),
+    after: { kind: String(req.params.kind) },
+  });
   await sendDocument(res, String(req.params.id), String(req.params.kind));
 });
 
@@ -221,6 +230,14 @@ adminNurses.post("/:id/approve", async (req: StaffRequest, res) => {
         note: parsed.data.note || null,
       },
     }),
+    audit(prisma, {
+      actorId: req.user!.userId,
+      action: "NURSE_APPROVED",
+      entity: "nurse",
+      entityId: p.userId,
+      before: { status: p.status },
+      after: { status: "VERIFIED", licenseNo: parsed.data.licenseNo, skillTags: parsed.data.skillTags },
+    }),
   ]);
   void notifyApplication(p.userId, "APPROVED");
   return ok(res, { nurse: serialize(await loadNurse(p.userId), now) }, "Сувилагч баталгаажлаа");
@@ -247,6 +264,14 @@ adminNurses.post("/:id/reject", async (req: StaffRequest, res) => {
     }),
     prisma.nurseReviewEvent.create({
       data: { nurseId: p.userId, actorId: req.user!.userId, action: "REJECTED", note: parsed.data.reason },
+    }),
+    audit(prisma, {
+      actorId: req.user!.userId,
+      action: "NURSE_REJECTED",
+      entity: "nurse",
+      entityId: p.userId,
+      before: { status: p.status },
+      after: { status: "REJECTED", reason: parsed.data.reason },
     }),
   ]);
   void notifyApplication(p.userId, "REJECTED");
@@ -278,6 +303,14 @@ adminNurses.post("/:id/suspend", async (req: StaffRequest, res) => {
     }),
     prisma.nurseReviewEvent.create({
       data: { nurseId: p.userId, actorId: req.user!.userId, action: "SUSPENDED", note: parsed.data.reason },
+    }),
+    audit(prisma, {
+      actorId: req.user!.userId,
+      action: "NURSE_SUSPENDED",
+      entity: "nurse",
+      entityId: p.userId,
+      before: { status: p.status },
+      after: { status: "SUSPENDED", reason: parsed.data.reason },
     }),
   ]);
   void notifyApplication(p.userId, "SUSPENDED");

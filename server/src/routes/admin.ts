@@ -4,10 +4,12 @@ import { z } from "zod";
 import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
+import { audit } from "../services/audit";
 import { adminNurses } from "./adminNurses";
 import { adminCancel } from "./adminCancel";
 import { adminPayouts } from "./adminPayouts";
 import { adminSettings } from "./adminSettings";
+import { adminAudit } from "./adminAudit";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -34,6 +36,7 @@ adminRoutes.use("/nurses", adminNurses);
 adminRoutes.use("/payouts", adminPayouts);
 adminRoutes.use(adminCancel);
 adminRoutes.use(adminSettings);
+adminRoutes.use(adminAudit);
 
 const UB_OFFSET_MS = 8 * 3600000;
 /** Start of the Ulaanbaatar calendar day / month that contains `now`. */
@@ -495,6 +498,13 @@ adminRoutes.post("/staff", async (req: StaffRequest, res) => {
     },
     select: { id: true, name: true, email: true, phone: true, role: true },
   });
+  await audit(prisma, {
+    actorId: req.user!.userId,
+    action: "STAFF_CREATED",
+    entity: "user",
+    entityId: user.id,
+    after: { name: user.name, email: user.email, role: user.role },
+  });
   return ok(res, { user }, "Ажилтан нэмэгдлээ", 201);
 });
 
@@ -596,6 +606,17 @@ adminRoutes.patch("/users/:id", async (req: StaffRequest, res) => {
         where: { userId: id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+    await audit(tx, {
+      actorId: req.user!.userId,
+      action: "STAFF_UPDATED",
+      entity: "user",
+      entityId: id,
+      before: { role: target.role, active: target.deletedAt === null },
+      after: {
+        role: role ?? target.role,
+        active: active ?? target.deletedAt === null,
+      },
+    });
   });
   const user = await prisma.user.findUniqueOrThrow({
     where: { id },
@@ -635,9 +656,13 @@ adminRoutes.post("/users/:id/password", async (req: StaffRequest, res) => {
       "CUSTOMER_NOT_MANAGED",
       "Захиалагчийн нууц үгийг энд өөрчлөхгүй",
     );
-  await prisma.user.update({
-    where: { id },
-    data: { password: await bcrypt.hash(p.data.password, 10) },
-  });
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id },
+      data: { password: await bcrypt.hash(p.data.password, 10) },
+    }),
+    // the password itself is never logged
+    audit(prisma, { actorId: req.user!.userId, action: "STAFF_PASSWORD_SET", entity: "user", entityId: id }),
+  ]);
   return ok(res, { updated: true }, "Нууц үг шинэчлэгдлээ");
 });

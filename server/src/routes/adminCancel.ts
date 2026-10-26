@@ -4,6 +4,7 @@ import { Router, Request } from "express";
 import { z } from "zod";
 import prisma from "../db/db.config";
 import { ApiError, ok, validationError } from "../utils/http";
+import { audit } from "../services/audit";
 import { cancelOrder, sendRefund } from "../services/cancellation";
 import { orderInclude, serializeOrder } from "../services/orders";
 
@@ -33,6 +34,13 @@ adminCancel.post("/orders/:id/cancel", async (req: StaffRequest, res) => {
     refundPercent: p.data.refundPercent,
   });
   const order = await prisma.order.findUniqueOrThrow({ where: { id }, include: orderInclude });
+  await audit(prisma, {
+    actorId: req.user!.userId,
+    action: "ORDER_CANCELLED",
+    entity: "order",
+    entityId: id,
+    after: { status: order.status, refundPercent: p.data.refundPercent, reason: p.data.reason },
+  });
   return ok(res, { order: serializeOrder(order) }, "Захиалга цуцлагдлаа");
 });
 
@@ -85,10 +93,20 @@ adminCancel.post("/refunds/:id/resolve", async (req: StaffRequest, res) => {
   const refund = await prisma.refund.findUnique({ where: { id: String(req.params.id) } });
   if (!refund) throw new ApiError(404, "REFUND_NOT_FOUND", "Буцаалт олдсонгүй");
   if (refund.status === "REFUNDED") throw new ApiError(409, "INVALID_STATUS", "Аль хэдийн буцаагдсан");
-  await prisma.refund.update({
-    where: { id: refund.id },
-    data: { status: "REFUNDED", resolvedById: req.user!.userId, resolvedNote: p.data.note },
-  });
+  await prisma.$transaction([
+    prisma.refund.update({
+      where: { id: refund.id },
+      data: { status: "REFUNDED", resolvedById: req.user!.userId, resolvedNote: p.data.note },
+    }),
+    audit(prisma, {
+      actorId: req.user!.userId,
+      action: "REFUND_RESOLVED",
+      entity: "refund",
+      entityId: refund.id,
+      before: { status: refund.status },
+      after: { status: "REFUNDED", amountMnt: refund.amountMnt, note: p.data.note },
+    }),
+  ]);
   return ok(res, null, "Буцаасан гэж тэмдэглэлээ");
 });
 
@@ -97,7 +115,16 @@ adminCancel.post("/refunds/:id/retry", async (req: StaffRequest, res) => {
   const refund = await prisma.refund.findUnique({ where: { id: String(req.params.id) } });
   if (!refund) throw new ApiError(404, "REFUND_NOT_FOUND", "Буцаалт олдсонгүй");
   if (refund.status !== "MANUAL_REQUIRED") throw new ApiError(409, "INVALID_STATUS", "Дахин оролдох боломжгүй");
-  await prisma.refund.update({ where: { id: refund.id }, data: { status: "PENDING", failureCode: null } });
+  await prisma.$transaction([
+    prisma.refund.update({ where: { id: refund.id }, data: { status: "PENDING", failureCode: null } }),
+    audit(prisma, {
+      actorId: req.user!.userId,
+      action: "REFUND_RETRIED",
+      entity: "refund",
+      entityId: refund.id,
+      before: { status: refund.status, failureCode: refund.failureCode },
+    }),
+  ]);
   await sendRefund(prisma, refund.id);
   const after = await prisma.refund.findUniqueOrThrow({ where: { id: refund.id } });
   return ok(res, { status: after.status, failureCode: after.failureCode }, "Дахин оролдлоо");

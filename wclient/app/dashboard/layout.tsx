@@ -48,7 +48,7 @@ const NAV: NavItem[] = [
   { href: "#reports", title: "Тайлан", icon: BarChart3, soon: true },
   { href: "#disputes", title: "Маргаан", icon: TriangleAlert, soon: true },
   { href: "/dashboard/admin/settings", title: "Тохиргоо", icon: Settings },
-  { href: "#audit", title: "Аудит лог", icon: History, soon: true },
+  { href: "/dashboard/admin/audit", title: "Аудит лог", icon: History },
 ];
 
 const REFRESH_MS = 60_000;
