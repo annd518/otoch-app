@@ -14,6 +14,7 @@ import {
   type SettingKey,
 } from "../services/settings";
 import { allow } from "../services/permissions";
+import { audit } from "../services/audit";
 
 interface StaffRequest extends Request {
   user?: { userId: string; role: string };
@@ -176,4 +177,54 @@ adminSettings.patch("/catalog/:id", allow("catalog.manage"), async (req: StaffRe
     return after;
   });
   return ok(res, { service: serializeService(updated) }, "Үйлчилгээ шинэчлэгдлээ");
+});
+
+// ---- Zones and their travel fee tier (spec slide 103 zone_fees). The zones
+// themselves come from the approved content import; only the tier is set here.
+
+// GET /api/admin/zones
+adminSettings.get("/zones", allow("catalog.view"), async (_req, res) => {
+  const [zones, settings] = await Promise.all([
+    prisma.serviceZone.findMany({ orderBy: { name: "asc" } }),
+    getSettings(prisma),
+  ]);
+  const fee = [0, settings.zoneFee1Mnt, settings.zoneFee2Mnt, settings.zoneFee3Mnt];
+  return ok(
+    res,
+    {
+      zones: zones.map((z) => ({
+        id: z.id,
+        name: z.name,
+        isActive: z.isActive,
+        feeTier: z.feeTier,
+        feeMnt: fee[z.feeTier] ?? 0,
+      })),
+      fees: { 1: fee[1], 2: fee[2], 3: fee[3] },
+    },
+    "Бүсүүд",
+  );
+});
+
+const zoneSchema = z.object({ feeTier: z.number().int().min(1).max(3) }).strict();
+
+// PATCH /api/admin/zones/:id {feeTier}
+adminSettings.patch("/zones/:id", allow("catalog.manage"), async (req: StaffRequest, res) => {
+  const p = zoneSchema.safeParse(req.body ?? {});
+  if (!p.success) throw validationError(p.error);
+  const id = String(req.params.id);
+  const zone = await prisma.$transaction(async (tx) => {
+    const before = await tx.serviceZone.findUnique({ where: { id } });
+    if (!before) throw new ApiError(404, "NOT_FOUND", "Бүс олдсонгүй");
+    const after = await tx.serviceZone.update({ where: { id }, data: { feeTier: p.data.feeTier } });
+    await audit(tx, {
+      actorId: req.user!.userId,
+      action: "ZONE_UPDATED",
+      entity: "zone",
+      entityId: id,
+      before: { feeTier: before.feeTier },
+      after: { feeTier: after.feeTier },
+    });
+    return after;
+  });
+  return ok(res, { zone: { id: zone.id, name: zone.name, feeTier: zone.feeTier } }, "Бүс шинэчлэгдлээ");
 });

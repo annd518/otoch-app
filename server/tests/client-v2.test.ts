@@ -659,3 +659,47 @@ it("two simultaneous capacity claims create only one invoice for a single slot",
     1,
   );
 });
+
+it("a zone's travel fee tier adds a fee line to the quote once the admin sets an amount", async () => {
+  // the slot test above filled the only place in this slot
+  await prisma.availabilitySlot.updateMany({ where: { zoneId: "TEST_V2_ZONE", startsAt }, data: { capacity: 100 } });
+  const admin = await createUser("ADMIN", "zone-admin");
+  const adminToken = await loginAs(srv.baseUrl, admin.email);
+  const put = (values: Record<string, number>) =>
+    api(srv.baseUrl, "PUT", "/api/admin/settings", { token: adminToken, body: { values } });
+  // no amounts set yet: the list price as before
+  const zones = await api(srv.baseUrl, "GET", "/api/admin/zones", { token: adminToken });
+  assert.equal(zones.status, 200, JSON.stringify(zones.json));
+  assert.equal(zones.json.data.zones.find((z: { id: string }) => z.id === "TEST_V2_ZONE").feeTier, 1);
+  const tier = await api(srv.baseUrl, "PATCH", "/api/admin/zones/TEST_V2_ZONE", { token: adminToken, body: { feeTier: 2 } });
+  assert.equal(tier.status, 200, JSON.stringify(tier.json));
+  assert.equal((await api(srv.baseUrl, "PATCH", "/api/admin/zones/TEST_V2_ZONE", { token: adminToken, body: { feeTier: 4 } })).status, 400);
+  const quote = async () => {
+    const r = await draft(form);
+    await clear(r.json.data.order.id);
+    return api(srv.baseUrl, "POST", `/api/orders/${r.json.data.order.id}/quote`, { token, body: {} });
+  };
+  const plain = await quote();
+  assert.equal(plain.json.data.quote.totalMnt, 25000);
+  assert.ok(plain.json.data.quote.excludes.includes("TRAVEL_FEE"));
+
+  assert.equal((await put({ zoneFee2Mnt: 5000 })).status, 200);
+  try {
+    const q = await quote();
+    assert.equal(q.status, 201, JSON.stringify(q.json));
+    const qt = q.json.data.quote;
+    assert.equal(qt.subtotalMnt, 25000);
+    assert.equal(qt.totalMnt, 30000);
+    assert.equal(qt.travelFeeMnt, 5000);
+    assert.equal(qt.pricingVersion, "LIST_PRICE_ZONE_FEE_V2");
+    assert.ok(!qt.excludes.includes("TRAVEL_FEE"));
+    const fee = qt.lines.find((l: { type: string }) => l.type === "TRAVEL_FEE");
+    assert.deepEqual(fee, { type: "TRAVEL_FEE", name: "Унааны зардал", zoneTier: 2, amountMnt: 5000 });
+    // the change is in the audit log
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { action: "ZONE_UPDATED", entityId: "TEST_V2_ZONE" } });
+    assert.deepEqual(log.after, { feeTier: 2 });
+  } finally {
+    await put({ zoneFee2Mnt: 0 });
+    await prisma.serviceZone.update({ where: { id: "TEST_V2_ZONE" }, data: { feeTier: 1 } });
+  }
+});

@@ -7,6 +7,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 export const AUDIT_ACTIONS = {
   SETTING_UPDATED: "Тохиргоо өөрчилсөн",
   CATALOG_UPDATED: "Каталог өөрчилсөн",
+  ZONE_UPDATED: "Бүсийн хураамжийн ангилал өөрчилсөн",
   NURSE_APPROVED: "Сувилагч баталгаажуулсан",
   NURSE_REJECTED: "Сувилагчийн өргөдөл татгалзсан",
   NURSE_SUSPENDED: "Сувилагч түдгэлзүүлсэн",
@@ -25,6 +26,7 @@ export type AuditAction = keyof typeof AUDIT_ACTIONS;
 export const AUDIT_ENTITIES = {
   setting: "Тохиргоо",
   service: "Үйлчилгээ",
+  zone: "Бүс",
   nurse: "Сувилагч",
   order: "Захиалга",
   refund: "Буцаалт",

@@ -7,7 +7,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 export interface SettingDef {
   label: string;
   hint: string;
-  unit: "%" | "цаг" | "мин" | "сек" | "сувилагч";
+  unit: "%" | "цаг" | "мин" | "сек" | "сувилагч" | "₮";
   default: number;
   min: number;
   max: number;
@@ -63,6 +63,33 @@ export const SETTING_DEFS = {
     default: 3,
     min: 1,
     max: 20,
+  },
+  // ⚑ Travel fee per zone tier (spec slide 103: zone_fees {1: 0, 2: 5000,
+  // 3: 10000}). Not approved, so 0 until the business sets them; with 0 the
+  // price is the list price as before.
+  zoneFee1Mnt: {
+    label: "Унааны зардал: 1-р бүс",
+    hint: "Төвийн бүсийн захиалгад нэмэх дүн (spec: 0₮).",
+    unit: "₮",
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+  },
+  zoneFee2Mnt: {
+    label: "Унааны зардал: 2-р бүс",
+    hint: "Дунд бүсийн захиалгад нэмэх дүн (spec: 5,000₮, ⚑ батлагдаагүй).",
+    unit: "₮",
+    default: 0,
+    min: 0,
+    max: 1_000_000,
+  },
+  zoneFee3Mnt: {
+    label: "Унааны зардал: 3-р бүс",
+    hint: "Алслагдсан бүсийн захиалгад нэмэх дүн (spec: 10,000₮, ⚑ батлагдаагүй).",
+    unit: "₮",
+    default: 0,
+    min: 0,
+    max: 1_000_000,
   },
   noNurseNoticeMin: {
     label: "«Сувилагч хайсаар байна» мэдэгдэл",

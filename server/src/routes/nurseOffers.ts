@@ -90,7 +90,8 @@ nurseOffers.get("/offers", async (req: NurseRequest, res) => {
           },
           earnings: quote
             ? {
-                nurseShareMnt: Math.floor((quote.subtotalMnt * share) / 100),
+                // the whole paid price, travel fee included (as in the payout ledger)
+                nurseShareMnt: Math.floor((quote.totalMnt * share) / 100),
                 sharePercent: share,
                 isFixture: quote.isFixture,
               }

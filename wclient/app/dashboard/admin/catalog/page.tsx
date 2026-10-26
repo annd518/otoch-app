@@ -187,6 +187,8 @@ export default function CatalogPage() {
         </div>
       )}
 
+      <Zones canEdit={canEdit} />
+
       {audit.length > 0 && (
         <section className="mt-8 max-w-3xl">
           <h2 className="mb-2 text-lg font-semibold text-gray-900">Өөрчлөлтийн түүх</h2>
@@ -201,5 +203,81 @@ export default function CatalogPage() {
         </section>
       )}
     </div>
+  );
+}
+
+type Zone = { id: string; name: string; isActive: boolean; feeTier: number; feeMnt: number };
+
+/** Travel fee tier per zone (spec slide 103 zone_fees); the amounts are in Тохиргоо. */
+function Zones({ canEdit }: { canEdit: boolean }) {
+  const [zones, setZones] = useState<Zone[] | null>(null);
+  const [fees, setFees] = useState<Record<string, number>>({});
+  const [error, setError] = useState("");
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    api
+      .get("/admin/zones")
+      .then((r) => {
+        if (!alive) return;
+        setZones(r.data.data.zones);
+        setFees(r.data.data.fees);
+      })
+      .catch((e) => alive && setError(errorMessage(e, "Бүсүүдийг ачаалж чадсангүй")));
+    return () => {
+      alive = false;
+    };
+  }, [version]);
+  const setTier = async (z: Zone, feeTier: number) => {
+    if (!window.confirm(`${z.name}: ${feeTier}-р ангилал (${formatMnt(fees[feeTier] ?? 0)}) болгох уу?`)) return;
+    try {
+      await api.patch(`/admin/zones/${encodeURIComponent(z.id)}`, { feeTier });
+      toast.success("Хадгалагдлаа");
+    } catch (e) {
+      setError(errorMessage(e, "Хадгалж чадсангүй"));
+    } finally {
+      setVersion((v) => v + 1);
+    }
+  };
+  return (
+    <section className="mt-8 max-w-3xl">
+      <h2 className="mb-1 text-lg font-semibold text-gray-900">Бүс, унааны зардал</h2>
+      <p className="mb-3 text-sm text-slate-600">
+        Бүс бүр 1–3 ангилалтай. Ангилал бүрийн дүнг «Тохиргоо» хуудаснаас өөрчилнө. 0₮ үед үнийн
+        саналд унааны зардал нэмэгдэхгүй.
+      </p>
+      {error && <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
+      {!zones ? (
+        <p className="text-sm text-slate-500">Ачаалж байна…</p>
+      ) : zones.length === 0 ? (
+        <p className="text-sm text-slate-600">Бүс бүртгэгдээгүй байна.</p>
+      ) : (
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
+          {zones.map((z) => (
+            <li key={z.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+              <span className="min-w-0">
+                <span className="font-medium text-gray-900">{z.name}</span>
+                {!z.isActive && <span className="ml-2 text-xs text-slate-500">(идэвхгүй)</span>}
+              </span>
+              <span className="flex items-center gap-2">
+                <select
+                  aria-label={`${z.name} ангилал`}
+                  disabled={!canEdit}
+                  value={z.feeTier}
+                  onChange={(e) => void setTier(z, Number(e.target.value))}
+                  className="rounded-md border border-gray-300 px-2 py-1"
+                >
+                  {[1, 2, 3].map((t) => (
+                    <option key={t} value={t}>
+                      {t}-р ангилал · {formatMnt(fees[t] ?? 0)}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

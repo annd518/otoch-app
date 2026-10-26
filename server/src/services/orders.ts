@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "../db/db.config";
 import { ApiError, FieldErrors } from "../utils/http";
 import { getStorage } from "./storage";
+import { getSettings } from "./settings";
 
 /**
  * Draft order domain helpers. Order is a PROPOSED separate model (docs/l1-1-api.md D2);
@@ -22,6 +23,24 @@ export const QUOTE_TTL_MINUTES = 15;
 // because none of them are approved (docs/l1-1-api.md D3).
 export const PRICING_VERSION = "LIST_PRICE_ONLY_V1";
 export const PRICE_EXCLUDES = ["TRAVEL_FEE", "DISCOUNT", "VAT"] as const;
+// List price plus the zone's travel fee (spec slide 103), used when the fee is above 0.
+export const PRICING_VERSION_ZONE_FEE = "LIST_PRICE_ZONE_FEE_V2";
+export const PRICE_EXCLUDES_ZONE_FEE = ["DISCOUNT", "VAT"] as const;
+export const pricingVersionFor = (travelFeeMnt: number) =>
+  travelFeeMnt > 0 ? PRICING_VERSION_ZONE_FEE : PRICING_VERSION;
+
+/** The travel fee for an order's zone: its tier's amount from the settings. */
+export async function travelFeeFor(
+  db: Pick<Prisma.TransactionClient, "serviceZone" | "setting">,
+  zoneId: string | null,
+): Promise<{ tier: number; amountMnt: number }> {
+  if (!zoneId) return { tier: 0, amountMnt: 0 };
+  const zone = await db.serviceZone.findUnique({ where: { id: zoneId }, select: { feeTier: true } });
+  if (!zone) return { tier: 0, amountMnt: 0 };
+  const s = await getSettings(db);
+  const amountMnt = [0, s.zoneFee1Mnt, s.zoneFee2Mnt, s.zoneFee3Mnt][zone.feeTier] ?? 0;
+  return { tier: zone.feeTier, amountMnt };
+}
 
 export const orderInclude = {
   parent: true,
@@ -118,11 +137,13 @@ export function serializeQuote(q: QuoteRow) {
     currency: q.currency,
     lines: q.lines,
     subtotalMnt: q.subtotalMnt,
-    // 0 = not included in this quote (no approved fee/discount rule yet, see `excludes`)
-    travelFeeMnt: 0,
+    // 0 with TRAVEL_FEE in `excludes` = not calculated; otherwise the zone fee line
+    travelFeeMnt: (q.lines as { type?: string; amountMnt?: number }[])
+      .filter((l) => l.type === "TRAVEL_FEE")
+      .reduce((s, l) => s + (l.amountMnt ?? 0), 0),
     discountMnt: 0,
     totalMnt: q.totalMnt,
-    excludes: PRICE_EXCLUDES,
+    excludes: q.pricingVersion === PRICING_VERSION_ZONE_FEE ? PRICE_EXCLUDES_ZONE_FEE : PRICE_EXCLUDES,
     isFixture: q.isFixture,
     expiresAt: q.expiresAt.toISOString(),
     // A quote is a price snapshot only — never a payment or an order confirmation
@@ -385,8 +406,14 @@ export async function assertSlotAvailable(
     );
 }
 
-/** Server-side price from the current catalog. Integer MNT only. */
-export function computeQuote(order: OrderWithItems) {
+/**
+ * Server-side price from the current catalog, plus the zone's travel fee when
+ * it is above 0 (travelFeeFor). Integer MNT only.
+ */
+export function computeQuote(
+  order: OrderWithItems,
+  travel: { tier: number; amountMnt: number } = { tier: 0, amountMnt: 0 },
+) {
   const lines = order.items.map((i) => {
     if (!Number.isInteger(i.service.priceMnt) || i.service.priceMnt < 0) {
       throw new ApiError(500, "INTERNAL_ERROR", "Каталогийн үнэ буруу байна");
@@ -402,12 +429,19 @@ export function computeQuote(order: OrderWithItems) {
     };
   });
   const subtotalMnt = lines.reduce((sum, l) => sum + l.amountMnt, 0);
-  if (!Number.isSafeInteger(subtotalMnt))
+  const totalMnt = subtotalMnt + travel.amountMnt;
+  if (!Number.isSafeInteger(totalMnt))
     throw new ApiError(500, "INTERNAL_ERROR", "Үнийн дүн хэт их байна");
   return {
-    lines,
+    lines: [
+      ...lines,
+      ...(travel.amountMnt > 0
+        ? [{ type: "TRAVEL_FEE", name: "Унааны зардал", zoneTier: travel.tier, amountMnt: travel.amountMnt }]
+        : []),
+    ],
     subtotalMnt,
-    totalMnt: subtotalMnt,
+    totalMnt,
+    pricingVersion: pricingVersionFor(travel.amountMnt),
     isFixture: lines.some((l) => l.isFixture),
   };
 }
