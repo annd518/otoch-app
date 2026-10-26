@@ -6,7 +6,7 @@ import prisma from "../db/db.config";
 import { authenticateToken } from "../middlwares/auth";
 import { ApiError, ok, validationError } from "../utils/http";
 import { requireNurse } from "./nurseOrders";
-import { NURSE_SHARE_PERCENT } from "../services/dispatch";
+import { getSettings, nurseSharePercent } from "../services/settings";
 import { bankAccount, earningsRange, ubDay } from "../services/payouts";
 import { ratingSummaries } from "../services/ratings";
 
@@ -30,7 +30,7 @@ nurseEarnings.get("/earnings", async (req: NurseRequest, res) => {
   if (!q.success) throw validationError(q.error);
   const nurseId = req.user!.userId;
   const period = earningsRange(q.data.range, q.data.offset);
-  const [entries, unpaid, payouts, ratings, profile] = await Promise.all([
+  const [entries, unpaid, payouts, ratings, profile, settings] = await Promise.all([
     prisma.payoutEntry.findMany({
       where: { nurseId, earnedAt: { gte: period.from, lt: period.to } },
       orderBy: { earnedAt: "desc" },
@@ -47,6 +47,7 @@ nurseEarnings.get("/earnings", async (req: NurseRequest, res) => {
     prisma.payout.findMany({ where: { nurseId }, orderBy: { paidAt: "desc" }, take: 10 }),
     ratingSummaries(prisma, [nurseId]),
     prisma.nurseProfile.findUnique({ where: { userId: nurseId } }),
+    getSettings(prisma),
   ]);
   const perDay = new Map(period.days.map((d) => [d, { netMnt: 0, visits: 0 }]));
   for (const e of entries) {
@@ -89,7 +90,7 @@ nurseEarnings.get("/earnings", async (req: NurseRequest, res) => {
         reference: p.reference,
       })),
       rating: ratings.get(nurseId)!,
-      sharePercent: NURSE_SHARE_PERCENT,
+      sharePercent: nurseSharePercent(settings),
       bank: bankAccount(profile),
     },
     "Орлого",

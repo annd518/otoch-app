@@ -664,3 +664,27 @@ model Payout {
 
   @@index([nurseId, paidAt])
 }
+
+// Business rules an admin changes without a deploy (spec slide 103 "settings"):
+// commission, cancellation, no-show wait, dispatch. Missing keys use the
+// defaults in services/settings.ts.
+model Setting {
+  key         String   @id
+  value       Int
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
+// Who changed what (spec slide 98 audit_log). Settings and catalog for now.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String // SETTING_UPDATED | CATALOG_UPDATED
+  entity    String // setting | service
+  entityId  String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, createdAt])
+}

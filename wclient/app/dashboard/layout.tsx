@@ -44,10 +44,10 @@ const NAV: NavItem[] = [
   { href: "/dashboard/admin/staff", title: "Сувилагч, ажилтан", icon: Stethoscope },
   { href: "/dashboard/admin/customers", title: "Үйлчлүүлэгч", icon: Users },
   { href: "/dashboard/admin/payouts", title: "Сувилагчийн төлбөр", icon: Wallet },
-  { href: "#catalog", title: "Каталог, үнэ, бүс", icon: Tag, soon: true },
+  { href: "/dashboard/admin/catalog", title: "Каталог, үнэ", icon: Tag },
   { href: "#reports", title: "Тайлан", icon: BarChart3, soon: true },
   { href: "#disputes", title: "Маргаан", icon: TriangleAlert, soon: true },
-  { href: "#settings", title: "Тохиргоо, эрх", icon: Settings, soon: true },
+  { href: "/dashboard/admin/settings", title: "Тохиргоо", icon: Settings },
   { href: "#audit", title: "Аудит лог", icon: History, soon: true },
 ];
 
