@@ -34,7 +34,7 @@ export default function Onboarding() {
   const { width } = useWindowDimensions();
   const [layoutWidth, setLayoutWidth] = useState(0);
   const pageWidth = layoutWidth || width || 390;
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [page, setPage] = useState(0);
   const [reduceMotion, setReduceMotion] = useState(false);
   const last = ONBOARDING_SLIDES.length - 1;

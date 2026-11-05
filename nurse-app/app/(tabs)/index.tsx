@@ -181,7 +181,7 @@ export default function CallsScreen() {
               variant="secondary"
               onPress={() => void loadMore()}
             />
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

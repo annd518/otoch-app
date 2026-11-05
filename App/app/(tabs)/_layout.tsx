@@ -9,6 +9,10 @@ import { StateView, Copy } from "@/components/ui";
 import { useBookingDraft } from "@/context/BookingDraftContext";
 import { apiService } from "@/services/api";
 import { enablePush, usePushNavigation } from "@/utils/pushNotifications";
+const hiddenTab = {
+  tabBarButton: () => null,
+  tabBarItemStyle: { display: "none" },
+} as const;
 export default function TabLayout() {
   const { width, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -168,8 +172,11 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="bookappointment" options={{ href: null }} />
-      <Tabs.Screen name="add-parent" options={{ href: null }} />
+      {/* Reachable screens without a tab button. Not `href: null`: since
+          expo-router 58 that marks the screen hidden, and navigating to a
+          hidden screen redirects to the first tab (home). */}
+      <Tabs.Screen name="bookappointment" options={hiddenTab} />
+      <Tabs.Screen name="add-parent" options={hiddenTab} />
     </Tabs>
   );
 }
