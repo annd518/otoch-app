@@ -37,6 +37,9 @@ import { storage } from "@/utils/storage";
 
 type Phase = { kind: "loading" } | { kind: "no_quote" } | RecoveryResult;
 
+// How long the "paid" confirmation stays before going home
+const PAID_REDIRECT_MS = 2000;
+
 // QPay invoice (docs/l1-1-api.md §7). "Paid" is shown only when the backend
 // returns PAID with paidAt; returning from a bank app is never a payment.
 // Recovery: the device remembers {key, quoteId, paymentId} per order and
@@ -204,6 +207,14 @@ export default function PaymentScreen() {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [phase, check]);
+
+  // Paid: show the confirmation briefly, then close the booking screens and go
+  // back to home, where the order shows as the active order.
+  useEffect(() => {
+    if (phase.kind !== "paid") return;
+    const t = setTimeout(() => router.dismissTo("/"), PAID_REDIRECT_MS);
+    return () => clearTimeout(t);
+  }, [phase.kind]);
 
   // Back from the bank app: check once right away (the in-flight guard stops doubles).
   useEffect(() => {
@@ -436,6 +447,7 @@ export default function PaymentScreen() {
                 ? "Бодит QPay эсвэл sandbox гүйлгээ биш. Мөнгө шилжээгүй."
                 : `Төлсөн: ${phase.paidAt}`}
             </Text>
+            <Text style={styles.muted}>Нүүр хуудас руу шилжиж байна…</Text>
           </View>
         )}
 
