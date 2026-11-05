@@ -11,6 +11,8 @@
     "test": "tsc -p tsconfig.test.json && node --test \".test-dist/tests/**/*.test.js\""
   },
   "dependencies": {
+    "@dicebear/avataaars": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
     "@expo-google-fonts/montserrat": "^0.4.2",
     "@expo-google-fonts/noto-sans": "^0.4.2",
     "@react-navigation/bottom-tabs": "^7.4.0",

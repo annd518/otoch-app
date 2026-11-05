@@ -13,7 +13,8 @@ import {
   StateView,
 } from "@/components/ui";
 import React, { useCallback, useState } from "react";
-import { Alert, AppState } from "react-native";
+import { Alert, AppState, View } from "react-native";
+import { AvatarView } from "@/components/AvatarView";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { apiService } from "@/services/api";
 import type { CancelTerms, Order } from "@/services/apiTypes";
@@ -326,7 +327,14 @@ export default function OrderDetail() {
           </Card>
           <Card>
             <SectionHeading icon={UserRound} title="Таны сувилагч" />
-            <Copy>{order.nurse?.name ?? "Томилогдоогүй"}</Copy>
+            {order.nurse ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <AvatarView avatar={order.nurse.avatar} name={order.nurse.name} size={56} />
+                <Copy variant="label">{order.nurse.name}</Copy>
+              </View>
+            ) : (
+              <Copy>Томилогдоогүй</Copy>
+            )}
             <Copy>
               {order.eta
                 ? `Ирэх хугацаа: ${timeLabel(order.eta)}`

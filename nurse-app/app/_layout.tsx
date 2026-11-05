@@ -59,6 +59,7 @@ function RootNavigator() {
           <Stack.Screen name="orders/[id]/reject" />
           <Stack.Screen name="orders/[id]/incident" />
           <Stack.Screen name="application" />
+          <Stack.Screen name="avatar" />
         </Stack.Protected>
         <Stack.Protected guard={user === null}>
           <Stack.Screen name="login" />

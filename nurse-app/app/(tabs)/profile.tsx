@@ -11,6 +11,10 @@ import { ScrollView, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../components/AppText";
+import { AvatarView } from "../../components/AvatarView";
+import { fetchMyAvatar } from "../../services/avatar";
+import { http } from "../../services/http";
+import type { AvatarParts } from "../../utils/avatarParts";
 import { Button } from "../../components/Button";
 import { DistrictPicker } from "../../components/DistrictPicker";
 import { ErrorBox } from "../../components/ErrorBox";
@@ -32,11 +36,20 @@ export default function ProfileScreen() {
   const { profile, error, busy, load, toggle, saveDistricts } = useProfile();
   // null = not editing
   const [districts, setDistricts] = useState<string[] | null>(null);
+  // the self-made avatar (optional), kept on the server
+  const [avatar, setAvatar] = useState<AvatarParts | null>(null);
   const router = useRouter();
 
   useFocusEffect(
     useCallback(() => {
       void load();
+      let active = true;
+      void fetchMyAvatar(http).then((r) => {
+        if (active && r.ok) setAvatar(r.data.avatar);
+      });
+      return () => {
+        active = false;
+      };
     }, [load]),
   );
 
@@ -47,12 +60,21 @@ export default function ProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.color.background }}>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 24 }}>
         <BrandHeader />
-        <Surface>
+        <Surface style={{ alignItems: "center", gap: 12, padding: 16 }}>
+          <AvatarView avatar={avatar} name={user?.name ?? "Сувилагч"} />
           <Intro
             title={user?.name ?? "Профайл"}
             description={user?.email}
             icon={UserRound}
           />
+          <Button
+            label={avatar ? "Аватар засах" : "Аватар зохиох"}
+            variant="secondary"
+            onPress={() => router.push("/avatar")}
+          />
+          <AppText variant="caption" color={theme.color.secondary}>
+            Аватар заавал биш.
+          </AppText>
         </Surface>
         {error ? <ErrorBox message={error} /> : null}
 

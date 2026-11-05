@@ -1,12 +1,13 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Linking, Image, View, Platform } from "react-native";
+import { Alert, Linking, View, Platform } from "react-native";
+import { AvatarView } from "@/components/AvatarView";
+import type { AvatarParts } from "@/utils/avatarParts";
 import { router, useFocusEffect } from "expo-router";
 import { apiService } from "@/services/api";
 import { storage } from "@/utils/storage";
 import * as ImagePicker from "expo-image-picker";
 import { getAvatar, saveAvatar, removeAvatar } from "@/utils/avatar";
 import { draftStore } from "@/utils/draftStore";
-import { theme } from "@/design/theme";
 import { useSingleFlight } from "@/components/useSingleFlight";
 import { SupportContactActions } from "@/components/SupportContactActions";
 import { useBookingDraft } from "@/context/BookingDraftContext";
@@ -24,11 +25,16 @@ export default function Profile() {
   const [user, setUser] = useState<AppUser | null>(null),
     [parents, setParents] = useState<Parent[]>([]),
     [message, setMessage] = useState(""),
-    [avatar, setAvatar] = useState<string | null>(null);
+    [avatar, setAvatar] = useState<string | null>(null),
+    // the self-made avatar, kept on the server (optional)
+    [drawn, setDrawn] = useState<AvatarParts | null>(null);
   const { dispatch } = useBookingDraft();
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      void apiService.getMyAvatar().then((r) => {
+        if (active && r.ok) setDrawn(r.data.avatar);
+      });
       void storage.getUser().then((u) => {
         if (!active) return;
         setUser(u);
@@ -107,12 +113,6 @@ export default function Profile() {
     user?.email === "child@demo.com"
       ? "99000001"
       : user?.email.match(/^976(\d{8})@phone\.otoch\.invalid$/)?.[1];
-  const initials = displayName
-    .trim()
-    .split(/\s+/)
-    .map((part) => Array.from(part)[0])
-    .slice(0, 2)
-    .join("");
   const logout = async () => {
     // before the session ends: the server needs it to drop this phone's token
     await disablePush((token) => apiService.unregisterPush(token));
@@ -134,35 +134,23 @@ export default function Profile() {
     <Screen title="Нүүр хуудас" back={false}>
       <Card>
         <View style={{ alignItems: "center", gap: 12 }}>
-          {avatar ? (
-            <Image
-              source={{ uri: avatar }}
-              accessibilityLabel="Таны аватар"
-              style={{ width: 112, height: 112, borderRadius: 56 }}
-              onError={() => {
-                setAvatar(null);
-                setMessage("Зургийг харуулж чадсангүй. Дахин сонгоно уу.");
-              }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 112,
-                height: 112,
-                borderRadius: 56,
-                backgroundColor: theme.color.surface,
-                ...theme.depth.raised,
-                borderWidth: 2,
-                borderColor: theme.color.background,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Copy variant="title">{initials}</Copy>
-            </View>
-          )}
+          <AvatarView
+            photoUri={avatar}
+            avatar={drawn}
+            name={displayName}
+            onPhotoError={() => {
+              setAvatar(null);
+              setMessage("Зургийг харуулж чадсангүй. Дахин сонгоно уу.");
+            }}
+          />
           <Copy variant="heading">{displayName}</Copy>
         </View>
+        <Button
+          secondary
+          title={drawn ? "Аватар засах" : "Аватар зохиох"}
+          disabled={!user}
+          onPress={() => router.push("/avatar")}
+        />
         <Button
           secondary
           title={avatar ? "Зураг солих" : "Өөрийн зураг сонгох"}
@@ -172,7 +160,10 @@ export default function Profile() {
             void chooseAvatar.run("choose");
           }}
         />
-        <Copy variant="caption">Зураг энэ төхөөрөмжид хадгалагдана.</Copy>
+        <Copy variant="caption">
+          Зураг, аватар хоёул заавал биш. Зураг энэ төхөөрөмжид хадгалагдана;
+          зураг сонгоогүй бол аватар харагдана.
+        </Copy>
         {avatar && (
           <Button
             secondary

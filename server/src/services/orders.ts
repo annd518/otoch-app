@@ -4,6 +4,7 @@ import prisma from "../db/db.config";
 import { ApiError, FieldErrors } from "../utils/http";
 import { getStorage } from "./storage";
 import { getSettings } from "./settings";
+import { readAvatar } from "./avatar";
 
 /**
  * Draft order domain helpers. Order is a PROPOSED separate model (docs/l1-1-api.md D2);
@@ -45,7 +46,7 @@ export async function travelFeeFor(
 export const orderInclude = {
   parent: true,
   payments: { orderBy: { createdAt: "desc" }, take: 1 },
-  assignedNurse: { select: { name: true } },
+  assignedNurse: { select: { name: true, avatar: true } },
   events: { orderBy: { createdAt: "asc" } },
   items: { include: { service: true }, orderBy: { serviceCode: "asc" } },
   attachments: { where: { status: "ACTIVE" }, orderBy: { createdAt: "asc" } },
@@ -173,7 +174,10 @@ export function serializeOrder(order: OrderWithItems) {
     parentId: order.parentId,
     bookingForm: order.bookingForm,
     zoneId: order.zoneId,
-    nurse: order.assignedNurse,
+    nurse: order.assignedNurse && {
+      name: order.assignedNurse.name,
+      avatar: readAvatar(order.assignedNurse.avatar),
+    },
     isMock: order.payments[0]?.mode === "mock",
     eta: order.eta?.toISOString() ?? null,
     timeline: order.events
