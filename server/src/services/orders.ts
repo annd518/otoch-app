@@ -340,22 +340,35 @@ export async function assertNoFixtureDataInProduction(
 }
 
 /**
- * A v2 (S01-S10) order's time must be a free server slot in its zone, at the
- * order's address (also used when the customer picks another time).
+ * A v2 (S01-S10) order can be booked at any time, 24/7 (no slot table): the
+ * address must lie in an active service zone and the time window must start
+ * at scheduledFor and be at least the service's window long (also used when
+ * the customer picks another time). The 2-hour lead is checked by callers.
  */
 export async function assertSlotAvailable(
   order: Pick<OrderWithItems, "id" | "items" | "zoneId" | "scheduledFor" | "timeSlot" | "lat" | "lng">,
   db: Prisma.TransactionClient = prisma,
 ) {
   if (!order.items.some((i) => /^S\d{2}$/.test(i.serviceCode))) return;
-  const slot = await db.availabilitySlot.findFirst({
-    where: {
-      zoneId: order.zoneId ?? "",
-      startsAt: order.scheduledFor ?? new Date(0),
-      zone: { isActive: true },
-    },
-    include: { zone: true },
-  });
+  const zone = order.zoneId
+    ? await db.serviceZone.findFirst({
+        where: { id: order.zoneId, isActive: true },
+      })
+    : null;
+  if (
+    !zone ||
+    order.lat === null ||
+    order.lng === null ||
+    order.lat < zone.minLat ||
+    order.lat > zone.maxLat ||
+    order.lng < zone.minLng ||
+    order.lng > zone.maxLng
+  )
+    throw new ApiError(
+      422,
+      "AVAILABILITY_REQUIRED",
+      "Сонгосон хаяг үйлчилгээний бүсээс гадуур байна",
+    );
   const minWindow = Math.max(
     ...order.items.map((i) =>
       /^S\d{2}$/.test(i.serviceCode)
@@ -363,46 +376,30 @@ export async function assertSlotAvailable(
         : 60,
     ),
   );
-  if (
-    !slot ||
-    order.lat === null ||
-    order.lng === null ||
-    order.lat < slot.zone.minLat ||
-    order.lat > slot.zone.maxLat ||
-    order.lng < slot.zone.minLng ||
-    order.lng > slot.zone.maxLng ||
-    slot.endsAt.getTime() - slot.startsAt.getTime() < minWindow * 60000
-  )
-    throw new ApiError(
-      422,
-      "AVAILABILITY_REQUIRED",
-      "Сонгосон хаяг эсвэл цагийн цонх боломжгүй байна",
-    );
   const time = (date: Date) =>
     new Intl.DateTimeFormat("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
+      hourCycle: "h23",
       timeZone: "Asia/Ulaanbaatar",
     }).format(date);
-  if (order.timeSlot !== `${time(slot.startsAt)}-${time(slot.endsAt)}`)
+  const minutes = (hhmm: string) =>
+    Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+  const window = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(order.timeSlot ?? "");
+  // the window may end after midnight ("23:00-01:00")
+  const length = window
+    ? (minutes(window[2]) - minutes(window[1]) + 1440) % 1440
+    : 0;
+  if (
+    !order.scheduledFor ||
+    !window ||
+    window[1] !== time(order.scheduledFor) ||
+    length < minWindow
+  )
     throw new ApiError(
       422,
       "AVAILABILITY_REQUIRED",
-      "Цагийн цонх серверийн сул цагтай тохирохгүй байна",
-    );
-  const booked = await db.order.count({
-    where: {
-      id: { not: order.id },
-      zoneId: order.zoneId,
-      scheduledFor: order.scheduledFor,
-      status: { in: ["AWAITING_PAYMENT", "PAID", "ASSIGNED", "IN_PROGRESS"] },
-    },
-  });
-  if (booked >= slot.capacity)
-    throw new ApiError(
-      409,
-      "AVAILABILITY_REQUIRED",
-      "Сонгосон цаг дүүрсэн байна. Өөр цаг сонгоно уу",
+      "Цагийн цонх буруу байна. Цагаа дахин сонгоно уу",
     );
 }
 

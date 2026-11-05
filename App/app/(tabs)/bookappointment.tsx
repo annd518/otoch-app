@@ -11,7 +11,7 @@ import {
   Stepper,
   StateView,
 } from "@/components/ui";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 import { router, Redirect, useFocusEffect } from "expo-router";
 import { syncPendingBlocks } from "@/services/blockSync";
@@ -25,7 +25,7 @@ import {
   validateDetails,
 } from "@/services/bookingDraft";
 import type { BookingForm, Parent } from "@/services/apiTypes";
-import type { Slot, Zone } from "@/services/clientV2";
+import type { Zone } from "@/services/clientV2";
 import { createIdempotencyKey } from "@/utils/id";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { useSingleFlight } from "@/components/useSingleFlight";
@@ -67,12 +67,6 @@ const choiceStyle = {
   alignItems: "center",
   justifyContent: "center",
 } as const;
-const time = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Ulaanbaatar",
-  }).format(new Date(iso));
 export default function Booking() {
   const { state, dispatch } = useBookingDraft();
   const { details, service } = state;
@@ -87,17 +81,7 @@ export default function Booking() {
   const [step, setStep] = useState(1),
     [parents, setParents] = useState<Parent[]>([]),
     [zones, setZones] = useState<Zone[]>([]),
-    [slotResult, setSlotResult] = useState<{ key: string; slots: Slot[] }>({
-      key: "",
-      slots: [],
-    }),
     [error, setError] = useState("");
-  const slotQueryKey =
-    details.zoneId && details.date && service
-      ? `${details.zoneId}:${details.date}:${service.code}`
-      : "";
-  const slots = slotResult.key === slotQueryKey ? slotResult.slots : [];
-  const slotsLoading = !!slotQueryKey && slotResult.key !== slotQueryKey;
   const [acceptedAt] = useState(() => new Date().toISOString());
   // What is typed in the expiry field; the form only keeps a complete, real date
   const [expiryText, setExpiryText] = useState(() =>
@@ -136,20 +120,6 @@ export default function Booking() {
       };
     }, []),
   );
-  useEffect(() => {
-    let active = true;
-    if (!details.zoneId || !details.date || !service) return;
-    void apiService
-      .availability(details.zoneId, details.date, service.code)
-      .then((r) => {
-        if (!active) return;
-        setSlotResult({ key: slotQueryKey, slots: r.ok ? r.data : [] });
-        if (!r.ok) setError(r.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [details.zoneId, details.date, service, slotQueryKey]);
   // Saves the draft on the server (create or update) without leaving the
   // screen; null when it could not be saved (the error is shown).
   const persist = useCallback(async (): Promise<{
@@ -404,7 +374,10 @@ export default function Booking() {
               үйлчилгээний бүс доторх хаягт сувилагч очно.
             </Banner>
           )}
-          <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
+          <Copy>
+            24 цагийн аль ч цагт захиална. Цагууд Улаанбаатарын цагаар, хамгийн
+            эрт 2 цагийн дараа.
+          </Copy>
           <BookingCalendar
             date={details.date}
             slot={details.timeSlot}
@@ -415,45 +388,10 @@ export default function Booking() {
                 patch: { date, timeSlot: "" },
               });
             }}
-            onTime={(slot) => {
-              const available = slots.find(
-                (s) => time(s.startsAt) === slot.slice(0, 5),
-              );
-              dispatch({
-                type: "updateDetails",
-                patch: {
-                  timeSlot: available
-                    ? `${time(available.startsAt)}-${time(available.endsAt)}`
-                    : slot,
-                },
-              });
-            }}
+            onTime={(timeSlot) =>
+              dispatch({ type: "updateDetails", patch: { timeSlot } })
+            }
           />
-          {slots.length > 0 && (
-            <Copy>Тухайн өдрийн сул цагууд:</Copy>
-          )}
-          {slotsLoading ? (
-            <StateView title="Сул цаг шалгаж байна" loading />
-          ) : (
-            slots.map((slot) => (
-              <Chip
-                key={slot.id}
-                label={`${time(slot.startsAt)}–${time(slot.endsAt)}`}
-                selected={
-                  details.timeSlot ===
-                  `${time(slot.startsAt)}-${time(slot.endsAt)}`
-                }
-                onPress={() =>
-                  dispatch({
-                    type: "updateDetails",
-                    patch: {
-                      timeSlot: `${time(slot.startsAt)}-${time(slot.endsAt)}`,
-                    },
-                  })
-                }
-              />
-            ))
-          )}
 
           {stepOneMissing.length > 0 && (
             <Copy variant="caption">{`Дутуу: ${stepOneMissing.join(", ")}`}</Copy>

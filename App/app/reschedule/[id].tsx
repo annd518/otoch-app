@@ -1,31 +1,30 @@
-// Another time for a paid order (spec slide 25: "өөр цаг"). Only the server's
-// free slots in the order's zone can be picked; the price does not change.
+// Another time for a paid order (spec slide 25: "өөр цаг"). Any time 24/7 can
+// be picked (at least 2 hours ahead); the price does not change.
 import React, { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Banner, Button, Chip, Copy, Screen, StateView } from "@/components/ui";
+import { Banner, Button, Copy, Screen, StateView } from "@/components/ui";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { dateTimeLabel } from "@/design/dateLabels";
 import { apiService } from "@/services/api";
 import type { Order } from "@/services/apiTypes";
-import type { Slot } from "@/services/clientV2";
 import { RESCHEDULABLE } from "@/services/orders";
 import { ulaanbaatarDate } from "@/utils/datetime";
 
-const time = (iso: string) =>
-  new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Ulaanbaatar",
-  }).format(new Date(iso));
-const windowOf = (s: Slot) => `${time(s.startsAt)}-${time(s.endsAt)}`;
+const minutes = (hhmm: string) =>
+  Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+// The new window keeps the order's current length ("09:00-11:00" -> 120)
+const windowLength = (timeSlot: string | null | undefined) => {
+  const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(timeSlot ?? "");
+  const length = m ? (minutes(m[2]) - minutes(m[1]) + 1440) % 1440 : 0;
+  return length > 0 ? length : 60;
+};
 
 export default function Reschedule() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [order, setOrder] = useState<Order | null>(null),
     [date, setDate] = useState(""),
-    [slots, setSlots] = useState<{ key: string; slots: Slot[] } | null>(null),
-    [chosen, setChosen] = useState<Slot | null>(null),
+    [chosen, setChosen] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
 
@@ -45,28 +44,13 @@ export default function Reschedule() {
 
   const zoneId = order?.zoneId ?? null;
   const serviceCode = order?.serviceCodes[0] ?? null;
-  const key = `${zoneId}|${date}|${serviceCode}`;
-  useEffect(() => {
-    let active = true;
-    if (!zoneId || !date || !serviceCode) return;
-    void apiService.availability(zoneId, date, serviceCode).then((r) => {
-      if (!active) return;
-      setSlots({ key, slots: r.ok ? r.data : [] });
-      if (!r.ok) setError(r.message);
-    });
-    return () => {
-      active = false;
-    };
-  }, [zoneId, date, serviceCode, key]);
-  const daySlots = slots?.key === key ? slots.slots : null;
-  // the order's own current slot is not a "new" time
-  const choices = (daySlots ?? []).filter((s) => s.startsAt !== order?.scheduledFor);
+  const startsAt = date && chosen ? `${date}T${chosen.slice(0, 5)}:00+08:00` : "";
 
   const confirm = () => {
-    if (!order || !chosen) return;
+    if (!order || !startsAt) return;
     Alert.alert(
       "Цаг өөрчлөх үү?",
-      `Шинэ цаг: ${dateTimeLabel(chosen.startsAt)}.` +
+      `Шинэ цаг: ${dateTimeLabel(startsAt)}.` +
         (order.status === "ASSIGNED"
           ? " Одоогийн сувилагч энэ цагт ирэх эсэх тодорхойгүй тул сувилагчийг дахин хайна."
           : " Сувилагчийг шинэ цагт хайна.") +
@@ -78,13 +62,13 @@ export default function Reschedule() {
     );
   };
   const save = async () => {
-    if (!order || !chosen) return;
+    if (!order || !startsAt) return;
     setBusy(true);
     setError("");
     const r = await apiService.rescheduleOrder(order.id, {
       version: order.version,
-      scheduledFor: chosen.startsAt,
-      timeSlot: windowOf(chosen),
+      scheduledFor: startsAt,
+      timeSlot: chosen,
     });
     setBusy(false);
     if (r.ok) {
@@ -92,10 +76,10 @@ export default function Reschedule() {
       return;
     }
     setError(r.message);
-    // a newer version or a slot taken meanwhile: show the current state
+    // a newer version meanwhile: show the current state
     const fresh = await apiService.getOrder(order.id);
     if (fresh.ok) setOrder(fresh.data);
-    setChosen(null);
+    setChosen("");
   };
 
   return (
@@ -124,36 +108,18 @@ export default function Reschedule() {
               Сувилагч томилогдсон байна. Цагаа өөрчилбөл шинэ цагт сувилагчийг дахин хайна.
             </Banner>
           )}
-          <Copy>Цагууд Улаанбаатарын цагаар. Хамгийн эрт 2 цагийн дараа.</Copy>
+          <Copy>24 цагийн аль ч цагт. Цагууд Улаанбаатарын цагаар, хамгийн эрт 2 цагийн дараа.</Copy>
           <BookingCalendar
             date={date}
-            slot={chosen ? windowOf(chosen) : ""}
-            durationMin={60}
+            slot={chosen}
+            durationMin={windowLength(order.timeSlot)}
             onDate={(d) => {
               setDate(d);
-              setChosen(null);
+              setChosen("");
             }}
-            onTime={(slot) => setChosen(choices.find((s) => time(s.startsAt) === slot.slice(0, 5)) ?? null)}
+            onTime={setChosen}
           />
-          {!date ? (
-            <Copy>Өдрөө сонгоно уу.</Copy>
-          ) : daySlots === null ? (
-            <StateView title="Сул цаг шалгаж байна" loading />
-          ) : choices.length === 0 ? (
-            <Copy>Энэ өдөр сул цаг алга. Өөр өдөр сонгоно уу.</Copy>
-          ) : (
-            <>
-              <Copy>Тухайн өдрийн сул цагууд:</Copy>
-              {choices.map((s) => (
-                <Chip
-                  key={s.id}
-                  label={`${time(s.startsAt)}–${time(s.endsAt)}`}
-                  selected={chosen?.id === s.id}
-                  onPress={() => setChosen(s)}
-                />
-              ))}
-            </>
-          )}
+          {!date && <Copy>Өдрөө сонгоно уу.</Copy>}
         </>
       )}
     </Screen>
