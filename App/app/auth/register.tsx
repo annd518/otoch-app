@@ -207,7 +207,6 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
         <View style={{ padding: 20, backgroundColor: theme.color.surface }}>
-          {" "}
           <TouchableOpacity
             style={[
               styles.primaryButton,
