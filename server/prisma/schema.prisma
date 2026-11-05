@@ -31,6 +31,8 @@ model User {
   role           Role
   adminRole      AdminRole? // set exactly when role = ADMIN (DB check)
   phone          String? @unique
+  // optional self-made avatar (face, hair, beard, ...); see services/avatar.ts
+  avatar         Json?
   deletedAt      DateTime?
   refreshSessions RefreshSession[]
   pushDevices     PushDevice[]

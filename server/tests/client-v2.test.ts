@@ -597,14 +597,12 @@ it("availability rejects an invalid calendar date and excludes a short window fo
   assert.equal(short.status, 200);
   assert.deepEqual(short.json.data.slots, []);
 });
-it("two simultaneous capacity claims create only one invoice for a single slot", async () => {
+it("any time is bookable 24/7: two bookings of the same time without a slot both get an invoice", async () => {
   // tomorrow 14:00-15:00 UB: "now + 24 h" crossed midnight when the suite ran
   // after 23:00 UB, and the draft was refused (same cause as `startsAt` above)
   const start = new Date(startsAt.getTime() + 4 * 3600000),
     end = new Date(start.getTime() + 3600000);
-  await prisma.availabilitySlot.create({
-    data: { zoneId: "TEST_V2_ZONE", startsAt: start, endsAt: end, capacity: 1 },
-  });
+  // no availabilitySlot row for this time: slots no longer limit bookings
   const time = (d: Date) =>
     new Intl.DateTimeFormat("en-GB", {
       hour: "2-digit",
@@ -649,22 +647,20 @@ it("two simultaneous capacity claims create only one invoice for a single slot",
       }),
     ),
   );
-  assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [201, 201]);
   assert.equal(
     await prisma.payment.count({ where: { orderId: { in: ids } } }),
-    1,
+    2,
   );
   assert.equal(
     await prisma.order.count({
       where: { id: { in: ids }, status: "AWAITING_PAYMENT" },
     }),
-    1,
+    2,
   );
 });
 
 it("a zone's travel fee tier adds a fee line to the quote once the admin sets an amount", async () => {
-  // the slot test above filled the only place in this slot
-  await prisma.availabilitySlot.updateMany({ where: { zoneId: "TEST_V2_ZONE", startsAt }, data: { capacity: 100 } });
   const admin = await createUser("ADMIN", "zone-admin");
   const adminToken = await loginAs(srv.baseUrl, admin.email);
   const put = (values: Record<string, number>) =>

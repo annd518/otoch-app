@@ -128,7 +128,6 @@ export default function EmergencyScreen() {
       <View
         style={{ padding: 20, gap: 12, backgroundColor: theme.color.surface }}
       >
-        {" "}
         <TouchableOpacity
           style={styles.callButton}
           onPress={() => void call()}

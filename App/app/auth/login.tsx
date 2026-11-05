@@ -163,7 +163,6 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
         <View style={{ padding: 20, backgroundColor: theme.color.surface }}>
-          {" "}
           <TouchableOpacity
             style={[
               styles.primaryButton,

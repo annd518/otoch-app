@@ -314,39 +314,9 @@ export const createQPayPayment = async (
           "Захиалга өөрчлөгдсөн байна. Шинэ үнийн санал авна уу",
         );
       }
-      if (/^S\d{2}$/.test(lockedOrder.items[0]?.serviceCode ?? "")) {
-        // Serialize capacity claims in the same transaction as payment/order status.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${lockedOrder.zoneId}:${lockedOrder.scheduledFor?.toISOString()}`}))`;
-        const slot = await tx.availabilitySlot.findFirst({
-          where: {
-            zoneId: lockedOrder.zoneId ?? "",
-            startsAt: lockedOrder.scheduledFor ?? new Date(0),
-          },
-        });
-        const booked = await tx.order.count({
-          where: {
-            id: { not: lockedOrder.id },
-            zoneId: lockedOrder.zoneId,
-            scheduledFor: lockedOrder.scheduledFor,
-            status: {
-              in: [
-                "AWAITING_PAYMENT",
-                "PAID",
-                "ASSIGNED",
-                "EN_ROUTE",
-                "IN_PROGRESS",
-              ],
-            },
-          },
-        });
+      // Any time is bookable (24/7, no slot capacity); zone and window are re-checked here.
+      if (/^S\d{2}$/.test(lockedOrder.items[0]?.serviceCode ?? ""))
         await assertNoFixtureDataInProduction(lockedOrder, tx);
-        if (!slot || booked >= slot.capacity)
-          throw new ApiError(
-            409,
-            "AVAILABILITY_REQUIRED",
-            "Сонгосон цаг дүүрсэн байна",
-          );
-      }
       const created = await tx.payment.create({
         data: {
           orderId: lockedOrder.id,

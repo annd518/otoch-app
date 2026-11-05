@@ -11,6 +11,7 @@ import {
 import { otpApi } from "./otp";
 import { clientV2 } from "./clientV2";
 import { router } from "expo-router";
+import { parseAvatar, type AvatarParts } from "../utils/avatarParts";
 
 import { API_PATHS } from "../config/api";
 import { createMockBackend } from "../mocks/mockBackend";
@@ -212,6 +213,26 @@ export const apiService = {
     }
   },
   ...clientV2(client),
+  // The self-made avatar (optional): null = none
+  getMyAvatar: () =>
+    client.request({
+      method: "GET",
+      path: "/api/users/me/avatar",
+      parse: (data) =>
+        typeof data === "object" && data !== null && "avatar" in data
+          ? { avatar: parseAvatar(data.avatar) }
+          : null,
+    }),
+  saveMyAvatar: (avatar: AvatarParts | null) =>
+    client.request({
+      method: "PUT",
+      path: "/api/users/me/avatar",
+      body: { avatar },
+      parse: (data) =>
+        typeof data === "object" && data !== null && "avatar" in data
+          ? { avatar: parseAvatar(data.avatar) }
+          : null,
+    }),
   updateProfile: (name: string) =>
     client.request({
       method: "PUT",

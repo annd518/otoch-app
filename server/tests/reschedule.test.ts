@@ -88,31 +88,42 @@ const move = (token: string, o: { id: string; version: number }, start: Date, sl
     body: { version: o.version, scheduledFor: start.toISOString(), timeSlot: slot },
   });
 
-it("a paid order without a nurse moves to a free slot; dispatch starts over", async () => {
+it("a paid order without a nurse moves to any time (24/7); dispatch starts over", async () => {
   const o = await order("PAID", slotStart(6));
   await prisma.orderOffer.create({ data: { orderId: o.id, nurseId, wave: 1, status: "EXPIRED", expiresAt: new Date() } });
   assert.equal((await move(otherChild, o, slotA)).status, 404);
   assert.equal((await move(child, { ...o, version: 99 }, slotA)).json.error.code, "VERSION_CONFLICT");
-  // not a server slot / wrong window / too soon
-  assert.equal((await move(child, o, slotStart(40))).json.error.code, "AVAILABILITY_REQUIRED");
-  assert.equal((await move(child, o, slotA, "09:00-10:00")).json.error.code, "AVAILABILITY_REQUIRED");
+  // window not starting at the time / shorter than the service / too soon
+  const at = slotStart(40);
+  assert.equal((await move(child, o, at, `${ub(new Date(at.getTime() + HOUR))}-${ub(new Date(at.getTime() + 2 * HOUR))}`)).json.error.code, "AVAILABILITY_REQUIRED");
+  assert.equal((await move(child, o, at, `${ub(at)}-${ub(new Date(at.getTime() + 30 * 60000))}`)).json.error.code, "AVAILABILITY_REQUIRED");
   assert.equal((await move(child, o, new Date(Date.now() + HOUR))).json.error.code, "AVAILABILITY_REQUIRED");
 
-  const r = await move(child, o, slotA);
+  // a time with no server slot is accepted
+  const r = await move(child, o, at);
   assert.equal(r.status, 200, JSON.stringify(r.json));
-  assert.equal(r.json.data.order.scheduledFor, slotA.toISOString());
+  assert.equal(r.json.data.order.scheduledFor, at.toISOString());
   assert.equal(r.json.data.order.status, "PAID");
   // the expired offer is gone, so that nurse can be asked again for the new time
   assert.equal(await prisma.orderOffer.count({ where: { orderId: o.id } }), 0);
   const ev = await prisma.orderEvent.findFirstOrThrow({ where: { orderId: o.id, type: "RESCHEDULE" } });
-  assert.equal((ev.metadata as { to: string }).to, slotA.toISOString());
+  assert.equal((ev.metadata as { to: string }).to, at.toISOString());
 });
 
-it("a full slot is refused", async () => {
-  await order("PAID", slotFull); // takes the only place
+it("a time already booked by another order is still accepted (no slot capacity)", async () => {
+  await order("PAID", slotFull);
   const o = await order("PAID", slotStart(8));
   const r = await move(child, o, slotFull);
-  assert.equal(r.status, 409);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+});
+
+it("an address outside every active zone is refused", async () => {
+  const o = await prisma.order.update({
+    where: { id: (await order("PAID", slotStart(9))).id },
+    data: { lat: 10, lng: 10 },
+  });
+  const r = await move(child, o, slotStart(60));
+  assert.equal(r.status, 422);
   assert.equal(r.json.error.code, "AVAILABILITY_REQUIRED");
 });
 

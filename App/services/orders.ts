@@ -2,6 +2,7 @@
 // Pure: takes an HttpClient, no React Native imports.
 import { isRecord, markNotImplemented, type ApiResult } from "./apiResult";
 import { parseQuote } from "./validators";
+import { parseAvatar } from "../utils/avatarParts";
 import type {
   Attachment,
   BookingForm,
@@ -291,7 +292,9 @@ export function parseOrder(data: unknown): Order | null {
         )
       : [],
     nurse:
-      isRecord(o.nurse) && text(o.nurse.name) ? { name: o.nurse.name } : null,
+      isRecord(o.nurse) && text(o.nurse.name)
+        ? { name: o.nurse.name, avatar: parseAvatar(o.nurse.avatar) }
+        : null,
     eta: text(o.eta) ? o.eta : null,
     cancellation: parseCancellation(o.cancellation),
     rating: parseRating(o.rating),

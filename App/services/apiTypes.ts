@@ -1,5 +1,6 @@
 // Shared API types. Field names follow the current server code and the
 // backend proposal in docs/l1-1-api.md (not yet approved).
+import type { AvatarParts } from "../utils/avatarParts";
 
 export const USER_ROLES = ["CHILD", "NURSE", "MEDICAL_ADMIN", "ADMIN"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
@@ -199,7 +200,7 @@ export interface Order {
   isMock?: boolean;
   attachments?: Attachment[];
 
-  nurse?: { name: string } | null;
+  nurse?: { name: string; avatar?: AvatarParts | null } | null;
   eta?: string | null;
   timeline?: { id: string; status: string; at: string }[];
   // set once the order is cancelled (server/src/services/cancellation.ts)

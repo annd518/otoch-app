@@ -67,7 +67,8 @@
           "cameraPermission": "Бүртгэлийн баримт болон цээж зургаа авахад камер ашиглах шаардлагатай.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,
